@@ -31,6 +31,7 @@ Entwickler ist **Mika** (Anfänger): kurz erklären, was gemacht wird und warum,
 - **Testdaten (Seed) nur in `brinkmann-dev`**, nie in Live. Das Seed-Skript bricht ab, wenn nicht `APP_ENV=development` gesetzt ist.
 - Mobile-first für Mitarbeiter: große Buttons (mind. 48 px), wenig Text, keine verschachtelten Menüs (Plancraft war den Mitarbeitern zu kompliziert).
 - Formulare dürfen Eingaben nicht verlieren, wenn das Senden fehlschlägt: lokal zwischenspeichern und erneut senden. Ein Offline-Modus wird nicht gebaut.
+- **Formulare mit kontrollierten Feldern (useState) nie mit `<form action={…}>` abschicken**, sondern mit `onSubmit={(e) => abschicken(e, aktion)}` aus `src/lib/formular.ts`. Grund: React setzt das Formular sonst nach dem Speichern zurück, ein `<select>` zeigt dann den alten Wert, und beim nächsten Speichern wird dieser falsche Wert geschickt. Dieser Fehler ist in 0.4 im Browser aufgefallen.
 
 ## Tech-Stack
 - **Next.js 16** (App Router, TypeScript, `src/`, Turbopack), React 19. Achtung: In Next 16 heißt `middleware.ts` jetzt `proxy.ts`. Vor neuem Next-Code die Doku in `node_modules/next/dist/docs/` lesen (siehe AGENTS.md).
@@ -77,6 +78,13 @@ Entwickler ist **Mika** (Anfänger): kurz erklären, was gemacht wird und warum,
 - **Deaktivieren** = `profiles.aktiv = false` + Supabase-User bannen + `nutzer_sessions_beenden()`. **Aktivieren** = Bann aufheben + `aktiv = true`.
 - Schutz: Ein Admin kann sich nicht selbst die Admin-Rolle nehmen oder sich deaktivieren, und es bleibt immer mindestens ein aktiver Admin.
 - Passwort vergessen → Admin setzt ein neues (danach muss der Nutzer es wieder ändern).
+- **Nutzerverwaltung** (`/buero/einstellungen/benutzer`, nur Admin, Aktionen in `actions.ts` daneben):
+  - Anlegen mit vorgeschlagenem Benutzernamen und lesbarem Startpasswort (`startpasswortErzeugen()`, z. B. `Pinsel-Deich-Walze-47`). Die Zugangsdaten werden **nur einmal** angezeigt (Kopieren-Knopf) und nirgends gespeichert.
+  - Bearbeiten: Name, Telefon, E-Mail, Rolle. Der Benutzername ist nicht änderbar. Die eigene Rolle ist gesperrt.
+  - Passwort zurücksetzen: neues Startpasswort, `muss_passwort_aendern = true`, alle Sessions beenden.
+  - Sperren/Entsperren, jeweils mit Bestätigungsschritt. Sich selbst sperren geht nicht.
+  - Profil-Änderungen laufen über den Client des eingeloggten Admins (RLS, Admin-Schutz-Trigger, Protokoll mit `geaendert_von`). Der Admin-Client wird nur für Supabase Auth benutzt (anlegen, Passwort, Bann).
+  - Eingaben werden serverseitig mit zod geprüft (`src/lib/nutzer-schema.ts`).
 
 ## Datenmodell
 Legende: ✅ angelegt · ⏳ kommt in der genannten Phase
@@ -124,7 +132,7 @@ Legende: ✅ angelegt · ⏳ kommt in der genannten Phase
 - [x] 0.1 CLAUDE.md, Git, Next.js + Tailwind + shadcn/ui, deutsche Formatierung
 - [x] 0.2 Supabase-Migration: Basistabellen + RLS + Audit, Test der Fake-Login-Adresse
 - [x] 0.3 Login (Benutzername), Pflicht-Passwortwechsel, Rollen, Layouts (Sidebar/Bottom-Nav, Umschalter), Skript `admin:anlegen`
-- [ ] 0.4 Nutzerverwaltung (nur Admin) + Skript für den ersten Admin
+- [x] 0.4 Nutzerverwaltung (nur Admin): anlegen, bearbeiten, Rolle ändern, Passwort zurücksetzen, sperren/entsperren
 - [ ] 0.5 PWA + Hinweis „Neue Version – neu laden“
 - [ ] 0.6 Seed-Daten + RLS-Tests
 - [ ] 0.7 Deployment (GitHub → Vercel → Supabase) + `docs/SETUP.md`
@@ -176,7 +184,8 @@ Firmendaten, Logo/Briefpapier, Nummernkreise (nur Angebote/Projekte, Rechnungen 
 - `npm run lint`: ESLint
 - `npm test`: Unit-Tests einmal ausführen (Vitest, Dateien `src/**/*.test.ts`)
 - `npm run test:watch`: Tests im Beobachtungsmodus
-- `npm run test:rls`: Datenbank-/Rechte-Tests gegen `brinkmann-dev` (`tests/rls/`, lädt `.env.local`, legt Wegwerf-Nutzer an und löscht sie wieder). Supabase begrenzt Logins auf ca. 30 pro 5 Minuten und IP, also nicht im Dauerlauf starten.
+- `npm run test:rls`: Datenbank-/Rechte-Tests gegen `brinkmann-dev` (`tests/rls/`, lädt `.env.local`, legt Wegwerf-Nutzer `test-…` an und löscht sie wieder). Supabase begrenzt Logins auf ca. 30 pro 5 Minuten und IP, also nicht im Dauerlauf starten.
+- In `brinkmann-dev` gibt es Mikas echten Admin-Zugang `mikabrinkmann`. Tests und Browser-Prüfungen dürfen ihn **nie** ändern oder löschen, sie nutzen nur eigene Wegwerf-Nutzer.
 - `npm run db:push`: neue Migrationen ins verknüpfte Supabase-Projekt einspielen (vorher mit `npx supabase db push --dry-run` prüfen)
 - `npm run db:types`: TypeScript-Typen neu erzeugen → `src/lib/supabase/database.types.ts` (nach jeder Migration)
 - `npm run admin:anlegen [-- <env-datei>]`: Admin-Zugang anlegen (interaktiv, verdeckte Passworteingabe, braucht ein echtes Terminal). Standard ist `.env.local`.
@@ -190,14 +199,16 @@ Firmendaten, Logo/Briefpapier, Nummernkreise (nur Angebote/Projekte, Rechnungen 
   - `/login`, `/passwort-aendern`: ohne App-Layout. `/` leitet je nach Rolle weiter.
   - `(mitarbeiter)/`: `/heute`, `/baustellen`, `/zeiten`, `/mehr`. Bottom-Navigation, für alle Rollen. Admin/Büro sehen oben das Band „Zurück ins Büro“.
   - `buero/`: `/buero`, `/buero/plantafel`, `/projekte`, `/kontakte`, `/zeiten`. Sidebar (am Handy ausklappbares Menü), nur Admin/Büro.
-  - `buero/einstellungen/`: nur Admin (eigenes Layout mit `requireRole(["admin"])`), darunter `benutzer/`.
+  - `buero/einstellungen/`: nur Admin (eigenes Layout mit `requireRole(["admin"])`), darunter `benutzer/` (Liste), `benutzer/neu`, `benutzer/[id]`.
 - `src/proxy.ts`: Session-Erneuerung + Login-Pflicht (in Next 16 statt `middleware.ts`)
 - `src/lib/auth.ts`: `ladeSitzung()`, `requireUser()`, `requireRole()` (server-only). `src/lib/auth-aktionen.ts`: `abmelden()`
 - `src/lib/rollen.ts`: Typ `Rolle`, `ROLLEN_NAMEN`, `BUERO_ROLLEN`, `startseiteFuer()` (auch im Browser nutzbar)
 - `src/lib/env.ts`: Umgebungsvariablen mit verständlicher Fehlermeldung
 - `src/lib/supabase/server.ts`: Client mit Nutzer-Rechten. `admin.ts`: Client mit Secret Key (server-only)
 - `src/components/layout/`: `UntereNavigation`, `BueroNavigation`, `BueroMobilMenue`, `NutzerBereich`
-- `src/components/`: `PasswortFeld` (mit Auge), `FormularMeldung`, `Platzhalter`, `AppLogo`
+- `src/components/`: `PasswortFeld` (mit Auge), `FormularMeldung`, `Platzhalter`, `AppLogo`, `Feld` + `Auswahl` (Beschriftung/Hinweis bzw. natives Select, 48 px)
+- `src/lib/formular.ts`: `abschicken()` für Formulare mit kontrollierten Feldern
+- `src/lib/passwort.ts`: `startpasswortErzeugen()`. `src/lib/nutzer-schema.ts`: zod-Schemas für die Nutzerverwaltung
 - `scripts/admin-anlegen.ts`: ersten Admin anlegen
 - `src/components/ui/`: shadcn/ui-Komponenten
 - `src/lib/format.ts`: deutsche Formatierung (`formatDatum`, `formatDatumZeit`, `formatUhrzeit`, `formatBetrag`, `formatZahl`; leere Werte → „–“)

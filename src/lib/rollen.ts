@@ -9,6 +9,9 @@ export const ROLLEN_NAMEN: Record<Rolle, string> = {
   mitarbeiter: "Mitarbeiter",
 };
 
+export const ROLLEN_BESCHREIBUNG =
+  "Mitarbeiter: nur die Mitarbeiter-App. Büro: Projekte, Kontakte, Plantafel, Zeiten aller. Admin: alles inkl. Einstellungen und Benutzer.";
+
 export const BUERO_ROLLEN = ["admin", "buero"] as const satisfies readonly Rolle[];
 
 export function istBueroRolle(rolle: Rolle): boolean {

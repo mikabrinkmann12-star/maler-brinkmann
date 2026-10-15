@@ -30,11 +30,15 @@ export class NutzerFehler extends Error {}
  * Schlägt das fehl, wird der Login wieder entfernt.
  *
  * `admin` muss ein Client mit Secret Key sein. Nur serverseitig aufrufen!
+ * `profilClient`: In der App der Client des eingeloggten Admins, damit im
+ * Änderungsprotokoll steht, WER den Nutzer angelegt hat. In Skripten/Tests
+ * reicht der Admin-Client.
  */
 export async function nutzerAnlegen(
   admin: SupabaseClient,
   loginDomain: string,
   neu: NeuerNutzer,
+  profilClient: SupabaseClient = admin,
 ): Promise<string> {
   if (neu.passwort.length < MIN_PASSWORT_LAENGE) {
     throw new NutzerFehler(
@@ -58,7 +62,7 @@ export async function nutzerAnlegen(
   }
 
   const id = data.user.id;
-  const { error: profilFehler } = await admin
+  const { error: profilFehler } = await profilClient
     .from("profiles")
     .update({
       benutzername: normalisiereBenutzername(neu.benutzername),
