@@ -1,0 +1,9 @@
+# Einheitliche Zeilenenden (LF) im Repo und im Arbeitsordner
+* text=auto eol=lf
+
+# Binärdateien nie verändern
+*.ico binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
