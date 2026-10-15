@@ -86,7 +86,8 @@ Entwickler ist **Mika** (Anfänger): kurz erklären, was gemacht wird und warum,
 - **Erster Login** → Pflicht-Passwortwechsel (mind. **10 Zeichen**, nicht das Startpasswort). Das Flag setzt erst der Server zurück, nachdem `auth.updateUser` erfolgreich war.
 - Man bleibt **immer eingeloggt**, es gibt keinen „Eingeloggt bleiben“-Schalter. Abmelden geht nur auf dem aktuellen Gerät (`signOut({ scope: "local" })`).
 - Ablauf im Code: `src/proxy.ts` erneuert bei jeder Anfrage die Session und schickt Nicht-Eingeloggte nach `/login`. `ladeSitzung()` liefert `abgemeldet` / `gesperrt` (Profil per RLS nicht lesbar = deaktiviert) / `ok`. `requireUser()` leitet entsprechend um: `/login`, `/login?grund=gesperrt` oder `/passwort-aendern`.
-- Login-Fehler: Es gibt immer dieselbe Meldung für „Benutzer unbekannt“ und „falsches Passwort“. Bei Bann (`user_banned`) erscheint „Zugang gesperrt“, bei Rate-Limit (429) „Zu viele Versuche“.
+- Login-Fehler: „Benutzername oder Passwort ist falsch“ erscheint **nur** bei `invalid_credentials` (gilt für unbekannten Benutzer und falsches Passwort gleichermaßen). Bei Bann (`user_banned`) erscheint „Zugang gesperrt“, bei Rate-Limit (429) „Zu viele Versuche“. **Alles andere** (z. B. „Invalid API key“, fehlende Variable) zeigt „technischer Fehler“ und wird mit `console.error("[login] …")` ins Vercel-Protokoll geschrieben. Hintergrund: Vorher sah ein falscher Vercel-Key aus wie ein falsches Passwort.
+- Ob die Online-App die richtige Datenbank nutzt, testet man so: Anmeldung mit falschem Passwort ergibt „falsch“ (Verbindung ok), ein dev-Demo-Zugang wird abgelehnt (also nicht dev).
 - **Deaktivieren** = `profiles.aktiv = false` + Supabase-User bannen + `nutzer_sessions_beenden()`. **Aktivieren** = Bann aufheben + `aktiv = true`.
 - Schutz: Ein Admin kann sich nicht selbst die Admin-Rolle nehmen oder sich deaktivieren, und es bleibt immer mindestens ein aktiver Admin.
 - Passwort vergessen → Admin setzt ein neues (danach muss der Nutzer es wieder ändern).
@@ -149,7 +150,8 @@ Legende: ✅ angelegt · ⏳ kommt in der genannten Phase
 - [x] 0.6 Seed-Daten (`npm run seed`) + RLS-Tests für Projekte, Kunden, Mitglieder, Fahrzeuge, Status (37 DB-Tests)
 - [x] 0.7 Deployment (GitHub → Vercel → Supabase live) + `docs/SETUP.md`
 - Vercel-Variablen: Production → live, Preview → dev (seit 15.10.2026, Kontrolle mit `npx vercel@latest env ls`). `LOGIN_EMAIL_DOMAIN` gilt für beide.
-- Offen bei Mika: Admin-Zugänge in live (`npm run admin:anlegen -- .env.live`)
+- Live-Admin für Mika: `mika.brinkmann` (angelegt 15.10.2026, Login auf dem iPhone getestet). Offen: Zugang für Ralf (in der App unter Benutzer & Rollen).
+- `.env.live` (nicht im Repo) enthält die live-Zugangsdaten für Skripte wie `admin:anlegen`. Die Keys holt man mit `npx supabase projects api-keys --project-ref tezveryzixrysviapmal --reveal`.
 
 ### Phase 1 – Mitarbeiter-App
 - Startseite „Heute“: Auto, Baustelle, wer ist dabei, Adresse (Link zu Google Maps), Ansprechpartner, Notizen vom Büro
