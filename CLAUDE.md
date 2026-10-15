@@ -57,7 +57,8 @@ Entwickler ist **Mika** (Anfänger): kurz erklären, was gemacht wird und warum,
 | Live | `brinkmann-live` (Ref `tezveryzixrysviapmal`, echte Daten, nie Seed) | Production (`main`) → **https://maler-brinkmann-23nr.vercel.app** |
 
 - GitHub: `github.com/mikabrinkmann12-star/maler-brinkmann` (privat). Commits mit der anonymen Adresse `296533198+mikabrinkmann12-star@users.noreply.github.com`.
-- Vercel-Team „maler“. Jeder Push auf `main` wird automatisch deployed (dauert ca. 2–3 Minuten). `vercel.json`: `framework: nextjs` (sonst 404, siehe docs/SETUP.md), Region `fra1`.
+- Vercel-Team „maler“, Projekt `maler-brinkmann-23nr` (Ordner per `vercel link` verknüpft, `.vercel/` ist nicht im Repo). Mika ist in der Vercel-Befehlszeile angemeldet (`npx vercel@latest …`), damit lassen sich z. B. Variablen (`env ls`) und Deployments prüfen. Jeder Push auf `main` wird automatisch deployed (dauert ca. 2–3 Minuten).
+- Vercel-Variablen nicht im Dashboard bearbeiten, wenn dort „affect multiple environments“ steht: Das ändert auch Production. Gezielt per API bzw. Befehlszeile ändern. `vercel.json`: `framework: nextjs` (sonst 404, siehe docs/SETUP.md), Region `fra1`.
 - Migrationen müssen in **beide** Supabase-Projekte: erst dev, nach dem Test live (Ablauf in docs/SETUP.md, danach immer wieder mit dev verknüpfen).
 - Ausführliche Einrichtung: `docs/SETUP.md`.
 
@@ -147,7 +148,8 @@ Legende: ✅ angelegt · ⏳ kommt in der genannten Phase
 - [x] 0.5 PWA (Manifest, Icons, Service Worker), Hinweis „Neue Version – neu laden“, „App installieren“ unter Mehr
 - [x] 0.6 Seed-Daten (`npm run seed`) + RLS-Tests für Projekte, Kunden, Mitglieder, Fahrzeuge, Status (37 DB-Tests)
 - [x] 0.7 Deployment (GitHub → Vercel → Supabase live) + `docs/SETUP.md`
-- Offen bei Mika: Preview-Variablen in Vercel auf dev umstellen, Admin-Zugänge in live (`npm run admin:anlegen -- .env.live`)
+- Vercel-Variablen: Production → live, Preview → dev (seit 15.10.2026, Kontrolle mit `npx vercel@latest env ls`). `LOGIN_EMAIL_DOMAIN` gilt für beide.
+- Offen bei Mika: Admin-Zugänge in live (`npm run admin:anlegen -- .env.live`)
 
 ### Phase 1 – Mitarbeiter-App
 - Startseite „Heute“: Auto, Baustelle, wer ist dabei, Adresse (Link zu Google Maps), Ansprechpartner, Notizen vom Büro
@@ -246,7 +248,6 @@ Firmendaten, Logo/Briefpapier, Nummernkreise (nur Angebote/Projekte, Rechnungen 
 - Vercel **Pro** (Hobby ist nur für nicht-kommerzielle Nutzung)
 - Supabase **Pro** für `brinkmann-live` (tägliche Backups) + zusätzlicher Export + Restore-Anleitung
 - AVV/DPA mit Supabase und Vercel abschließen
-- Preview-Variablen in Vercel zeigen auf `brinkmann-dev`, nur Production auf live
 - Admin-Zugänge für Ralf und Mika in live
 
 ## Offene Fragen

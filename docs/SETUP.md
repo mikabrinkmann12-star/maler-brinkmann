@@ -133,12 +133,30 @@ Commits laufen unter der anonymen Adresse
 fälschlich als statische Seite („Other“) eingerichtet. Dann liefert Vercel nur `public/` aus,
 und alle Seiten geben **404: NOT_FOUND**.
 
-### Danach: Vorschau-Versionen auf dev umleiten (wichtig!)
-Vercel baut für jeden anderen Branch eine **Preview**. Die darf nie mit echten Daten arbeiten.
-**Settings → Environment Variables:**
-1. Bei den drei Supabase-Variablen auf **Edit** gehen und nur **Production** anhaken.
-2. Die drei Variablen nochmal mit den **brinkmann-dev**-Werten anlegen, diesmal nur für **Preview**.
-3. Den Schlüssel `SUPABASE_SECRET_KEY` jeweils als **Sensitive** markieren.
+### Vorschau-Versionen arbeiten mit dev (ist eingerichtet)
+Vercel baut für jeden anderen Branch als `main` eine **Preview**. Die darf nie mit echten Daten
+arbeiten. Aktueller Stand (eingerichtet am 15.10.2026):
+
+| Variable | Production | Preview |
+|---|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | live | dev |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | live | dev |
+| `SUPABASE_SECRET_KEY` | live (Secret) | dev (Secret) |
+| `LOGIN_EMAIL_DOMAIN` | gemeinsam | gemeinsam |
+
+Kontrolle jederzeit mit der Vercel-Befehlszeile (einmalig `npx.cmd vercel@latest login`):
+```bash
+npx.cmd vercel@latest env ls
+```
+
+⚠️ **Vorsicht im Dashboard** (Settings → Environments → Production/Preview): Erscheint beim
+Bearbeiten der Hinweis *„Editing this environment variable will affect multiple environments“*,
+gilt die Variable für mehrere Umgebungen. Speichern ändert dann **alle**, also auch Production!
+Geheime („Secret“) Werte zeigt Vercel nach dem Speichern nie wieder an.
+
+Der Projektordner ist mit Vercel verknüpft (Ordner `.vercel/`, nicht im Repo). Dabei hat Vercel
+eine Zeile `VERCEL_OIDC_TOKEN` an `.env.local` angehängt. Die ist harmlos und wird nicht
+benutzt.
 
 ### Region
 `vercel.json` legt die Server-Funktionen nach **Frankfurt (`fra1`)**, nah an der Datenbank.
