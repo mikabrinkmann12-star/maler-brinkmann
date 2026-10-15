@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { BriefcaseIcon, KeyRoundIcon, LogOutIcon } from "lucide-react";
+import { AppInstallieren } from "@/components/app-installieren";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { requireUser } from "@/lib/auth";
 import { abmelden } from "@/lib/auth-aktionen";
@@ -50,6 +51,8 @@ export default async function MehrSeite() {
           </Button>
         </form>
       </div>
+
+      <AppInstallieren />
     </div>
   );
 }

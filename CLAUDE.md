@@ -42,7 +42,13 @@ Entwickler ist **Mika** (Anfänger): kurz erklären, was gemacht wird und warum,
 - Formulare: `react-hook-form` + `zod`. Toasts: `sonner`.
 - Tests: **Vitest**
 - **Hosting: Vercel**, Functions-Region `fra1`. Jeder Push auf `main` wird automatisch deployed.
-- **PWA**: Manifest, Icons, schlanker Service Worker ohne Offline-Cache. Hinweis „Neue Version – neu laden“ über `/api/version`.
+- **PWA** (Schritt 0.5):
+  - `src/app/manifest.ts` („Maler Brinkmann“, standalone, theme `#171717`). Icons liegen in `public/icons/` (192, 512, maskable 512), dazu `src/app/icon.png` (Tab) und `src/app/apple-icon.png` (iPhone). Alle werden per `npm run icons` aus dem Platzhalter „MB“ erzeugt. Fürs echte Logo `scripts/icons-erzeugen.ts` anpassen.
+  - `public/sw.js`: bewusst ohne Offline-Cache und ohne fetch-Handler. Er ist die Grundlage für spätere Push-Benachrichtigungen und wird nie gecacht (Header in `next.config.ts`).
+  - **Update-Hinweis:** `NEXT_PUBLIC_APP_VERSION` = `VERCEL_DEPLOYMENT_ID` bzw. `VERCEL_GIT_COMMIT_SHA` (lokal fest „lokal“, also dort nie ein Hinweis). `PwaHelfer` (Root-Layout) fragt `/api/version` beim Start, beim Zurückholen der App, bei „online“ und alle 5 Minuten ab. Bei Abweichung erscheint unten „Neue Version – Neu laden“.
+  - „App installieren“ unter Mehr (`AppInstallieren`): Knopf, wenn Chrome `beforeinstallprompt` anbietet, sonst eine Anleitung (⋮ → App installieren). Bei installierter App ein Häkchen.
+  - Sicherheits-Header für alle Seiten: `X-Content-Type-Options`, `X-Frame-Options: DENY`, `Referrer-Policy`.
+- Links im Button-Stil immer mit `buttonVariants(…)` aus `@/components/ui/button` (läuft durch `cn`, sonst heben sich Klassen wie der Rahmen auf).
 
 ## Umgebungen
 | | Supabase-Projekt | Vercel |
@@ -133,7 +139,7 @@ Legende: ✅ angelegt · ⏳ kommt in der genannten Phase
 - [x] 0.2 Supabase-Migration: Basistabellen + RLS + Audit, Test der Fake-Login-Adresse
 - [x] 0.3 Login (Benutzername), Pflicht-Passwortwechsel, Rollen, Layouts (Sidebar/Bottom-Nav, Umschalter), Skript `admin:anlegen`
 - [x] 0.4 Nutzerverwaltung (nur Admin): anlegen, bearbeiten, Rolle ändern, Passwort zurücksetzen, sperren/entsperren
-- [ ] 0.5 PWA + Hinweis „Neue Version – neu laden“
+- [x] 0.5 PWA (Manifest, Icons, Service Worker), Hinweis „Neue Version – neu laden“, „App installieren“ unter Mehr
 - [ ] 0.6 Seed-Daten + RLS-Tests
 - [ ] 0.7 Deployment (GitHub → Vercel → Supabase) + `docs/SETUP.md`
 
@@ -189,7 +195,8 @@ Firmendaten, Logo/Briefpapier, Nummernkreise (nur Angebote/Projekte, Rechnungen 
 - `npm run db:push`: neue Migrationen ins verknüpfte Supabase-Projekt einspielen (vorher mit `npx supabase db push --dry-run` prüfen)
 - `npm run db:types`: TypeScript-Typen neu erzeugen → `src/lib/supabase/database.types.ts` (nach jeder Migration)
 - `npm run admin:anlegen [-- <env-datei>]`: Admin-Zugang anlegen (interaktiv, verdeckte Passworteingabe, braucht ein echtes Terminal). Standard ist `.env.local`.
-- Skripte in `scripts/` laufen mit `tsx`, das die `@/`-Pfade versteht.
+- `npm run icons`: App-Icons neu erzeugen (`scripts/icons-erzeugen.ts`, sharp)
+- Skripte in `scripts/` laufen mit `tsx`, das die `@/`-Pfade versteht. Kein `await` auf oberster Ebene, stattdessen `main()`.
 - Zeigt der Dev-Server nach Änderungen Fehler wie „… is not a function“, obwohl `npm run build` sauber ist: Dev-Server neu starten.
 - Supabase-CLI: `npx supabase …`. Mika ist eingeloggt (`supabase login`), der Ordner ist mit `brinkmann-dev` verknüpft (Ref `akbqdpwajeaynwqczfkg`, eu-central-1).
 - **In Mikas PowerShell-Terminal** sind Skripte gesperrt (Execution Policy) → dort `npx.cmd` bzw. `npm.cmd` statt `npx`/`npm` verwenden.
@@ -208,6 +215,7 @@ Firmendaten, Logo/Briefpapier, Nummernkreise (nur Angebote/Projekte, Rechnungen 
 - `src/components/layout/`: `UntereNavigation`, `BueroNavigation`, `BueroMobilMenue`, `NutzerBereich`
 - `src/components/`: `PasswortFeld` (mit Auge), `FormularMeldung`, `Platzhalter`, `AppLogo`, `Feld` + `Auswahl` (Beschriftung/Hinweis bzw. natives Select, 48 px)
 - `src/lib/formular.ts`: `abschicken()` für Formulare mit kontrollierten Feldern
+- `src/lib/pwa.ts`: Versionsvergleich, Speicher für das Installations-Angebot. `src/components/pwa-helfer.tsx`, `src/components/app-installieren.tsx`. `src/app/api/version/route.ts`
 - `src/lib/passwort.ts`: `startpasswortErzeugen()`. `src/lib/nutzer-schema.ts`: zod-Schemas für die Nutzerverwaltung
 - `scripts/admin-anlegen.ts`: ersten Admin anlegen
 - `src/components/ui/`: shadcn/ui-Komponenten
