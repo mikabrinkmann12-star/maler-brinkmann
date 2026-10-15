@@ -26,5 +26,7 @@ Danach http://localhost:3000 im Browser öffnen.
 | `npm run db:push` | Neue Datenbank-Migrationen einspielen |
 | `npm run db:types` | TypeScript-Typen aus der Datenbank erzeugen |
 | `npm run admin:anlegen` | Admin-Zugang anlegen (fragt Name, Benutzername, Passwort) |
+| `npm run seed` | Testdaten in `brinkmann-dev` anlegen bzw. zurücksetzen (Demo-Zugänge, Kunden, Projekte) |
+| `npm run icons` | App-Icons neu erzeugen |
 
 Hinweis: Wenn PowerShell „Ausführung von Skripts ist deaktiviert“ meldet, `npm.cmd` / `npx.cmd` statt `npm` / `npx` verwenden.

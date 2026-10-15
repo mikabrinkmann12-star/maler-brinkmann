@@ -140,7 +140,7 @@ Legende: ✅ angelegt · ⏳ kommt in der genannten Phase
 - [x] 0.3 Login (Benutzername), Pflicht-Passwortwechsel, Rollen, Layouts (Sidebar/Bottom-Nav, Umschalter), Skript `admin:anlegen`
 - [x] 0.4 Nutzerverwaltung (nur Admin): anlegen, bearbeiten, Rolle ändern, Passwort zurücksetzen, sperren/entsperren
 - [x] 0.5 PWA (Manifest, Icons, Service Worker), Hinweis „Neue Version – neu laden“, „App installieren“ unter Mehr
-- [ ] 0.6 Seed-Daten + RLS-Tests
+- [x] 0.6 Seed-Daten (`npm run seed`) + RLS-Tests für Projekte, Kunden, Mitglieder, Fahrzeuge, Status (37 DB-Tests)
 - [ ] 0.7 Deployment (GitHub → Vercel → Supabase) + `docs/SETUP.md`
 
 ### Phase 1 – Mitarbeiter-App
@@ -196,6 +196,12 @@ Firmendaten, Logo/Briefpapier, Nummernkreise (nur Angebote/Projekte, Rechnungen 
 - `npm run db:types`: TypeScript-Typen neu erzeugen → `src/lib/supabase/database.types.ts` (nach jeder Migration)
 - `npm run admin:anlegen [-- <env-datei>]`: Admin-Zugang anlegen (interaktiv, verdeckte Passworteingabe, braucht ein echtes Terminal). Standard ist `.env.local`.
 - `npm run icons`: App-Icons neu erzeugen (`scripts/icons-erzeugen.ts`, sharp)
+- `npm run seed`: Testdaten in `brinkmann-dev` (`scripts/seed.ts`, Daten in `scripts/seed-daten.ts`). Läuft nur mit `APP_ENV=development`, kann beliebig oft laufen (räumt eigene alte Daten vorher weg) und lässt alles andere unberührt.
+  - Kennzeichen der Seed-Daten: Benutzer `demo-…`, Kunden `D-1001…`, Projekte `D-2026-001…`, Fahrzeuge `CLP-DE …`
+  - Zugänge: `demo-admin`, `demo-buero` sowie die Maler `demo-sebastian`, `demo-christian`, `demo-jan`, `demo-tobias`, `demo-marco`, `demo-dennis`, `demo-lukas` und `demo-kevin` (muss das Passwort ändern). Alle haben dasselbe Passwort `SEED_PASSWORT` aus `.env.local` (fehlt es, wird eins erzeugt und eingetragen).
+  - Inhalt: 25 erfundene Kunden aus der Region, 12 Projekte in allen 9 Status (eins archiviert), 4 Fahrzeuge. Termine relativ zum Seed-Tag, sodass immer 3 Projekte „In Arbeit“ sind.
+  - Telefonnummern aus dem Film-Nummernbereich `040 66969 …`, E-Mails `@example.com`, damit nie echte Personen erwischt werden.
+- Wegwerf-Daten der DB-Tests: Benutzer `test-…`, Kunden/Projekte/Fahrzeuge/Status `TEST-…`. Die Tests räumen sie selbst wieder auf.
 - Skripte in `scripts/` laufen mit `tsx`, das die `@/`-Pfade versteht. Kein `await` auf oberster Ebene, stattdessen `main()`.
 - Zeigt der Dev-Server nach Änderungen Fehler wie „… is not a function“, obwohl `npm run build` sauber ist: Dev-Server neu starten.
 - Supabase-CLI: `npx supabase …`. Mika ist eingeloggt (`supabase login`), der Ordner ist mit `brinkmann-dev` verknüpft (Ref `akbqdpwajeaynwqczfkg`, eu-central-1).
@@ -217,7 +223,8 @@ Firmendaten, Logo/Briefpapier, Nummernkreise (nur Angebote/Projekte, Rechnungen 
 - `src/lib/formular.ts`: `abschicken()` für Formulare mit kontrollierten Feldern
 - `src/lib/pwa.ts`: Versionsvergleich, Speicher für das Installations-Angebot. `src/components/pwa-helfer.tsx`, `src/components/app-installieren.tsx`. `src/app/api/version/route.ts`
 - `src/lib/passwort.ts`: `startpasswortErzeugen()`. `src/lib/nutzer-schema.ts`: zod-Schemas für die Nutzerverwaltung
-- `scripts/admin-anlegen.ts`: ersten Admin anlegen
+- `scripts/admin-anlegen.ts`: ersten Admin anlegen. `scripts/seed.ts` + `seed-daten.ts`: Testdaten
+- `tests/rls/`: `00` Login-Adresse, `01` Funktionsrechte, `02` Rollen & Sperren, `03` Projekte/Kunden/Mitglieder/Fahrzeuge/Status/Löschen/ohne Login
 - `src/components/ui/`: shadcn/ui-Komponenten
 - `src/lib/format.ts`: deutsche Formatierung (`formatDatum`, `formatDatumZeit`, `formatUhrzeit`, `formatBetrag`, `formatZahl`; leere Werte → „–“)
 - `.env.example`: Vorlage der Umgebungsvariablen (ohne Werte)
