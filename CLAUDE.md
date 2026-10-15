@@ -180,7 +180,13 @@ Legende: ✅ angelegt · ⏳ kommt in der genannten Phase
   - Server-Aktionen `einsaetzeSpeichern`, `wieGestern` (`src/app/buero/plantafel/actions.ts`), Rechte Büro/Admin.
   - Spracheingabe: `src/lib/sprache.ts` (Web Speech API, de-DE) → Textfeld (auch zum Tippen) → `einteilungErkennen()` in `src/lib/einteilung-erkennung.ts` (Namen-Erkennung, getestet) → Vorschlag → „Übernehmen“ füllt Karten (genannte Leute wechseln dabei das Auto) → speichern erst nach Prüfung. Erkennung: Autos über Name/Kennzeichen (Zahlwörter „eins“ → 1), Mitarbeiter über Vor-/Nachname, Baustellen über Name/Kunde/Ort/Straße, 1 Tippfehler erlaubt ab 5 Buchstaben, Hinweise bei Mehrdeutigkeit statt raten. Gruppen-Regel: neue Gruppe, wenn eine Art erneut auftaucht (außer direkt folgende Mitarbeiter).
   - `src/lib/datum.ts`: `heuteIso()`, `tageVerschieben()`, `istIsoDatum()`.
-- [ ] 1.3 „Heute“, „Meine Baustellen“, Kollegen hinzufügen, Büro-Hinweise
+- [x] 1.3 „Heute“, „Meine Baustellen“, Kollegen hinzufügen, Büro-Hinweise
+  - `/heute`: eigene Einsätze des Tages (Auto, Baustelle, „Navigation starten“ = Google-Maps-Link, Büro-Notiz, Team mit Anruf-Knöpfen, Ansprechpartner Kunde + Büro, Knopf „Zeit eintragen“ → /zeiten). Ohne Einsatz: Hinweis + Link „Meine Baustellen“.
+  - `/baustellen`: nur Projekte, auf denen ICH Mitglied bin (auch für Büro/Admin in der Mitarbeiter-Ansicht), nicht archiviert, heutige zuerst, Status-Farbe.
+  - `/baustellen/[id]`: Kopf, Adresse + Navigation, Beschreibung, Ansprechpartner, Team. „Kollegen hinzufügen“ (Bottom-Sheet, nur wenn ich Mitglied bin und das Projekt nicht archiviert ist), Entfernen-Knopf nur für Büro/Admin. Aktionen in `src/app/(mitarbeiter)/baustellen/actions.ts`.
+  - `/buero`: Kasten „Hinweise“ (ungelesene notifications, „gelesen“ / „Alle gelesen“, `src/app/buero/actions.ts`).
+  - Hilfen: `src/lib/projekt.ts` (adresseText, mapsLink, telLink, kontaktName, getestet), `src/lib/mitarbeiter-daten.ts` (kollegenLaden, meineProjektIds, meineEinsaetze – IMMER explizit nach dem Nutzer filtern), `src/components/anruf-link.tsx`.
+  - Test-Aufräumen robuster: `testNutzerLoeschen` entfernt vorher notifications/project_members des Nutzers.
 - [ ] 1.4 Zeit eintragen, „Meine Zeiten“, Einstellungen „Zeiterfassung“, Entwürfe gegen Datenverlust
 - [ ] 1.5 Fotos + Notizen
 - [ ] 1.6 Material + Aufmaß (VOB)

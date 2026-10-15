@@ -70,6 +70,16 @@ export async function testNutzerAnlegen(rolle: Rolle): Promise<TestNutzer> {
   return { id, benutzername, passwort };
 }
 
+/**
+ * Löscht einen Wegwerf-Nutzer. Vorher werden Hinweise und Mitgliedschaften
+ * entfernt, die auf ihn zeigen – sonst blockieren sie das Löschen.
+ */
 export async function testNutzerLoeschen(nutzer?: TestNutzer): Promise<void> {
-  if (nutzer) await adminClient().auth.admin.deleteUser(nutzer.id);
+  if (!nutzer) return;
+  const db = adminClient();
+  await db.from("notifications").delete().eq("ausgeloest_von", nutzer.id);
+  await db.from("project_members").delete().eq("user_id", nutzer.id);
+  await db.from("project_members").delete().eq("added_by", nutzer.id);
+  const { error } = await db.auth.admin.deleteUser(nutzer.id);
+  if (error) console.warn(`Test-Nutzer ${nutzer.benutzername} nicht gelöscht: ${error.message}`);
 }

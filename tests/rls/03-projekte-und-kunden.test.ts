@@ -74,6 +74,7 @@ afterAll(async () => {
   const db = adminClient();
   const { projekte, kunden, fahrzeuge, status } = spaeterAufraeumen;
   if (projekte.length) {
+    await db.from("notifications").delete().in("project_id", projekte);
     await db.from("project_members").delete().in("project_id", projekte);
     await db.from("projects").delete().in("id", projekte);
   }
