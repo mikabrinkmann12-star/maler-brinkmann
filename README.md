@@ -3,7 +3,7 @@
 Eigene Software für den Maler Betrieb Ralf Brinkmann (Saterland), die Plancraft ablösen soll.
 
 - Projektziel, Regeln, Datenmodell und Phasenplan: [CLAUDE.md](CLAUDE.md)
-- Einrichtung (GitHub, Supabase, Vercel): `docs/SETUP.md` (folgt in Schritt 0.7)
+- Einrichtung (GitHub, Supabase, Vercel, Handy): [docs/SETUP.md](docs/SETUP.md)
 
 ## Schnellstart (lokal)
 
