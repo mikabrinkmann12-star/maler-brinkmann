@@ -9,7 +9,8 @@ Windows dort PowerShell-Skripte sperrt.
 | Dienst | Wofür | Adresse |
 |---|---|---|
 | **GitHub** | Der Code (privates Repo) | github.com/mikabrinkmann12-star/maler-brinkmann |
-| **Vercel** | Hosting: baut und veröffentlicht die App bei jedem Push auf `main` | vercel.com → Projekt `maler-brinkmann` |
+| **Vercel** | Hosting: baut und veröffentlicht die App bei jedem Push auf `main` | Team „maler“ auf vercel.com |
+| **Die App online** | Das öffnen die Mitarbeiter | **https://maler-brinkmann-23nr.vercel.app** |
 | **Supabase `brinkmann-dev`** | Datenbank zum Entwickeln und Testen (Demo-Daten) | Ref `akbqdpwajeaynwqczfkg`, Frankfurt |
 | **Supabase `brinkmann-live`** | Echte Datenbank für den Betrieb (nie Testdaten!) | Ref `tezveryzixrysviapmal`, Frankfurt |
 
@@ -125,7 +126,12 @@ Commits laufen unter der anonymen Adresse
    | `LOGIN_EMAIL_DOMAIN` | `login.maler-brinkmann.de` |
 
    **Nicht** setzen: `APP_ENV`, `SEED_PASSWORT`.
-4. **Deploy**. Nach 1–2 Minuten bekommst du eine Adresse wie `https://maler-brinkmann.vercel.app`.
+4. **Deploy**. Nach 1–2 Minuten bekommst du die Adresse, bei uns
+   **https://maler-brinkmann-23nr.vercel.app** (`maler-brinkmann` war schon vergeben).
+
+`vercel.json` legt `"framework": "nextjs"` fest. Beim ersten Import hatte Vercel das Projekt
+fälschlich als statische Seite („Other“) eingerichtet. Dann liefert Vercel nur `public/` aus,
+und alle Seiten geben **404: NOT_FOUND**.
 
 ### Danach: Vorschau-Versionen auf dev umleiten (wichtig!)
 Vercel baut für jeden anderen Branch eine **Preview**. Die darf nie mit echten Daten arbeiten.
@@ -148,7 +154,7 @@ offen haben, sehen innerhalb von 5 Minuten bzw. beim nächsten Öffnen unten den
 
 ## 7. App auf dem Handy installieren (Android)
 
-1. Die Vercel-Adresse in **Chrome** öffnen und anmelden.
+1. **https://maler-brinkmann-23nr.vercel.app** in **Chrome** öffnen und anmelden.
 2. Unter **Mehr** gibt es den Knopf „App auf dem Handy installieren“. Alternativ: ⋮ → **App installieren**
    bzw. **Zum Startbildschirm hinzufügen**.
 3. Danach liegt „Maler Brinkmann“ mit dem MB-Icon auf dem Homescreen und öffnet sich ohne
@@ -178,3 +184,4 @@ offen haben, sehen innerhalb von 5 Minuten bzw. beim nächsten Öffnen unten den
 | `test:rls` meldet „Zu viele Versuche“ / Login-Fehler | 5 Minuten warten (Supabase-Login-Limit) |
 | Vercel-Build schlägt fehl: Variable fehlt | Unter Settings → Environment Variables prüfen, dann **Redeploy** |
 | Login online klappt nicht | Gibt es den Nutzer in **live**? (dev-Nutzer gibt es online nicht) |
+| Online überall „404: NOT_FOUND“ | Vercel → Settings → Build and Deployment → Framework Preset muss **Next.js** sein (steht auch in `vercel.json`), dann Redeploy |

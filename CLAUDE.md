@@ -53,8 +53,13 @@ Entwickler ist **Mika** (Anfänger): kurz erklären, was gemacht wird und warum,
 ## Umgebungen
 | | Supabase-Projekt | Vercel |
 |---|---|---|
-| Entwicklung | `brinkmann-dev` (Testdaten) | lokal + Preview-Deployments |
-| Live | `brinkmann-live` (echte Daten, nie Seed) | Production (`main`) |
+| Entwicklung | `brinkmann-dev` (Ref `akbqdpwajeaynwqczfkg`, Testdaten) | lokal + Preview-Deployments |
+| Live | `brinkmann-live` (Ref `tezveryzixrysviapmal`, echte Daten, nie Seed) | Production (`main`) → **https://maler-brinkmann-23nr.vercel.app** |
+
+- GitHub: `github.com/mikabrinkmann12-star/maler-brinkmann` (privat). Commits mit der anonymen Adresse `296533198+mikabrinkmann12-star@users.noreply.github.com`.
+- Vercel-Team „maler“. Jeder Push auf `main` wird automatisch deployed (dauert ca. 2–3 Minuten). `vercel.json`: `framework: nextjs` (sonst 404, siehe docs/SETUP.md), Region `fra1`.
+- Migrationen müssen in **beide** Supabase-Projekte: erst dev, nach dem Test live (Ablauf in docs/SETUP.md, danach immer wieder mit dev verknüpfen).
+- Ausführliche Einrichtung: `docs/SETUP.md`.
 
 - Kein Docker und kein lokales Supabase. DB-Änderungen nur als Migration in `supabase/migrations/`, eingespielt mit `npx supabase db push`.
 - Umgebungsvariablen: siehe `.env.example`.
@@ -134,14 +139,15 @@ Legende: ✅ angelegt · ⏳ kommt in der genannten Phase
 - Admin/Büro können die Zuordnung wieder entfernen.
 
 ## Phasenplan
-### Phase 0 – Grundgerüst (🔄 in Arbeit)
+### Phase 0 – Grundgerüst (✅ fertig, online seit 15.10.2026)
 - [x] 0.1 CLAUDE.md, Git, Next.js + Tailwind + shadcn/ui, deutsche Formatierung
 - [x] 0.2 Supabase-Migration: Basistabellen + RLS + Audit, Test der Fake-Login-Adresse
 - [x] 0.3 Login (Benutzername), Pflicht-Passwortwechsel, Rollen, Layouts (Sidebar/Bottom-Nav, Umschalter), Skript `admin:anlegen`
 - [x] 0.4 Nutzerverwaltung (nur Admin): anlegen, bearbeiten, Rolle ändern, Passwort zurücksetzen, sperren/entsperren
 - [x] 0.5 PWA (Manifest, Icons, Service Worker), Hinweis „Neue Version – neu laden“, „App installieren“ unter Mehr
 - [x] 0.6 Seed-Daten (`npm run seed`) + RLS-Tests für Projekte, Kunden, Mitglieder, Fahrzeuge, Status (37 DB-Tests)
-- [ ] 0.7 Deployment (GitHub → Vercel → Supabase) + `docs/SETUP.md`
+- [x] 0.7 Deployment (GitHub → Vercel → Supabase live) + `docs/SETUP.md`
+- Offen bei Mika: Preview-Variablen in Vercel auf dev umstellen, Admin-Zugänge in live (`npm run admin:anlegen -- .env.live`)
 
 ### Phase 1 – Mitarbeiter-App
 - Startseite „Heute“: Auto, Baustelle, wer ist dabei, Adresse (Link zu Google Maps), Ansprechpartner, Notizen vom Büro
@@ -240,6 +246,8 @@ Firmendaten, Logo/Briefpapier, Nummernkreise (nur Angebote/Projekte, Rechnungen 
 - Vercel **Pro** (Hobby ist nur für nicht-kommerzielle Nutzung)
 - Supabase **Pro** für `brinkmann-live` (tägliche Backups) + zusätzlicher Export + Restore-Anleitung
 - AVV/DPA mit Supabase und Vercel abschließen
+- Preview-Variablen in Vercel zeigen auf `brinkmann-dev`, nur Production auf live
+- Admin-Zugänge für Ralf und Mika in live
 
 ## Offene Fragen
 - Sperrfrist für das Bearbeiten eigener Zeiten (Phase 1)
