@@ -17,7 +17,8 @@ Entwickler ist **Mika** (Anfänger): kurz erklären, was gemacht wird und warum,
 ## Harte Regeln
 - **Keine Rechnungsnummern und keine Rechnungs-PDFs selbst erzeugen.** Rechnungen laufen ausschließlich über die Lexware Office API (Phase 5), Grund: GoBD/E-Rechnung. `invoices` ist nur ein Spiegel der Lexware-Daten. Abschlagsrechnungen nicht steuerlich „nachbauen“, das wird mit dem Steuerberater geklärt.
 - **Jede Tabelle hat Row Level Security (RLS).** Rechte werden serverseitig durchgesetzt (RLS + Server-Checks), nie nur im UI versteckt.
-- **`profiles.rolle` ist die einzige Quelle für die Rolle.** `app_metadata` wird nur einmalig beim Anlegen des Users gelesen (Trigger). Nie JWT-Claims oder `app_metadata` für Rechte nutzen. `requireRole()` liest Rolle, `aktiv` und `muss_passwort_aendern` bei jeder Anfrage frisch aus `profiles`.
+- **`profiles.rolle` ist die einzige Quelle für die Rolle.** `app_metadata`/`user_metadata` werden nirgends gelesen, auch nicht beim Anlegen. Nie JWT-Claims für Rechte nutzen. `requireRole()` liest Rolle, `aktiv` und `muss_passwort_aendern` bei jeder Anfrage frisch aus `profiles`.
+- **Bereits eingespielte Migrationen nie ändern**, stattdessen eine neue Migration anlegen.
 - **RLS-Hilfsfunktionen** (`ist_admin()`, `ist_buero_oder_admin()`, `ist_projektmitglied()` …) sind `SECURITY DEFINER`, `STABLE`, mit `set search_path = ''` und voll qualifizierten Namen. Sie zählen nur aktive Nutzer. Rechte: `REVOKE EXECUTE … FROM PUBLIC, anon` und `GRANT EXECUTE … TO authenticated`.
 - **Admin-Funktionen** (z. B. `nutzer_sessions_beenden()`): `REVOKE EXECUTE … FROM PUBLIC, anon, authenticated` und `GRANT EXECUTE … TO service_role`. Trigger-Funktionen: `REVOKE EXECUTE … FROM PUBLIC, anon, authenticated`.
 - **Keine Secrets im Frontend oder Repo**, nur in Umgebungsvariablen. `.env*` steht in `.gitignore` (Ausnahme `.env.example`, immer ohne Werte). Der Supabase **Secret Key** wird nur in Dateien mit `import "server-only"` benutzt. Der **Publishable Key** darf ins Frontend, weil RLS die Daten schützt.
@@ -60,8 +61,13 @@ Entwickler ist **Mika** (Anfänger): kurz erklären, was gemacht wird und warum,
 - Mitarbeiter haben nur die **Mitarbeiter-Ansicht** (Bottom-Navigation) und keinen Zugriff auf `/buero`.
 
 ## Login & Nutzer
-- Login mit **Benutzername + Passwort** (keine E-Mail nötig). Die interne Auth-E-Mail lautet `<benutzername>@<LOGIN_EMAIL_DOMAIN>` (Subdomain der Firmendomain, z. B. `login.<domain>`). An diese Adressen wird nie etwas geschickt.
-- **Öffentliche Registrierung ist aus.** Nutzer legt nur der Admin an (Admin-API, `email_confirm: true`, `muss_passwort_aendern = true`).
+- Login mit **Benutzername + Passwort** (keine E-Mail nötig). Die interne Auth-E-Mail lautet `<benutzername>@<LOGIN_EMAIL_DOMAIN>`, mit `LOGIN_EMAIL_DOMAIN=login.maler-brinkmann.de` (Firmendomain: `maler-brinkmann.de`). An diese Adressen wird nie etwas geschickt, und es ist keine DNS-Einrichtung nötig.
+- **Öffentliche Registrierung ist aus.** Nutzer legt nur der Admin an, immer über `nutzerAnlegen()` in `src/lib/nutzer.ts`:
+  1. Admin-API `createUser` mit `email_confirm: true`.
+  2. Der DB-Trigger `neuer_auth_nutzer` legt das Profil mit sicheren Standardwerten an: Benutzername aus der Login-Adresse, Rolle `mitarbeiter`, `muss_passwort_aendern = true`.
+  3. Der Server setzt Name, Rolle usw. direkt in `profiles`. Schlägt das fehl, wird der Login wieder gelöscht.
+  (Hintergrund: Supabase schreibt `app_metadata` erst nach dem INSERT, deshalb liest der Trigger keine Metadaten.)
+- Nutzer **nicht** über das Supabase-Dashboard „Add user“ anlegen, denn dann fehlen Name und Rolle.
 - **Erster Login** → Pflicht-Passwortwechsel (mind. **10 Zeichen**, nicht das Startpasswort). Das Flag setzt erst der Server zurück, nachdem `auth.updateUser` erfolgreich war.
 - Man bleibt **immer eingeloggt**, es gibt keinen „Eingeloggt bleiben“-Schalter.
 - **Deaktivieren** = `profiles.aktiv = false` + Supabase-User bannen + `nutzer_sessions_beenden()`. **Aktivieren** = Bann aufheben + `aktiv = true`.
@@ -71,13 +77,27 @@ Entwickler ist **Mika** (Anfänger): kurz erklären, was gemacht wird und warum,
 ## Datenmodell
 Legende: ✅ angelegt · ⏳ kommt in der genannten Phase
 
-- ⏳ (0.2) **profiles**: id (= auth.users.id), benutzername (unique), vorname, nachname, rolle, email (optional, Kontakt), telefon, aktiv, muss_passwort_aendern, arbeitszeitmodell
-- ⏳ (0.2) **contacts**: Kunden/Firmen/Privat, kundennummer, Adresse, Ansprechpartner, Telefon, E-Mail, Notizen, lexware_contact_id, archiviert_am
-- ⏳ (0.2) **projects**: name, projektnummer, Kunde, Baustellenadresse, Status, Zeitraum von/bis, Beschreibung, Ansprechpartner Büro, archiviert_am
-- ⏳ (0.2) **project_statuses**: frei verwaltbar mit Farbe. Start: Entwurf, Angebot, Auftrag erteilt, In Arbeit, Rechnung angelegt, Rechnung geschrieben, Abgeschlossen, Anders vergeben, Abgelehnt von uns
-- ⏳ (0.2) **project_members**: project_id, user_id, added_by, added_at
-- ⏳ (0.2) **vehicles**: Name/Kennzeichen, aktiv
-- ⏳ (0.2) **audit_log**: tabelle, datensatz_id, aktion, alt, neu, geändert_von, geändert_am
+- ✅ **profiles**: id (= auth.users.id), benutzername (unique, `^[a-z0-9][a-z0-9._-]{1,30}$`), vorname, nachname, rolle (`app_rolle`), email (optional, Kontakt), telefon, aktiv, muss_passwort_aendern, arbeitszeitmodell (Text, Details in Phase 3)
+- ✅ **contacts**: kundennummer, typ (`firma`/`privat`), firmenname, anrede, vorname, nachname, strasse, plz, ort, ansprechpartner, telefon, mobil, email, notizen, lexware_contact_id, archiviert_am, created_by
+- ✅ **projects**: projektnummer, name, contact_id, baustelle_strasse/plz/ort, status_id, start_datum, end_datum, beschreibung, buero_ansprechpartner_id, archiviert_am, created_by
+- ✅ **project_statuses**: name, farbe (#RRGGBB), sortierung, aktiv. Start: Entwurf, Angebot, Auftrag erteilt, In Arbeit, Rechnung angelegt, Rechnung geschrieben, Abgeschlossen, Anders vergeben, Abgelehnt von uns
+- ✅ **project_members**: project_id, user_id, added_by, added_at (PK project_id + user_id)
+- ✅ **vehicles**: name, kennzeichen, aktiv
+- ✅ **audit_log**: tabelle, datensatz_id, aktion, alt, neu, geaendert_von, geaendert_am. Trigger `protokolliere_aenderung` hängt an allen Tabellen oben.
+
+**Rechte (RLS), Stand 0.2:**
+| Tabelle | Mitarbeiter | Büro | Admin |
+|---|---|---|---|
+| profiles | eigenes lesen | alle lesen | alle lesen + ändern |
+| contacts | Kunden eigener Projekte lesen | lesen, anlegen, ändern | wie Büro |
+| projects | eigene (Mitglied) lesen | lesen, anlegen, ändern | wie Büro |
+| project_members | Mitglieder eigener Projekte lesen | lesen, anlegen, entfernen | wie Büro |
+| project_statuses, vehicles | lesen | lesen | lesen, anlegen, ändern (Einstellungen) |
+| audit_log | – | lesen | lesen |
+
+- Kein DELETE auf contacts/projects (archivieren). Deaktivierte Nutzer sehen nichts.
+- Trigger `schuetze_admins`: Ein Admin kann sich nicht selbst herabstufen/deaktivieren, und es bleibt immer mindestens ein aktiver Admin.
+- Admin-Funktion `nutzer_sessions_beenden(user_id)`: nur `service_role`.
 - ⏳ (1/2) **assignments** = Tageseinsatz: Datum, vehicle_id, project_id, Mitarbeiter[], Notiz
 - ⏳ (1) **time_entries**: user, project, Datum, von, bis, Pause, Stunden, Art, Beschreibung, erstellt_von, zuletzt_bearbeitet. Arten: Arbeitszeit, Fahrtzeit, Urlaub, Unbezahlter Urlaub, Krank, Schlechtwetter, Kurzarbeit, Sonstiges
 - ⏳ (1) **leave_requests**: Urlaubsanträge von, bis, Status offen/genehmigt/abgelehnt
@@ -98,7 +118,7 @@ Legende: ✅ angelegt · ⏳ kommt in der genannten Phase
 ## Phasenplan
 ### Phase 0 – Grundgerüst (🔄 in Arbeit)
 - [x] 0.1 CLAUDE.md, Git, Next.js + Tailwind + shadcn/ui, deutsche Formatierung
-- [ ] 0.2 Supabase-Migration: Basistabellen + RLS + Audit, Test der Fake-Login-Adresse
+- [x] 0.2 Supabase-Migration: Basistabellen + RLS + Audit, Test der Fake-Login-Adresse
 - [ ] 0.3 Login (Benutzername), Pflicht-Passwortwechsel, Rollen, Layouts (Sidebar/Bottom-Nav, Umschalter)
 - [ ] 0.4 Nutzerverwaltung (nur Admin) + Skript für den ersten Admin
 - [ ] 0.5 PWA + Hinweis „Neue Version – neu laden“
@@ -152,6 +172,11 @@ Firmendaten, Logo/Briefpapier, Nummernkreise (nur Angebote/Projekte, Rechnungen 
 - `npm run lint`: ESLint
 - `npm test`: Unit-Tests einmal ausführen (Vitest, Dateien `src/**/*.test.ts`)
 - `npm run test:watch`: Tests im Beobachtungsmodus
+- `npm run test:rls`: Datenbank-/Rechte-Tests gegen `brinkmann-dev` (`tests/rls/`, lädt `.env.local`, legt Wegwerf-Nutzer an und löscht sie wieder). Supabase begrenzt Logins auf ca. 30 pro 5 Minuten und IP, also nicht im Dauerlauf starten.
+- `npm run db:push`: neue Migrationen ins verknüpfte Supabase-Projekt einspielen (vorher mit `npx supabase db push --dry-run` prüfen)
+- `npm run db:types`: TypeScript-Typen neu erzeugen → `src/lib/supabase/database.types.ts` (nach jeder Migration)
+- Supabase-CLI: `npx supabase …`. Mika ist eingeloggt (`supabase login`), der Ordner ist mit `brinkmann-dev` verknüpft (Ref `akbqdpwajeaynwqczfkg`, eu-central-1).
+- **In Mikas PowerShell-Terminal** sind Skripte gesperrt (Execution Policy) → dort `npx.cmd` bzw. `npm.cmd` statt `npx`/`npm` verwenden.
 
 ## Projektstruktur (Kurzüberblick)
 - `src/app/`: Seiten (App Router)
@@ -159,7 +184,11 @@ Firmendaten, Logo/Briefpapier, Nummernkreise (nur Angebote/Projekte, Rechnungen 
 - `src/lib/format.ts`: deutsche Formatierung (`formatDatum`, `formatDatumZeit`, `formatUhrzeit`, `formatBetrag`, `formatZahl`; leere Werte → „–“)
 - `.env.example`: Vorlage der Umgebungsvariablen (ohne Werte)
 - `.claude/launch.json`: Dev-Server für die Vorschau im Claude-Browser
-- `supabase/migrations/`: Datenbank-Migrationen (ab 0.2)
+- `src/lib/login.ts`: Benutzername ↔ interne Login-Adresse, Benutzername-Vorschlag
+- `src/lib/nutzer.ts`: `nutzerAnlegen()`, der einzige Weg, Nutzer anzulegen (braucht einen Client mit Secret Key)
+- `src/lib/supabase/database.types.ts`: generierte DB-Typen (nicht von Hand ändern)
+- `supabase/migrations/`: Datenbank-Migrationen. `supabase/config.toml` dokumentiert die Auth-Einstellungen (wir nutzen kein lokales Supabase).
+- `tests/rls/`: Datenbank-Tests (`hilfen.ts` mit `testNutzerAnlegen()`, `einloggen()` …)
 - `docs/`: Anleitungen für Mika (ab 0.7)
 
 ## Go-Live-Checkliste (bevor Mitarbeiter mit echten Daten arbeiten)
@@ -168,7 +197,6 @@ Firmendaten, Logo/Briefpapier, Nummernkreise (nur Angebote/Projekte, Rechnungen 
 - AVV/DPA mit Supabase und Vercel abschließen
 
 ## Offene Fragen
-- Domain-Name für `LOGIN_EMAIL_DOMAIN` (wird in 0.2 gebraucht)
 - Sperrfrist für das Bearbeiten eigener Zeiten (Phase 1)
 - Format der Projekt- und Kundennummern sowie Exportformat aus Plancraft (Phase 3)
 - Arbeitszeitmodelle und Überstundenregeln (Phase 3)
