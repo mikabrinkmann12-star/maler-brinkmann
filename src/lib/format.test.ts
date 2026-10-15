@@ -3,6 +3,7 @@ import {
   LEER,
   formatBetrag,
   formatDatum,
+  formatDatumLang,
   formatDatumZeit,
   formatUhrzeit,
   formatZahl,
@@ -33,6 +34,14 @@ describe("formatDatum", () => {
     expect(formatDatum(undefined)).toBe(LEER);
     expect(formatDatum("")).toBe(LEER);
     expect(formatDatum("kein datum")).toBe(LEER);
+  });
+});
+
+describe("formatDatumLang", () => {
+  it("zeigt den Wochentag mit an", () => {
+    expect(formatDatumLang("2026-10-15")).toBe("Donnerstag, 15.10.2026");
+    expect(formatDatumLang("2026-10-14T23:30:00Z")).toBe("Donnerstag, 15.10.2026");
+    expect(formatDatumLang(null)).toBe(LEER);
   });
 });
 

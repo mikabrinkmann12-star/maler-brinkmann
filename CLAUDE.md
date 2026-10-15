@@ -21,6 +21,8 @@ Entwickler ist **Mika** (Anfänger): kurz erklären, was gemacht wird und warum,
 - **Bereits eingespielte Migrationen nie ändern**, stattdessen eine neue Migration anlegen.
 - **RLS-Hilfsfunktionen** (`ist_admin()`, `ist_buero_oder_admin()`, `ist_projektmitglied()` …) sind `SECURITY DEFINER`, `STABLE`, mit `set search_path = ''` und voll qualifizierten Namen. Sie zählen nur aktive Nutzer. Rechte: `REVOKE EXECUTE … FROM PUBLIC, anon` und `GRANT EXECUTE … TO authenticated`.
 - **Admin-Funktionen** (z. B. `nutzer_sessions_beenden()`): `REVOKE EXECUTE … FROM PUBLIC, anon, authenticated` und `GRANT EXECUTE … TO service_role`. Trigger-Funktionen: `REVOKE EXECUTE … FROM PUBLIC, anon, authenticated`.
+- **Jede Seite und jede Server Action mit Daten ruft selbst `requireUser()` bzw. `requireRole()` auf** (`src/lib/auth.ts`). Layouts prüfen zwar auch, werden aber bei Navigation innerhalb des Layouts nicht neu ausgeführt.
+- Der **Admin-Client** (`src/lib/supabase/admin.ts`, Secret Key, umgeht RLS) nur nach `requireRole(["admin"])` verwenden. Einzige Ausnahme: Das eigene `muss_passwort_aendern` nach erfolgreichem Passwortwechsel zurücksetzen.
 - **Keine Secrets im Frontend oder Repo**, nur in Umgebungsvariablen. `.env*` steht in `.gitignore` (Ausnahme `.env.example`, immer ohne Werte). Der Supabase **Secret Key** wird nur in Dateien mit `import "server-only"` benutzt. Der **Publishable Key** darf ins Frontend, weil RLS die Daten schützt.
 - **Nichts endgültig löschen** bei Projekten, Kontakten, Zeiten und Angeboten: archivieren (`archiviert_am`), keine DELETE-Policies dafür.
 - Wichtige Tabellen bekommen den **Audit-Trigger** (`audit_log`: wer hat was wann geändert).
@@ -69,7 +71,9 @@ Entwickler ist **Mika** (Anfänger): kurz erklären, was gemacht wird und warum,
   (Hintergrund: Supabase schreibt `app_metadata` erst nach dem INSERT, deshalb liest der Trigger keine Metadaten.)
 - Nutzer **nicht** über das Supabase-Dashboard „Add user“ anlegen, denn dann fehlen Name und Rolle.
 - **Erster Login** → Pflicht-Passwortwechsel (mind. **10 Zeichen**, nicht das Startpasswort). Das Flag setzt erst der Server zurück, nachdem `auth.updateUser` erfolgreich war.
-- Man bleibt **immer eingeloggt**, es gibt keinen „Eingeloggt bleiben“-Schalter.
+- Man bleibt **immer eingeloggt**, es gibt keinen „Eingeloggt bleiben“-Schalter. Abmelden geht nur auf dem aktuellen Gerät (`signOut({ scope: "local" })`).
+- Ablauf im Code: `src/proxy.ts` erneuert bei jeder Anfrage die Session und schickt Nicht-Eingeloggte nach `/login`. `ladeSitzung()` liefert `abgemeldet` / `gesperrt` (Profil per RLS nicht lesbar = deaktiviert) / `ok`. `requireUser()` leitet entsprechend um: `/login`, `/login?grund=gesperrt` oder `/passwort-aendern`.
+- Login-Fehler: Es gibt immer dieselbe Meldung für „Benutzer unbekannt“ und „falsches Passwort“. Bei Bann (`user_banned`) erscheint „Zugang gesperrt“, bei Rate-Limit (429) „Zu viele Versuche“.
 - **Deaktivieren** = `profiles.aktiv = false` + Supabase-User bannen + `nutzer_sessions_beenden()`. **Aktivieren** = Bann aufheben + `aktiv = true`.
 - Schutz: Ein Admin kann sich nicht selbst die Admin-Rolle nehmen oder sich deaktivieren, und es bleibt immer mindestens ein aktiver Admin.
 - Passwort vergessen → Admin setzt ein neues (danach muss der Nutzer es wieder ändern).
@@ -119,7 +123,7 @@ Legende: ✅ angelegt · ⏳ kommt in der genannten Phase
 ### Phase 0 – Grundgerüst (🔄 in Arbeit)
 - [x] 0.1 CLAUDE.md, Git, Next.js + Tailwind + shadcn/ui, deutsche Formatierung
 - [x] 0.2 Supabase-Migration: Basistabellen + RLS + Audit, Test der Fake-Login-Adresse
-- [ ] 0.3 Login (Benutzername), Pflicht-Passwortwechsel, Rollen, Layouts (Sidebar/Bottom-Nav, Umschalter)
+- [x] 0.3 Login (Benutzername), Pflicht-Passwortwechsel, Rollen, Layouts (Sidebar/Bottom-Nav, Umschalter), Skript `admin:anlegen`
 - [ ] 0.4 Nutzerverwaltung (nur Admin) + Skript für den ersten Admin
 - [ ] 0.5 PWA + Hinweis „Neue Version – neu laden“
 - [ ] 0.6 Seed-Daten + RLS-Tests
@@ -175,11 +179,26 @@ Firmendaten, Logo/Briefpapier, Nummernkreise (nur Angebote/Projekte, Rechnungen 
 - `npm run test:rls`: Datenbank-/Rechte-Tests gegen `brinkmann-dev` (`tests/rls/`, lädt `.env.local`, legt Wegwerf-Nutzer an und löscht sie wieder). Supabase begrenzt Logins auf ca. 30 pro 5 Minuten und IP, also nicht im Dauerlauf starten.
 - `npm run db:push`: neue Migrationen ins verknüpfte Supabase-Projekt einspielen (vorher mit `npx supabase db push --dry-run` prüfen)
 - `npm run db:types`: TypeScript-Typen neu erzeugen → `src/lib/supabase/database.types.ts` (nach jeder Migration)
+- `npm run admin:anlegen [-- <env-datei>]`: Admin-Zugang anlegen (interaktiv, verdeckte Passworteingabe, braucht ein echtes Terminal). Standard ist `.env.local`.
+- Skripte in `scripts/` laufen mit `tsx`, das die `@/`-Pfade versteht.
+- Zeigt der Dev-Server nach Änderungen Fehler wie „… is not a function“, obwohl `npm run build` sauber ist: Dev-Server neu starten.
 - Supabase-CLI: `npx supabase …`. Mika ist eingeloggt (`supabase login`), der Ordner ist mit `brinkmann-dev` verknüpft (Ref `akbqdpwajeaynwqczfkg`, eu-central-1).
 - **In Mikas PowerShell-Terminal** sind Skripte gesperrt (Execution Policy) → dort `npx.cmd` bzw. `npm.cmd` statt `npx`/`npm` verwenden.
 
 ## Projektstruktur (Kurzüberblick)
 - `src/app/`: Seiten (App Router)
+  - `/login`, `/passwort-aendern`: ohne App-Layout. `/` leitet je nach Rolle weiter.
+  - `(mitarbeiter)/`: `/heute`, `/baustellen`, `/zeiten`, `/mehr`. Bottom-Navigation, für alle Rollen. Admin/Büro sehen oben das Band „Zurück ins Büro“.
+  - `buero/`: `/buero`, `/buero/plantafel`, `/projekte`, `/kontakte`, `/zeiten`. Sidebar (am Handy ausklappbares Menü), nur Admin/Büro.
+  - `buero/einstellungen/`: nur Admin (eigenes Layout mit `requireRole(["admin"])`), darunter `benutzer/`.
+- `src/proxy.ts`: Session-Erneuerung + Login-Pflicht (in Next 16 statt `middleware.ts`)
+- `src/lib/auth.ts`: `ladeSitzung()`, `requireUser()`, `requireRole()` (server-only). `src/lib/auth-aktionen.ts`: `abmelden()`
+- `src/lib/rollen.ts`: Typ `Rolle`, `ROLLEN_NAMEN`, `BUERO_ROLLEN`, `startseiteFuer()` (auch im Browser nutzbar)
+- `src/lib/env.ts`: Umgebungsvariablen mit verständlicher Fehlermeldung
+- `src/lib/supabase/server.ts`: Client mit Nutzer-Rechten. `admin.ts`: Client mit Secret Key (server-only)
+- `src/components/layout/`: `UntereNavigation`, `BueroNavigation`, `BueroMobilMenue`, `NutzerBereich`
+- `src/components/`: `PasswortFeld` (mit Auge), `FormularMeldung`, `Platzhalter`, `AppLogo`
+- `scripts/admin-anlegen.ts`: ersten Admin anlegen
 - `src/components/ui/`: shadcn/ui-Komponenten
 - `src/lib/format.ts`: deutsche Formatierung (`formatDatum`, `formatDatumZeit`, `formatUhrzeit`, `formatBetrag`, `formatZahl`; leere Werte → „–“)
 - `.env.example`: Vorlage der Umgebungsvariablen (ohne Werte)

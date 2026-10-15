@@ -24,6 +24,14 @@ const datumZeitFormat = new Intl.DateTimeFormat("de-DE", {
   minute: "2-digit",
 });
 
+const datumLangFormat = new Intl.DateTimeFormat("de-DE", {
+  timeZone: ZEITZONE,
+  weekday: "long",
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+});
+
 const uhrzeitFormat = new Intl.DateTimeFormat("de-DE", {
   timeZone: ZEITZONE,
   hour: "2-digit",
@@ -55,6 +63,16 @@ export function formatDatum(wert: DatumEingabe): string {
   }
   const datum = zuDate(wert);
   return datum ? datumFormat.format(datum) : LEER;
+}
+
+/** Datum mit Wochentag, z. B. „Donnerstag, 15.10.2026“. */
+export function formatDatumLang(wert: DatumEingabe): string {
+  if (wert == null || wert === "") return LEER;
+  const datum =
+    typeof wert === "string" && NUR_DATUM.test(wert)
+      ? zuDate(`${wert}T12:00:00Z`) // Mittag UTC: sicher derselbe Tag in Berlin
+      : zuDate(wert);
+  return datum ? datumLangFormat.format(datum) : LEER;
 }
 
 /** Zeitpunkt als „TT.MM.JJJJ, HH:MM“ in deutscher Zeit. */

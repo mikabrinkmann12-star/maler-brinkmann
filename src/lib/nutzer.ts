@@ -1,9 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { benutzernameZuLoginEmail, normalisiereBenutzername } from "@/lib/login";
+import {
+  MIN_PASSWORT_LAENGE,
+  benutzernameZuLoginEmail,
+  normalisiereBenutzername,
+} from "@/lib/login";
+import type { Rolle } from "@/lib/rollen";
 
-export type Rolle = "admin" | "buero" | "mitarbeiter";
-
-export const MIN_PASSWORT_LAENGE = 10;
+export type { Rolle };
 
 export type NeuerNutzer = {
   benutzername: string;

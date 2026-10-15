@@ -2,6 +2,9 @@
 // Aus "sebastian" wird "sebastian@<LOGIN_EMAIL_DOMAIN>". An diese Adressen
 // wird nie etwas geschickt.
 
+/** Muss zur Einstellung in Supabase (Authentication → Email) passen. */
+export const MIN_PASSWORT_LAENGE = 10;
+
 /** Muss zur CHECK-Regel von profiles.benutzername in der Migration passen. */
 export const BENUTZERNAME_MUSTER = /^[a-z0-9][a-z0-9._-]{1,30}$/;
 
