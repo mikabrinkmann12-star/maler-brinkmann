@@ -1,7 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { CheckCircle2Icon, DownloadIcon } from "lucide-react";
+import { CheckCircle2Icon, DownloadIcon, ShareIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,8 +18,19 @@ function standaloneAbonnieren(f: () => void) {
   return () => abfrage.removeEventListener("change", f);
 }
 
+function nichtAbonnieren() {
+  return () => {};
+}
+
+/** iPhone/iPad (iPadOS meldet sich als Mac, hat aber Touch). */
+function istApple(): boolean {
+  const ua = navigator.userAgent;
+  return /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+}
+
 /** Bereich „App installieren“ für die Seite „Mehr“. */
 export function AppInstallieren() {
+  const apple = useSyncExternalStore(nichtAbonnieren, istApple, () => false);
   const angebot = useSyncExternalStore(
     installAngebotAbonnieren,
     installAngebotVorhanden,
@@ -27,7 +38,10 @@ export function AppInstallieren() {
   );
   const installiert = useSyncExternalStore(
     standaloneAbonnieren,
-    () => window.matchMedia(STANDALONE).matches,
+    () =>
+      window.matchMedia(STANDALONE).matches ||
+      // ältere iPhones melden die Home-Bildschirm-App nur so
+      (navigator as Navigator & { standalone?: boolean }).standalone === true,
     () => false,
   );
 
@@ -54,6 +68,22 @@ export function AppInstallieren() {
         <DownloadIcon />
         App auf dem Handy installieren
       </Button>
+    );
+  }
+
+  if (apple) {
+    return (
+      <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
+        <p className="font-medium text-foreground">App auf den Home-Bildschirm legen</p>
+        <ol className="mt-1 list-decimal space-y-1 pl-5">
+          <li>Diese Seite in <span className="font-semibold">Safari</span> öffnen.</li>
+          <li>
+            Unten auf <ShareIcon className="inline size-4 align-text-bottom" aria-label="Teilen" />{" "}
+            (Teilen) tippen.
+          </li>
+          <li>„Zum Home-Bildschirm“ wählen und „Hinzufügen“ tippen.</li>
+        </ol>
+      </div>
     );
   }
 

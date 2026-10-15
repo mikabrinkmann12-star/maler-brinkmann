@@ -46,7 +46,7 @@ Entwickler ist **Mika** (Anfänger): kurz erklären, was gemacht wird und warum,
   - `src/app/manifest.ts` („Maler Brinkmann“, standalone, theme `#171717`). Icons liegen in `public/icons/` (192, 512, maskable 512), dazu `src/app/icon.png` (Tab) und `src/app/apple-icon.png` (iPhone). Alle werden per `npm run icons` aus dem Platzhalter „MB“ erzeugt. Fürs echte Logo `scripts/icons-erzeugen.ts` anpassen.
   - `public/sw.js`: bewusst ohne Offline-Cache und ohne fetch-Handler. Er ist die Grundlage für spätere Push-Benachrichtigungen und wird nie gecacht (Header in `next.config.ts`).
   - **Update-Hinweis:** `NEXT_PUBLIC_APP_VERSION` = `VERCEL_DEPLOYMENT_ID` bzw. `VERCEL_GIT_COMMIT_SHA` (lokal fest „lokal“, also dort nie ein Hinweis). `PwaHelfer` (Root-Layout) fragt `/api/version` beim Start, beim Zurückholen der App, bei „online“ und alle 5 Minuten ab. Bei Abweichung erscheint unten „Neue Version – Neu laden“.
-  - „App installieren“ unter Mehr (`AppInstallieren`): Knopf, wenn Chrome `beforeinstallprompt` anbietet, sonst eine Anleitung (⋮ → App installieren). Bei installierter App ein Häkchen.
+  - „App installieren“ unter Mehr (`AppInstallieren`): Knopf, wenn Chrome `beforeinstallprompt` anbietet. Auf iPhone/iPad erscheint die Safari-Anleitung (Teilen → Zum Home-Bildschirm), sonst die Chrome-Anleitung (⋮ → App installieren). Bei installierter App ein Häkchen. Update-Hinweis und Installation sind auf dem iPhone getestet (15.10.2026).
   - Sicherheits-Header für alle Seiten: `X-Content-Type-Options`, `X-Frame-Options: DENY`, `Referrer-Policy`.
 - Links im Button-Stil immer mit `buttonVariants(…)` aus `@/components/ui/button` (läuft durch `cn`, sonst heben sich Klassen wie der Rahmen auf).
 
