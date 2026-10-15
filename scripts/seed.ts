@@ -13,7 +13,8 @@ import { MIN_PASSWORT_LAENGE } from "../src/lib/login";
 import { nutzerAnlegen } from "../src/lib/nutzer";
 import { startpasswortErzeugen } from "../src/lib/passwort";
 import type { Database } from "../src/lib/supabase/database.types";
-import { FAHRZEUGE, KUNDEN, NUTZER, PROJEKTE, SEED_PRAEFIX } from "./seed-daten";
+import { heuteIso } from "../src/lib/datum";
+import { EINSAETZE_HEUTE, FAHRZEUGE, KUNDEN, NUTZER, PROJEKTE, SEED_PRAEFIX } from "./seed-daten";
 
 const ENV_DATEI = ".env.local";
 process.loadEnvFile(ENV_DATEI);
@@ -90,13 +91,53 @@ async function main() {
   );
   const alteProjektIds = alteProjekte.map((p) => p.id);
 
-  if (alteProjektIds.length) {
-    pruefe("Mitglieder entfernen", await db.from("project_members").delete().in("project_id", alteProjektIds));
+  const alteFahrzeuge = pruefe(
+    "Demo-Fahrzeuge lesen",
+    await db.from("vehicles").select("id").like("kennzeichen", `${SEED_PRAEFIX.kennzeichen}%`),
+  );
+  const alteFahrzeugIds = alteFahrzeuge.map((f) => f.id);
+
+  // Löscht alle Zeilen einer Tabelle, deren Spalte auf alte Demo-Daten zeigt.
+  const entferne = async (
+    tabelle: "assignments" | "assignment_members" | "time_entries" | "leave_requests" | "notifications"
+      | "project_notes" | "project_photos" | "material_usage" | "measurements" | "project_members",
+    spalte: string,
+    ids: string[],
+  ) => {
+    if (!ids.length) return;
+    pruefe(`${tabelle} (${spalte}) entfernen`, await db.from(tabelle).delete().in(spalte, ids));
+  };
+
+  // Fotos im Speicher (Ordner = Projekt-ID)
+  for (const projektId of alteProjektIds) {
+    const { data: dateien } = await db.storage.from("projektfotos").list(projektId, { limit: 1000 });
+    if (dateien?.length) {
+      await db.storage.from("projektfotos").remove(dateien.map((d) => `${projektId}/${d.name}`));
+    }
+  }
+  // Alles, was an Demo-Projekten, -Fahrzeugen oder -Nutzern hängt (Phase 1)
+  await entferne("assignments", "project_id", alteProjektIds);
+  await entferne("assignments", "vehicle_id", alteFahrzeugIds);
+  await entferne("assignments", "created_by", alteNutzerIds);
+  await entferne("assignment_members", "user_id", alteNutzerIds);
+  for (const spalte of ["project_id", "user_id", "erstellt_von", "bearbeitet_von"]) {
+    await entferne("time_entries", spalte, spalte === "project_id" ? alteProjektIds : alteNutzerIds);
+  }
+  await entferne("leave_requests", "user_id", alteNutzerIds);
+  await entferne("leave_requests", "entschieden_von", alteNutzerIds);
+  await entferne("notifications", "project_id", alteProjektIds);
+  await entferne("notifications", "ausgeloest_von", alteNutzerIds);
+  for (const tabelle of ["project_notes", "project_photos", "material_usage", "measurements"] as const) {
+    await entferne(tabelle, "project_id", alteProjektIds);
+    await entferne(tabelle, "erstellt_von", alteNutzerIds);
   }
   if (alteNutzerIds.length) {
-    pruefe("Mitgliedschaften entfernen", await db.from("project_members").delete().in("user_id", alteNutzerIds));
-    pruefe("Hinzugefügt-von entfernen", await db.from("project_members").delete().in("added_by", alteNutzerIds));
+    await db.from("app_settings").update({ updated_by: null }).in("updated_by", alteNutzerIds);
   }
+
+  await entferne("project_members", "project_id", alteProjektIds);
+  await entferne("project_members", "user_id", alteNutzerIds);
+  await entferne("project_members", "added_by", alteNutzerIds);
   if (alteProjektIds.length) {
     pruefe("Projekte entfernen", await db.from("projects").delete().in("id", alteProjektIds));
   }
@@ -126,7 +167,11 @@ async function main() {
 
   // --- 3. Fahrzeuge ------------------------------------------------------------
   console.log("3. Fahrzeuge anlegen …");
-  pruefe("Fahrzeuge anlegen", await db.from("vehicles").insert(FAHRZEUGE));
+  const fahrzeuge = pruefe(
+    "Fahrzeuge anlegen",
+    await db.from("vehicles").insert(FAHRZEUGE).select("id, kennzeichen"),
+  );
+  const fahrzeugNach = new Map(fahrzeuge.map((f) => [f.kennzeichen, f.id]));
 
   // --- 4. Kunden ---------------------------------------------------------------
   console.log("4. Kunden anlegen …");
@@ -150,6 +195,7 @@ async function main() {
   const statusse = pruefe("Status lesen", await db.from("project_statuses").select("id, name"));
   const statusId = new Map(statusse.map((s) => [s.name, s.id]));
   const bueroId = nutzerIds.get("demo-buero")!;
+  const projektNach = new Map<string, string>();
 
   for (const p of PROJEKTE) {
     const kunde = kundeNach.get(p.kunde);
@@ -179,6 +225,7 @@ async function main() {
         .select("id")
         .single(),
     );
+    projektNach.set(p.projektnummer, projekt.id);
 
     if (p.mitglieder.length) {
       pruefe(
@@ -194,9 +241,35 @@ async function main() {
     }
   }
 
+  // --- 6. Einteilung für heute (für die Seite „Heute“) -------------------------
+  console.log("6. Einteilung für heute anlegen …");
+  const heute = heuteIso();
+  for (const e of EINSAETZE_HEUTE) {
+    const einsatz = pruefe<{ id: string }>(
+      `Einsatz ${e.kennzeichen}`,
+      await db
+        .from("assignments")
+        .insert({
+          datum: heute,
+          vehicle_id: fahrzeugNach.get(e.kennzeichen)!,
+          project_id: projektNach.get(e.projekt)!,
+          notiz: e.notiz ?? null,
+          created_by: bueroId,
+        })
+        .select("id")
+        .single(),
+    );
+    pruefe(
+      `Team ${e.kennzeichen}`,
+      await db
+        .from("assignment_members")
+        .insert(e.mitarbeiter.map((name) => ({ assignment_id: einsatz.id, user_id: nutzerIds.get(name)! }))),
+    );
+  }
+
   // --- Zusammenfassung ---------------------------------------------------------
   console.log(`
-✔ Fertig: ${NUTZER.length} Zugänge, ${FAHRZEUGE.length} Fahrzeuge, ${KUNDEN.length} Kunden, ${PROJEKTE.length} Projekte.
+✔ Fertig: ${NUTZER.length} Zugänge, ${FAHRZEUGE.length} Fahrzeuge, ${KUNDEN.length} Kunden, ${PROJEKTE.length} Projekte, ${EINSAETZE_HEUTE.length} Einsätze für heute.
 
 Demo-Zugänge (Passwort für alle: SEED_PASSWORT in ${ENV_DATEI}):`);
   for (const n of NUTZER) {

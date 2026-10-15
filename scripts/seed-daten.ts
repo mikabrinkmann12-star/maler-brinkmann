@@ -107,6 +107,20 @@ type Projekt = {
   archiviert?: boolean;
 };
 
+/** Einteilung für den Seed-Tag (Kennzeichen → Projektnummer → Benutzernamen). */
+export const EINSAETZE_HEUTE: {
+  kennzeichen: string;
+  projekt: string;
+  mitarbeiter: string[];
+  notiz?: string;
+}[] = [
+  { kennzeichen: "CLP-DE 101", projekt: "D-2026-001", mitarbeiter: ["demo-sebastian", "demo-christian"],
+    notiz: "Schlüssel liegt beim Nachbarn (Hausnr. 9)." },
+  { kennzeichen: "CLP-DE 102", projekt: "D-2026-002", mitarbeiter: ["demo-jan", "demo-tobias", "demo-marco"],
+    notiz: "Gerüst ist freigegeben. Farbe RAL 9001 steht im Container." },
+  { kennzeichen: "CLP-DE 301", projekt: "D-2026-005", mitarbeiter: ["demo-lukas", "demo-kevin"] },
+];
+
 export const PROJEKTE: Projekt[] = [
   { projektnummer: "D-2026-001", name: "Innenanstrich Wohnung Gerdes", kunde: "D-1011", status: "In Arbeit", von: -3, bis: 4,
     beschreibung: "Wände und Decken in 4 Räumen und Flur, weiß matt. Möbel räumt der Kunde aus.", mitglieder: ["demo-sebastian", "demo-christian"] },

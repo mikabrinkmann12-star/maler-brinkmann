@@ -129,9 +129,9 @@ Legende: ✅ angelegt · ⏳ kommt in der genannten Phase
 - Kein DELETE auf contacts/projects (archivieren). Deaktivierte Nutzer sehen nichts.
 - Trigger `schuetze_admins`: Ein Admin kann sich nicht selbst herabstufen/deaktivieren, und es bleibt immer mindestens ein aktiver Admin.
 - Admin-Funktion `nutzer_sessions_beenden(user_id)`: nur `service_role`.
-**Phase-1-Tabellen** (Migrationen `…200000_phase1_mitarbeiter_app`, `…210000_zeiten_ersteller_sieht`, bisher **nur in dev**, live folgt in Schritt 1.8):
+**Phase-1-Tabellen** (Migrationen `…200000_phase1_mitarbeiter_app`, `…210000_zeiten_ersteller_sieht`, `…080000_einsatz_eindeutig`, in **dev und live**. Grundsatz: Wenn Code eine neue Tabelle braucht, muss die Migration **vor dem Push** auch in live sein, sonst bricht die Online-Version ab):
 - ✅ **app_settings**: schluessel, wert (jsonb). `zeiterfassung` = { erlaubte_arten, standard_beginn 06:30, standard_ende 15:45, standard_pause_min 45, kulanz_tage 3 }. Alle lesen, nur der Admin ändert.
-- ✅ **assignments** (Tageseinsatz: datum, vehicle_id, project_id, notiz = Büro-Notiz für „Heute“) + **assignment_members** (assignment_id, user_id). Trigger: Eingeteilte werden automatisch project_members.
+- ✅ **assignments** (Tageseinsatz: datum, vehicle_id, project_id, notiz = Büro-Notiz für „Heute“) + **assignment_members** (assignment_id, user_id). Trigger: Eingeteilte werden automatisch project_members. Eindeutig: ein Einsatz pro (datum, vehicle_id). Einsätze ohne Firmenwagen (vehicle_id null) sind ausgenommen, die UI zeigt davon aber nur einen pro Tag.
 - ✅ **time_entries**: user_id, project_id, datum, von, bis, pause_min, stunden (bei von/bis per Trigger berechnet, sonst Pflicht), art (`zeit_art`: arbeitszeit, fahrtzeit, urlaub, unbezahlter_urlaub, krank, schlechtwetter, kurzarbeit, sonstiges), beschreibung, erstellt_von (unveränderlich), bearbeitet_von, archiviert_am. Arbeits-/Fahrtzeit brauchen ein Projekt.
 - ✅ **leave_requests**: user_id, von, bis, art (urlaub/unbezahlter_urlaub), bemerkung, status (`offen/genehmigt/abgelehnt/zurueckgezogen`), antwort, entschieden_von/_am (setzt der Trigger)
 - ✅ **project_notes** (text), **project_photos** (storage_pfad `<project_id>/<datei>` im privaten Bucket `projektfotos`, kategorie vorher/nachher/mangel/sonstiges, kommentar, Maße), **material_usage** (material als Text, material_id ab Phase 3, menge, einheit, erledigt_am), **measurements** (raum, position, einheit m2/m/stk, laenge, hoehe, anzahl, menge = von der App berechnet) + **measurement_deductions** (bezeichnung, breite, hoehe, anzahl). Alle mit erstellt_von (unveränderlich) und archiviert_am.
@@ -175,7 +175,11 @@ Legende: ✅ angelegt · ⏳ kommt in der genannten Phase
 
 ### Phase 1 – Mitarbeiter-App (🔄 in Arbeit)
 - [x] 1.1 Datenbank, RLS und Tests (nur dev)
-- [ ] 1.2 Einteilung fürs Büro + Spracheingabe (Namen-Erkennung)
+- [x] 1.2 Einteilung fürs Büro + Spracheingabe (Namen-Erkennung)
+  - Seite `/buero/plantafel` (Menü „Einteilung“): Datum per `?datum=JJJJ-MM-TT`, eine Karte pro aktivem Auto + „Ohne Firmenwagen“, Baustelle (aktuelle Status oben), Mitarbeiter-Chips mit Doppelt-Hinweis, Team-Notiz, „Alle speichern“-Leiste, „Wie gestern“ (letzter Tag mit Einsätzen, max. 7 Tage zurück, nur freie Autos, ohne Notizen).
+  - Server-Aktionen `einsaetzeSpeichern`, `wieGestern` (`src/app/buero/plantafel/actions.ts`), Rechte Büro/Admin.
+  - Spracheingabe: `src/lib/sprache.ts` (Web Speech API, de-DE) → Textfeld (auch zum Tippen) → `einteilungErkennen()` in `src/lib/einteilung-erkennung.ts` (Namen-Erkennung, getestet) → Vorschlag → „Übernehmen“ füllt Karten (genannte Leute wechseln dabei das Auto) → speichern erst nach Prüfung. Erkennung: Autos über Name/Kennzeichen (Zahlwörter „eins“ → 1), Mitarbeiter über Vor-/Nachname, Baustellen über Name/Kunde/Ort/Straße, 1 Tippfehler erlaubt ab 5 Buchstaben, Hinweise bei Mehrdeutigkeit statt raten. Gruppen-Regel: neue Gruppe, wenn eine Art erneut auftaucht (außer direkt folgende Mitarbeiter).
+  - `src/lib/datum.ts`: `heuteIso()`, `tageVerschieben()`, `istIsoDatum()`.
 - [ ] 1.3 „Heute“, „Meine Baustellen“, Kollegen hinzufügen, Büro-Hinweise
 - [ ] 1.4 Zeit eintragen, „Meine Zeiten“, Einstellungen „Zeiterfassung“, Entwürfe gegen Datenverlust
 - [ ] 1.5 Fotos + Notizen
@@ -252,7 +256,8 @@ Firmendaten, Logo/Briefpapier, Nummernkreise (nur Angebote/Projekte, Rechnungen 
 - `npm run seed`: Testdaten in `brinkmann-dev` (`scripts/seed.ts`, Daten in `scripts/seed-daten.ts`). Läuft nur mit `APP_ENV=development`, kann beliebig oft laufen (räumt eigene alte Daten vorher weg) und lässt alles andere unberührt.
   - Kennzeichen der Seed-Daten: Benutzer `demo-…`, Kunden `D-1001…`, Projekte `D-2026-001…`, Fahrzeuge `CLP-DE …`
   - Zugänge: `demo-admin`, `demo-buero` sowie die Maler `demo-sebastian`, `demo-christian`, `demo-jan`, `demo-tobias`, `demo-marco`, `demo-dennis`, `demo-lukas` und `demo-kevin` (muss das Passwort ändern). Alle haben dasselbe Passwort `SEED_PASSWORT` aus `.env.local` (fehlt es, wird eins erzeugt und eingetragen).
-  - Inhalt: 25 erfundene Kunden aus der Region, 12 Projekte in allen 9 Status (eins archiviert), 4 Fahrzeuge. Termine relativ zum Seed-Tag, sodass immer 3 Projekte „In Arbeit“ sind.
+  - Inhalt: 25 erfundene Kunden aus der Region, 12 Projekte in allen 9 Status (eins archiviert), 4 Fahrzeuge und 3 Einsätze für den Seed-Tag (Sprinter 1 → Gerdes, Sprinter 2 → Ringstraße, Caddy → Kramer). Termine relativ zum Seed-Tag, sodass immer 3 Projekte „In Arbeit“ sind.
+  - Räumt vorher auch alle Phase-1-Daten weg, die an Demo-Nutzern, -Projekten oder -Fahrzeugen hängen (Einsätze, Zeiten, Urlaub, Notizen, Fotos inkl. Speicher, Material, Aufmaß, Hinweise). Neue Tabellen mit Verweis auf Demo-Daten **hier ergänzen**, sonst scheitert der Seed.
   - Telefonnummern aus dem Film-Nummernbereich `040 66969 …`, E-Mails `@example.com`, damit nie echte Personen erwischt werden.
 - Wegwerf-Daten der DB-Tests: Benutzer `test-…`, Kunden/Projekte/Fahrzeuge/Status `TEST-…`. Die Tests räumen sie selbst wieder auf.
 - Skripte in `scripts/` laufen mit `tsx`, das die `@/`-Pfade versteht. Kein `await` auf oberster Ebene, stattdessen `main()`.
