@@ -159,6 +159,18 @@ Legende: ✅ angelegt · ⏳ kommt in der genannten Phase
 - Zeit eintragen: Baustelle vorausgewählt, von–bis, Pause, Art, optional Beschreibung. Mehrere Baustellen pro Tag möglich, max. 3–4 Taps im Normalfall. Eigene Zeiten der letzten Tage bearbeitbar (Sperrfrist vom Admin einstellbar)
 - Fotos & Notizen (Kamera direkt, Bilder vor dem Upload komprimieren), Material melden, Aufmaß, Urlaubsantrag
 
+**Entscheidungen zu Phase 1 (mit Mika geklärt am 15.10.2026):**
+- **Einteilung schon in Phase 1:** eine schlichte Büro-Seite pro Tag (Auto → Baustelle → Mitarbeiter, Knopf „wie gestern“), wird in Phase 2 durch die Plantafel ersetzt. Wer eingeteilt wird, wird automatisch Projektmitglied.
+- **Spracheingabe auf der Einteilungs-Seite:** Spracherkennung des Browsers (Web Speech API, Audio geht an Google/Apple). Danach erkennt eine **Namen-Erkennung ohne externe KI** Mitarbeiter, Autos und Baustellen aus den bekannten Listen (unscharfer Abgleich, Füllwörter wie „ähm“ werden ignoriert) und füllt einen **Vorschlag** aus. Ralf/Büro prüft und speichert. Ohne Bestätigung wird nie etwas gespeichert. Diesen Teil austauschbar bauen (später echte KI, z. B. Claude, siehe Jarvis). Ollama geht auf Vercel nicht; Gratis-KIs mit Trainingsnutzung wegen Mitarbeiterdaten nicht verwenden.
+- **Zeiterfassung:** Standard **6:30–15:45, 45 Min Pause** (= 8:30 Std). Eingetragen wird nur die Pausendauer, nicht die Uhrzeit der Pause.
+- **Sperrfrist:** Mitarbeiter dürfen eigene Zeiten bis **Monatsende** ändern, plus **Kulanz bis zum 3. des Folgemonats**. Danach nur noch das Büro. Serverseitig (RLS) durchsetzen.
+- **Zeiten für Kollegen mit eintragen:** erlaubt für Kollegen **derselben Baustelle**. Jeder bekommt einen eigenen Eintrag (`erstellt_von` = wer eingetragen hat) und kann seinen danach selbst ändern.
+- **Erlaubte Zeit-Arten für Mitarbeiter** stellt der Admin in den Einstellungen ein. Start: Arbeitszeit, Fahrtzeit, Schlechtwetter, Sonstiges. Das Büro darf immer alle Arten.
+- Einstellungsseite **„Zeiterfassung“** (Admin): erlaubte Arten, Standardzeiten, Sperrfrist + Kulanztage.
+- **Aufmaß:** Öffnungen bis **2,5 m²** werden automatisch **übermessen** (VOB/C DIN 18363), also nicht abgezogen, größere schon. Das wird im Aufmaß sichtbar markiert.
+- **Urlaubsanträge genehmigt nur der Admin.** Das Büro sieht sie.
+- **Material melden:** vorerst freier Text + Menge + Einheit. Die Katalogsuche kommt nach dem Import in Phase 3.
+
 ### Phase 2 – Plantafel (Einsatzplanung mit Autos)
 - Tagesansicht: Karten pro Auto, Baustelle + Mitarbeiter per Drag & Drop, „wie gestern“ kopieren
 - Wochen-/Monatsansicht: Zeilen pro Mitarbeiter und Projekt, Urlaub/Krank sichtbar
@@ -185,6 +197,8 @@ Legende: ✅ angelegt · ⏳ kommt in der genannten Phase
 
 ### Phase 6 – Später (nicht jetzt bauen)
 Dashboard für Ralf, Berichte/Bautagebuch als PDF, Push-Benachrichtigungen, Feedback-Button „Mir fehlt was“.
+
+**Idee „Jarvis“ (Wunsch von Mika, später):** ein Sprachassistent mit eigener API. Ralf kann anrufen bzw. mit ihm sprechen und z. B. die Einteilung am Telefon machen („Sebastian und Jan mit Sprinter 1 zu Gerdes“). Dafür braucht es eine echte KI (z. B. Claude), Telefonie und eine API-Schnittstelle zur App. Die Namen-Erkennung aus Phase 1 soll dann durch die KI ersetzt werden können.
 
 ## Einstellungen (Admin)
 Firmendaten, Logo/Briefpapier, Nummernkreise (nur Angebote/Projekte, Rechnungen nummeriert Lexware), Zahlungsziel, Anfangs-/Schlusstexte, E-Mail-Vorlagen, Fahrzeuge, Mitarbeiter + Rollen, Arbeitszeitmodelle, Feiertage (Niedersachsen), Projektstatus.
@@ -253,7 +267,6 @@ Firmendaten, Logo/Briefpapier, Nummernkreise (nur Angebote/Projekte, Rechnungen 
 - Admin-Zugänge für Ralf und Mika in live
 
 ## Offene Fragen
-- Sperrfrist für das Bearbeiten eigener Zeiten (Phase 1)
 - Format der Projekt- und Kundennummern sowie Exportformat aus Plancraft (Phase 3)
 - Arbeitszeitmodelle und Überstundenregeln (Phase 3)
 - Firmenlogo und Farben
