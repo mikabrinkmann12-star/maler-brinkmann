@@ -14,6 +14,120 @@ export type Database = {
   }
   public: {
     Tables: {
+      app_settings: {
+        Row: {
+          schluessel: string
+          updated_at: string
+          updated_by: string | null
+          wert: Json
+        }
+        Insert: {
+          schluessel: string
+          updated_at?: string
+          updated_by?: string | null
+          wert: Json
+        }
+        Update: {
+          schluessel?: string
+          updated_at?: string
+          updated_by?: string | null
+          wert?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "app_settings_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      assignment_members: {
+        Row: {
+          assignment_id: string
+          user_id: string
+        }
+        Insert: {
+          assignment_id: string
+          user_id: string
+        }
+        Update: {
+          assignment_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assignment_members_assignment_id_fkey"
+            columns: ["assignment_id"]
+            isOneToOne: false
+            referencedRelation: "assignments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assignment_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      assignments: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          datum: string
+          id: string
+          notiz: string | null
+          project_id: string | null
+          updated_at: string
+          vehicle_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          datum: string
+          id?: string
+          notiz?: string | null
+          project_id?: string | null
+          updated_at?: string
+          vehicle_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          datum?: string
+          id?: string
+          notiz?: string | null
+          project_id?: string | null
+          updated_at?: string
+          vehicle_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assignments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assignments_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assignments_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_log: {
         Row: {
           aktion: string
@@ -124,6 +238,278 @@ export type Database = {
           },
         ]
       }
+      leave_requests: {
+        Row: {
+          antwort: string | null
+          art: Database["public"]["Enums"]["zeit_art"]
+          bemerkung: string | null
+          bis: string
+          created_at: string
+          entschieden_am: string | null
+          entschieden_von: string | null
+          id: string
+          status: Database["public"]["Enums"]["urlaub_status"]
+          updated_at: string
+          user_id: string
+          von: string
+        }
+        Insert: {
+          antwort?: string | null
+          art?: Database["public"]["Enums"]["zeit_art"]
+          bemerkung?: string | null
+          bis: string
+          created_at?: string
+          entschieden_am?: string | null
+          entschieden_von?: string | null
+          id?: string
+          status?: Database["public"]["Enums"]["urlaub_status"]
+          updated_at?: string
+          user_id?: string
+          von: string
+        }
+        Update: {
+          antwort?: string | null
+          art?: Database["public"]["Enums"]["zeit_art"]
+          bemerkung?: string | null
+          bis?: string
+          created_at?: string
+          entschieden_am?: string | null
+          entschieden_von?: string | null
+          id?: string
+          status?: Database["public"]["Enums"]["urlaub_status"]
+          updated_at?: string
+          user_id?: string
+          von?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leave_requests_entschieden_von_fkey"
+            columns: ["entschieden_von"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_requests_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      material_usage: {
+        Row: {
+          archiviert_am: string | null
+          bemerkung: string | null
+          created_at: string
+          einheit: string
+          erledigt_am: string | null
+          erstellt_von: string | null
+          id: string
+          material: string
+          material_id: string | null
+          menge: number
+          project_id: string
+          updated_at: string
+        }
+        Insert: {
+          archiviert_am?: string | null
+          bemerkung?: string | null
+          created_at?: string
+          einheit: string
+          erledigt_am?: string | null
+          erstellt_von?: string | null
+          id?: string
+          material: string
+          material_id?: string | null
+          menge: number
+          project_id: string
+          updated_at?: string
+        }
+        Update: {
+          archiviert_am?: string | null
+          bemerkung?: string | null
+          created_at?: string
+          einheit?: string
+          erledigt_am?: string | null
+          erstellt_von?: string | null
+          id?: string
+          material?: string
+          material_id?: string | null
+          menge?: number
+          project_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "material_usage_erstellt_von_fkey"
+            columns: ["erstellt_von"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "material_usage_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      measurement_deductions: {
+        Row: {
+          anzahl: number
+          bezeichnung: string
+          breite: number
+          created_at: string
+          hoehe: number
+          id: string
+          measurement_id: string
+          updated_at: string
+        }
+        Insert: {
+          anzahl?: number
+          bezeichnung?: string
+          breite: number
+          created_at?: string
+          hoehe: number
+          id?: string
+          measurement_id: string
+          updated_at?: string
+        }
+        Update: {
+          anzahl?: number
+          bezeichnung?: string
+          breite?: number
+          created_at?: string
+          hoehe?: number
+          id?: string
+          measurement_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "measurement_deductions_measurement_id_fkey"
+            columns: ["measurement_id"]
+            isOneToOne: false
+            referencedRelation: "measurements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      measurements: {
+        Row: {
+          anzahl: number
+          archiviert_am: string | null
+          bemerkung: string | null
+          created_at: string
+          einheit: Database["public"]["Enums"]["aufmass_einheit"]
+          erstellt_von: string | null
+          hoehe: number | null
+          id: string
+          laenge: number | null
+          menge: number
+          position: string
+          project_id: string
+          raum: string
+          updated_at: string
+        }
+        Insert: {
+          anzahl?: number
+          archiviert_am?: string | null
+          bemerkung?: string | null
+          created_at?: string
+          einheit?: Database["public"]["Enums"]["aufmass_einheit"]
+          erstellt_von?: string | null
+          hoehe?: number | null
+          id?: string
+          laenge?: number | null
+          menge?: number
+          position: string
+          project_id: string
+          raum: string
+          updated_at?: string
+        }
+        Update: {
+          anzahl?: number
+          archiviert_am?: string | null
+          bemerkung?: string | null
+          created_at?: string
+          einheit?: Database["public"]["Enums"]["aufmass_einheit"]
+          erstellt_von?: string | null
+          hoehe?: number | null
+          id?: string
+          laenge?: number | null
+          menge?: number
+          position?: string
+          project_id?: string
+          raum?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "measurements_erstellt_von_fkey"
+            columns: ["erstellt_von"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "measurements_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          ausgeloest_von: string | null
+          created_at: string
+          gelesen_am: string | null
+          id: number
+          project_id: string | null
+          text: string
+          typ: string
+        }
+        Insert: {
+          ausgeloest_von?: string | null
+          created_at?: string
+          gelesen_am?: string | null
+          id?: never
+          project_id?: string | null
+          text: string
+          typ: string
+        }
+        Update: {
+          ausgeloest_von?: string | null
+          created_at?: string
+          gelesen_am?: string | null
+          id?: never
+          project_id?: string | null
+          text?: string
+          typ?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_ausgeloest_von_fkey"
+            columns: ["ausgeloest_von"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           aktiv: boolean
@@ -208,6 +594,111 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_notes: {
+        Row: {
+          archiviert_am: string | null
+          created_at: string
+          erstellt_von: string | null
+          id: string
+          project_id: string
+          text: string
+          updated_at: string
+        }
+        Insert: {
+          archiviert_am?: string | null
+          created_at?: string
+          erstellt_von?: string | null
+          id?: string
+          project_id: string
+          text: string
+          updated_at?: string
+        }
+        Update: {
+          archiviert_am?: string | null
+          created_at?: string
+          erstellt_von?: string | null
+          id?: string
+          project_id?: string
+          text?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_notes_erstellt_von_fkey"
+            columns: ["erstellt_von"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_notes_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_photos: {
+        Row: {
+          archiviert_am: string | null
+          breite: number | null
+          created_at: string
+          erstellt_von: string | null
+          groesse_bytes: number | null
+          hoehe: number | null
+          id: string
+          kategorie: Database["public"]["Enums"]["foto_kategorie"]
+          kommentar: string | null
+          project_id: string
+          storage_pfad: string
+          updated_at: string
+        }
+        Insert: {
+          archiviert_am?: string | null
+          breite?: number | null
+          created_at?: string
+          erstellt_von?: string | null
+          groesse_bytes?: number | null
+          hoehe?: number | null
+          id?: string
+          kategorie?: Database["public"]["Enums"]["foto_kategorie"]
+          kommentar?: string | null
+          project_id: string
+          storage_pfad: string
+          updated_at?: string
+        }
+        Update: {
+          archiviert_am?: string | null
+          breite?: number | null
+          created_at?: string
+          erstellt_von?: string | null
+          groesse_bytes?: number | null
+          hoehe?: number | null
+          id?: string
+          kategorie?: Database["public"]["Enums"]["foto_kategorie"]
+          kommentar?: string | null
+          project_id?: string
+          storage_pfad?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_photos_erstellt_von_fkey"
+            columns: ["erstellt_von"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_photos_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
         ]
@@ -328,6 +819,89 @@ export type Database = {
           },
         ]
       }
+      time_entries: {
+        Row: {
+          archiviert_am: string | null
+          art: Database["public"]["Enums"]["zeit_art"]
+          bearbeitet_von: string | null
+          beschreibung: string | null
+          bis: string | null
+          created_at: string
+          datum: string
+          erstellt_von: string | null
+          id: string
+          pause_min: number
+          project_id: string | null
+          stunden: number
+          updated_at: string
+          user_id: string
+          von: string | null
+        }
+        Insert: {
+          archiviert_am?: string | null
+          art?: Database["public"]["Enums"]["zeit_art"]
+          bearbeitet_von?: string | null
+          beschreibung?: string | null
+          bis?: string | null
+          created_at?: string
+          datum: string
+          erstellt_von?: string | null
+          id?: string
+          pause_min?: number
+          project_id?: string | null
+          stunden: number
+          updated_at?: string
+          user_id?: string
+          von?: string | null
+        }
+        Update: {
+          archiviert_am?: string | null
+          art?: Database["public"]["Enums"]["zeit_art"]
+          bearbeitet_von?: string | null
+          beschreibung?: string | null
+          bis?: string | null
+          created_at?: string
+          datum?: string
+          erstellt_von?: string | null
+          id?: string
+          pause_min?: number
+          project_id?: string | null
+          stunden?: number
+          updated_at?: string
+          user_id?: string
+          von?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_entries_bearbeitet_von_fkey"
+            columns: ["bearbeitet_von"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_entries_erstellt_von_fkey"
+            columns: ["erstellt_von"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_entries_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_entries_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vehicles: {
         Row: {
           aktiv: boolean
@@ -360,18 +934,59 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      aufmass_bearbeitbar: {
+        Args: { p_measurement_id: string }
+        Returns: boolean
+      }
+      aufmass_sichtbar: { Args: { p_measurement_id: string }; Returns: boolean }
       ist_admin: { Args: never; Returns: boolean }
       ist_aktiv: { Args: never; Returns: boolean }
+      ist_aktiver_nutzer: { Args: { p_user_id: string }; Returns: boolean }
       ist_buero_oder_admin: { Args: never; Returns: boolean }
+      ist_im_einsatz: { Args: { p_assignment_id: string }; Returns: boolean }
+      ist_mitglied_von: {
+        Args: { p_projekt_id: string; p_user_id: string }
+        Returns: boolean
+      }
       ist_projektmitglied: { Args: { p_projekt_id: string }; Returns: boolean }
+      kollegen: {
+        Args: never
+        Returns: {
+          id: string
+          nachname: string
+          telefon: string
+          vorname: string
+        }[]
+      }
       nutzer_sessions_beenden: {
         Args: { p_user_id: string }
         Returns: undefined
       }
+      projekt_aus_pfad: { Args: { p_pfad: string }; Returns: string }
+      zeit_art_erlaubt: {
+        Args: { p_art: Database["public"]["Enums"]["zeit_art"] }
+        Returns: boolean
+      }
+      zeit_noch_aenderbar: {
+        Args: { p_datum: string; p_heute?: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_rolle: "admin" | "buero" | "mitarbeiter"
+      aufmass_einheit: "m2" | "m" | "stk"
+      foto_kategorie: "vorher" | "nachher" | "mangel" | "sonstiges"
       kontakt_typ: "firma" | "privat"
+      urlaub_status: "offen" | "genehmigt" | "abgelehnt" | "zurueckgezogen"
+      zeit_art:
+        | "arbeitszeit"
+        | "fahrtzeit"
+        | "urlaub"
+        | "unbezahlter_urlaub"
+        | "krank"
+        | "schlechtwetter"
+        | "kurzarbeit"
+        | "sonstiges"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -500,7 +1115,20 @@ export const Constants = {
   public: {
     Enums: {
       app_rolle: ["admin", "buero", "mitarbeiter"],
+      aufmass_einheit: ["m2", "m", "stk"],
+      foto_kategorie: ["vorher", "nachher", "mangel", "sonstiges"],
       kontakt_typ: ["firma", "privat"],
+      urlaub_status: ["offen", "genehmigt", "abgelehnt", "zurueckgezogen"],
+      zeit_art: [
+        "arbeitszeit",
+        "fahrtzeit",
+        "urlaub",
+        "unbezahlter_urlaub",
+        "krank",
+        "schlechtwetter",
+        "kurzarbeit",
+        "sonstiges",
+      ],
     },
   },
 } as const

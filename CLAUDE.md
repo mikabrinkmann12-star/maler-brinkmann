@@ -2,6 +2,12 @@
 
 # Maler Brinkmann – Handwerker-Software
 
+## Status: Prototyp (Stand 15.10.2026)
+Alles ist aktuell ein **Test/Prototyp**. Mika stellt die App am Ende Ralf vor, Ralf entscheidet. Erst danach wird etwas gekauft (Vercel Pro, Supabase Pro, ggf. KI).
+- Bis dahin nur **kostenlose Varianten** (Vercel Hobby, Supabase Free, keine bezahlten APIs). Keine kostenpflichtigen Dienste vorschlagen, ohne ausdrücklich auf die Kosten hinzuweisen.
+- **Keine echten Mitarbeiter- oder Kundendaten** in die App, solange keine Backups gebucht sind. Nur Test-/Demo-Daten.
+- Supabase Free pausiert Projekte nach 7 Tagen ohne Nutzung. Dann im Dashboard wieder starten.
+
 ## Projektziel
 Eigene Handwerker-Software für den **Maler Betrieb Ralf Brinkmann** (Saterland), ca. 6–15 Nutzer.
 Soll **Plancraft komplett ablösen**. Die Mitarbeiter-App (Phase 1) läuft zunächst parallel zu Plancraft.
@@ -123,12 +129,26 @@ Legende: ✅ angelegt · ⏳ kommt in der genannten Phase
 - Kein DELETE auf contacts/projects (archivieren). Deaktivierte Nutzer sehen nichts.
 - Trigger `schuetze_admins`: Ein Admin kann sich nicht selbst herabstufen/deaktivieren, und es bleibt immer mindestens ein aktiver Admin.
 - Admin-Funktion `nutzer_sessions_beenden(user_id)`: nur `service_role`.
-- ⏳ (1/2) **assignments** = Tageseinsatz: Datum, vehicle_id, project_id, Mitarbeiter[], Notiz
-- ⏳ (1) **time_entries**: user, project, Datum, von, bis, Pause, Stunden, Art, Beschreibung, erstellt_von, zuletzt_bearbeitet. Arten: Arbeitszeit, Fahrtzeit, Urlaub, Unbezahlter Urlaub, Krank, Schlechtwetter, Kurzarbeit, Sonstiges
-- ⏳ (1) **leave_requests**: Urlaubsanträge von, bis, Status offen/genehmigt/abgelehnt
-- ⏳ (1) **project_notes**, **project_photos** (Supabase Storage, Vorher/Nachher/Mangel, mit Kommentar)
-- ⏳ (1) **material_usage**: Projekt, Material, Menge, Einheit, gemeldet von
-- ⏳ (1) **measurements** (Aufmaß): Projekt, Raum/Bereich, Position, Länge × Breite/Höhe, Abzüge (z. B. Fenster/Türen), Menge, Einheit
+**Phase-1-Tabellen** (Migrationen `…200000_phase1_mitarbeiter_app`, `…210000_zeiten_ersteller_sieht`, bisher **nur in dev**, live folgt in Schritt 1.8):
+- ✅ **app_settings**: schluessel, wert (jsonb). `zeiterfassung` = { erlaubte_arten, standard_beginn 06:30, standard_ende 15:45, standard_pause_min 45, kulanz_tage 3 }. Alle lesen, nur der Admin ändert.
+- ✅ **assignments** (Tageseinsatz: datum, vehicle_id, project_id, notiz = Büro-Notiz für „Heute“) + **assignment_members** (assignment_id, user_id). Trigger: Eingeteilte werden automatisch project_members.
+- ✅ **time_entries**: user_id, project_id, datum, von, bis, pause_min, stunden (bei von/bis per Trigger berechnet, sonst Pflicht), art (`zeit_art`: arbeitszeit, fahrtzeit, urlaub, unbezahlter_urlaub, krank, schlechtwetter, kurzarbeit, sonstiges), beschreibung, erstellt_von (unveränderlich), bearbeitet_von, archiviert_am. Arbeits-/Fahrtzeit brauchen ein Projekt.
+- ✅ **leave_requests**: user_id, von, bis, art (urlaub/unbezahlter_urlaub), bemerkung, status (`offen/genehmigt/abgelehnt/zurueckgezogen`), antwort, entschieden_von/_am (setzt der Trigger)
+- ✅ **project_notes** (text), **project_photos** (storage_pfad `<project_id>/<datei>` im privaten Bucket `projektfotos`, kategorie vorher/nachher/mangel/sonstiges, kommentar, Maße), **material_usage** (material als Text, material_id ab Phase 3, menge, einheit, erledigt_am), **measurements** (raum, position, einheit m2/m/stk, laenge, hoehe, anzahl, menge = von der App berechnet) + **measurement_deductions** (bezeichnung, breite, hoehe, anzahl). Alle mit erstellt_von (unveränderlich) und archiviert_am.
+- ✅ **notifications**: Büro-Posteingang (typ, text, project_id, ausgeloest_von, gelesen_am). Wird nur per Trigger angelegt: `kollege_hinzugefuegt` (wenn ein Mitarbeiter jemanden hinzufügt), `urlaubsantrag`.
+
+**Rechte Phase 1 (RLS):**
+| Bereich | Mitarbeiter | Büro | Admin |
+|---|---|---|---|
+| Kollegen hinzufügen (project_members) | nur zu **eigenen**, nicht archivierten Projekten, `added_by` = er selbst | anlegen + entfernen | wie Büro |
+| assignments (+members) | eigene Einsätze inkl. Kollegen lesen | alles | alles |
+| time_entries | eigene + selbst für andere eingetragene lesen. Anlegen für sich oder Kollegen **derselben Baustelle**, nur erlaubte Arten (`zeit_art_erlaubt`) und innerhalb der Sperrfrist (`zeit_noch_aenderbar`: laufender Monat, bis Kulanztag auch Vormonat, nie Zukunft). Ändern nur eigene, innerhalb der Sperrfrist | alles lesen/anlegen/ändern | wie Büro |
+| leave_requests | eigene lesen/anlegen (offen), zurückziehen solange offen | alle lesen, **nicht** entscheiden | entscheiden |
+| Notizen/Fotos/Material/Aufmaß | lesen + anlegen als Projektmitglied, eigene ändern | alles | alles |
+| Fotos im Storage | lesen/hochladen nur im Ordner eigener Projekte | alle | alle |
+| notifications | – | lesen, als gelesen markieren | wie Büro |
+- Löschen: niemand bei Zeiten, Urlaub, Notizen, Fotos, Material, Aufmaß (archivieren). Aufmaß-Abzüge und Einsätze dürfen gelöscht werden.
+- `kollegen()`: Name + Telefon aller aktiven Nutzer für Eingeloggte (statt breitem Lesezugriff auf profiles).
 - ⏳ (3) **materials**: Artikelnr., Lieferant, Einheit, Beschreibung, EK, Zuschlag %, VK, Ordner
 - ⏳ (3) **services** (Leistungen): Einheit, Beschreibung/Langtext, Kosten, Zuschlag %, VK, Ordner
 - ⏳ (4) **quotes** + **quote_items**
@@ -153,7 +173,16 @@ Legende: ✅ angelegt · ⏳ kommt in der genannten Phase
 - Live-Admin für Mika: `mika.brinkmann` (angelegt 15.10.2026, Login auf dem iPhone getestet). Offen: Zugang für Ralf (in der App unter Benutzer & Rollen).
 - `.env.live` (nicht im Repo) enthält die live-Zugangsdaten für Skripte wie `admin:anlegen`. Die Keys holt man mit `npx supabase projects api-keys --project-ref tezveryzixrysviapmal --reveal`.
 
-### Phase 1 – Mitarbeiter-App
+### Phase 1 – Mitarbeiter-App (🔄 in Arbeit)
+- [x] 1.1 Datenbank, RLS und Tests (nur dev)
+- [ ] 1.2 Einteilung fürs Büro + Spracheingabe (Namen-Erkennung)
+- [ ] 1.3 „Heute“, „Meine Baustellen“, Kollegen hinzufügen, Büro-Hinweise
+- [ ] 1.4 Zeit eintragen, „Meine Zeiten“, Einstellungen „Zeiterfassung“, Entwürfe gegen Datenverlust
+- [ ] 1.5 Fotos + Notizen
+- [ ] 1.6 Material + Aufmaß (VOB)
+- [ ] 1.7 Urlaubsantrag + Genehmigung
+- [ ] 1.8 Migrationen nach live, Test auf iPhone/Android
+
 - Startseite „Heute“: Auto, Baustelle, wer ist dabei, Adresse (Link zu Google Maps), Ansprechpartner, Notizen vom Büro
 - Meine Baustellen (nur eigene) + Kollegen hinzufügen (Kernfeature)
 - Zeit eintragen: Baustelle vorausgewählt, von–bis, Pause, Art, optional Beschreibung. Mehrere Baustellen pro Tag möglich, max. 3–4 Taps im Normalfall. Eigene Zeiten der letzten Tage bearbeitbar (Sperrfrist vom Admin einstellbar)
@@ -248,7 +277,8 @@ Firmendaten, Logo/Briefpapier, Nummernkreise (nur Angebote/Projekte, Rechnungen 
 - `src/lib/pwa.ts`: Versionsvergleich, Speicher für das Installations-Angebot. `src/components/pwa-helfer.tsx`, `src/components/app-installieren.tsx`. `src/app/api/version/route.ts`
 - `src/lib/passwort.ts`: `startpasswortErzeugen()`. `src/lib/nutzer-schema.ts`: zod-Schemas für die Nutzerverwaltung
 - `scripts/admin-anlegen.ts`: ersten Admin anlegen. `scripts/seed.ts` + `seed-daten.ts`: Testdaten
-- `tests/rls/`: `00` Login-Adresse, `01` Funktionsrechte, `02` Rollen & Sperren, `03` Projekte/Kunden/Mitglieder/Fahrzeuge/Status/Löschen/ohne Login
+- `tests/rls/`: `00` Login-Adresse, `01` Funktionsrechte, `02` Rollen & Sperren, `03` Projekte/Kunden/Mitglieder/Fahrzeuge/Status/Löschen/ohne Login, `04` Phase 1 (Kollegen hinzufügen, Einteilung, Zeiten + Sperrfrist, Einstellungen, Urlaub, Notizen/Material/Aufmaß, Fotos-Storage). Insgesamt 69 Tests. Einzelne Datei: `npx vitest run --config vitest.rls.config.mts tests/rls/04-…` (spart Logins)
+- Supabase-Regel: Wer per `insert(...).select()` einen Datensatz zurückliest, braucht auch das **Leserecht** darauf, sonst kommt „violates row-level security policy“, obwohl das Anlegen selbst erlaubt wäre.
 - `src/components/ui/`: shadcn/ui-Komponenten
 - `src/lib/format.ts`: deutsche Formatierung (`formatDatum`, `formatDatumZeit`, `formatUhrzeit`, `formatBetrag`, `formatZahl`; leere Werte → „–“)
 - `.env.example`: Vorlage der Umgebungsvariablen (ohne Werte)

@@ -126,10 +126,10 @@ describe("Ein Maler …", () => {
     expect(data ?? []).toEqual([]);
   });
 
-  it("kann (noch) niemanden zu einem Projekt hinzufügen – das kommt in Phase 1", async () => {
+  it("kann zu fremden Projekten niemanden hinzufügen (eigene: siehe Test 04)", async () => {
     const { error } = await malerC
       .from("project_members")
-      .insert({ project_id: projektEigen, user_id: admin.id, added_by: maler.id });
+      .insert({ project_id: projektFremd, user_id: maler.id, added_by: maler.id });
     expect(error).not.toBeNull();
   });
 
