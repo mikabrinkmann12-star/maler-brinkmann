@@ -6,6 +6,9 @@
 Alles ist aktuell ein **Test/Prototyp**. Mika stellt die App am Ende Ralf vor, Ralf entscheidet. Erst danach wird etwas gekauft (Vercel Pro, Supabase Pro, ggf. KI).
 - Bis dahin nur **kostenlose Varianten** (Vercel Hobby, Supabase Free, keine bezahlten APIs). Keine kostenpflichtigen Dienste vorschlagen, ohne ausdrücklich auf die Kosten hinzuweisen.
 - **Keine echten Mitarbeiter- oder Kundendaten** in die App, solange keine Backups gebucht sind. Nur Test-/Demo-Daten.
+  - **Bewusste Ausnahme (Mika, 16.10.2026):** Die echten Konten sind angelegt, in **dev und live**: `ralf.brinkmann` (Admin), `lena.eigenmeier` (Büro), `christian.lampe` (30 Urlaubstage), `sebastian.plentner`, `carmen.bronn`, `manuel.hinrichs` (je 28 Urlaubstage). Dazu die Entwickler-Admins `mikabrinkmann` (dev) und `mika.brinkmann` (live). Alle haben ein Startpasswort und müssen es beim ersten Login ändern. Die Demo-Konten (`demo-…`) und `test.user` wurden in dev gelöscht. Ohne Backups bleiben Zeiten/Fotos dieser Personen trotzdem ungesichert, bis Supabase Pro gebucht ist.
+  - Startpasswörter stehen nur in `zugangsdaten-dev.txt` / `zugangsdaten-live.txt` im Projektordner (per `.gitignore` nie im Repo). Nach dem Weitergeben löschen.
+  - `npm run seed` legt die `demo-…`-Konten in dev bei Bedarf wieder an und räumt nur sie weg.
 - Supabase Free pausiert Projekte nach 7 Tagen ohne Nutzung. Dann im Dashboard wieder starten.
 
 ## Projektziel
