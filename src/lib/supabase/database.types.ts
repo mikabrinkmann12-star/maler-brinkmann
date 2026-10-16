@@ -297,6 +297,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           email: string | null
+          empfaenger: string | null
           firmenname: string | null
           id: string
           kundennummer: string | null
@@ -306,11 +307,16 @@ export type Database = {
           notizen: string | null
           ort: string | null
           plz: string | null
+          skonto_prozent: number | null
+          skonto_tage: number | null
+          steuersatz: number
           strasse: string | null
           telefon: string | null
           typ: Database["public"]["Enums"]["kontakt_typ"]
           updated_at: string
           vorname: string | null
+          website: string | null
+          zahlungsziel_tage: number | null
         }
         Insert: {
           anrede?: string | null
@@ -319,6 +325,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           email?: string | null
+          empfaenger?: string | null
           firmenname?: string | null
           id?: string
           kundennummer?: string | null
@@ -328,11 +335,16 @@ export type Database = {
           notizen?: string | null
           ort?: string | null
           plz?: string | null
+          skonto_prozent?: number | null
+          skonto_tage?: number | null
+          steuersatz?: number
           strasse?: string | null
           telefon?: string | null
           typ?: Database["public"]["Enums"]["kontakt_typ"]
           updated_at?: string
           vorname?: string | null
+          website?: string | null
+          zahlungsziel_tage?: number | null
         }
         Update: {
           anrede?: string | null
@@ -341,6 +353,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           email?: string | null
+          empfaenger?: string | null
           firmenname?: string | null
           id?: string
           kundennummer?: string | null
@@ -350,11 +363,16 @@ export type Database = {
           notizen?: string | null
           ort?: string | null
           plz?: string | null
+          skonto_prozent?: number | null
+          skonto_tage?: number | null
+          steuersatz?: number
           strasse?: string | null
           telefon?: string | null
           typ?: Database["public"]["Enums"]["kontakt_typ"]
           updated_at?: string
           vorname?: string | null
+          website?: string | null
+          zahlungsziel_tage?: number | null
         }
         Relationships: [
           {

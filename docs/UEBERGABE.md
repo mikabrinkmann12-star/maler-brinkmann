@@ -23,6 +23,8 @@
 
 - **Phase 2 (16.10., Migration `20261016160000` in dev UND live):** Plantafel mit Tag/Woche/Monat/Termine, Drag & Drop, mehrere Baustellen pro Auto (festes Team, Zeit um/ab optional), Termine für alle (Mitarbeiter: `/termine`, Büro: `/buero/plantafel/termine`), „Heute“ zeigt alle Stopps und Termine. Details in CLAUDE.md → Phase 2.
 
+- **Phase 3.1 (16.10., Migration `20261016180000` in dev UND live):** Kontakte (Liste, Detail, Anlegen/Bearbeiten/Archivieren) und **Kontakte-Import** aus der Plancraft-CSV (Admin, `/buero/kontakte/import`). Die echte Datei ist noch nicht importiert.
+
 ## Testen (für Mika)
 - **Auf dem Handy mit Demo-Daten:** Zweig `vorschau` auf GitHub → Vercel baut eine Preview-Version, die mit **dev** arbeitet. Adresse: vercel.com → Projekt → Deployments → oberste „Preview“-Zeile (oder `npx.cmd vercel@latest ls`). Für neue Stände: `git push origin main:vorschau`.
 - Anmelden z. B. als `demo-sebastian` (Maler), `demo-buero`, `demo-admin`.

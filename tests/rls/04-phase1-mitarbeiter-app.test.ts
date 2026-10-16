@@ -84,6 +84,7 @@ afterAll(async () => {
   await db.from("appointments").delete().in("project_id", projekte);
   await db.from("project_members").delete().in("project_id", projekte);
   await db.from("projects").delete().in("id", projekte);
+  await db.from("contacts").delete().like("kundennummer", `${kennung}%`);
   if (fahrzeug) await db.from("vehicles").delete().eq("id", fahrzeug);
   await Promise.all([admin, buero, malerA, malerB, malerC].map(testNutzerLoeschen));
 });
@@ -639,5 +640,31 @@ describe("Fotos (privater Speicher)", () => {
     expect(data ?? []).toEqual([]);
     const nochDa = await adminClient().storage.from("projektfotos").download(`${p1}/${kennung}.jpg`);
     expect(nochDa.error).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+describe("Kontakte (Zahlung, Steuer, Rechte)", () => {
+  it("das Büro legt einen Kontakt mit Zahlungsziel, Skonto und Steuersatz an", async () => {
+    const { data, error } = await bueroC.from("contacts").insert({
+      kundennummer: `${kennung}-K1`, typ: "privat", nachname: "Muster", website: "www.example.com",
+      zahlungsziel_tage: 14, skonto_prozent: 2.5, skonto_tage: 7, steuersatz: 7,
+    }).select("id, steuersatz").single();
+    expect(error).toBeNull();
+    expect(Number(data!.steuersatz)).toBe(7);
+  });
+
+  it("Steuersatz nur 0/7/19, Skonto nur mit Prozent und Tagen, Kundennummer eindeutig", async () => {
+    const basis = { typ: "privat", nachname: "Muster" };
+    expect((await bueroC.from("contacts").insert({ ...basis, kundennummer: `${kennung}-K2`, steuersatz: 16 })).error).not.toBeNull();
+    expect((await bueroC.from("contacts").insert({ ...basis, kundennummer: `${kennung}-K3`, skonto_prozent: 2 })).error).not.toBeNull();
+    expect((await bueroC.from("contacts").insert({ ...basis, kundennummer: `${kennung}-K1` })).error?.code).toBe("23505");
+  });
+
+  it("Mitarbeiter können keine Kontakte anlegen, das Büro sieht und archiviert sie", async () => {
+    expect((await aC.from("contacts").insert({ typ: "privat", nachname: "X", kundennummer: `${kennung}-K4` })).error).not.toBeNull();
+    const archiv = await bueroC.from("contacts").update({ archiviert_am: new Date().toISOString() })
+      .eq("kundennummer", `${kennung}-K1`).select("id");
+    expect(archiv.data?.length).toBe(1);
   });
 });
