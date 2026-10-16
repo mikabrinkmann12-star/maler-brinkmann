@@ -77,7 +77,10 @@ export async function notizAnlegen(eingabe: unknown): Promise<InhaltErgebnis> {
 }
 
 /** Löschen = archivieren: eigene Einträge (als Mitglied) oder Büro/Admin. RLS prüft. */
-async function archivieren(tabelle: "project_notes" | "project_photos", eintragId: string): Promise<InhaltErgebnis> {
+async function archivieren(
+  tabelle: "project_notes" | "project_photos" | "material_usage",
+  eintragId: string,
+): Promise<InhaltErgebnis> {
   await requireUser();
   if (!id.safeParse(eintragId).success) return { fehler: "Ungültiger Eintrag." };
   const supabase = await createClient();
@@ -143,5 +146,63 @@ export async function fotoSpeichern(eingabe: unknown): Promise<InhaltErgebnis> {
     return { fehler: "Fotos gehen nur auf Baustellen, auf denen du eingetragen bist." };
   }
   revalidatePath(`/baustellen/${f.projektId}`);
+  return {};
+}
+
+// ---------------------------------------------------------------------------
+// Material melden (freier Text, Katalog ab Phase 3)
+// ---------------------------------------------------------------------------
+const materialSchema = z.object({
+  id: z.uuid(),
+  projektId: z.uuid(),
+  material: z.string().trim().min(1, "Bitte angeben, welches Material gebraucht wird.").max(200, "Der Text ist zu lang (höchstens 200 Zeichen)."),
+  menge: z.number({ error: "Bitte eine Menge angeben." }).positive("Bitte eine Menge über 0 angeben.").max(99_999_999),
+  einheit: z.string().trim().min(1, "Bitte eine Einheit wählen.").max(20, "Die Einheit ist zu lang."),
+  bemerkung: z.string().trim().max(500, "Die Bemerkung ist zu lang (höchstens 500 Zeichen).").default(""),
+});
+
+export async function materialMelden(eingabe: unknown): Promise<InhaltErgebnis> {
+  const nutzer = await requireUser();
+  const pruefung = materialSchema.safeParse(eingabe);
+  if (!pruefung.success) return { fehler: pruefung.error.issues[0]?.message ?? "Ungültige Eingabe." };
+  const m = pruefung.data;
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("material_usage").insert({
+    id: m.id,
+    project_id: m.projektId,
+    material: m.material,
+    menge: Math.round(m.menge * 100) / 100,
+    einheit: m.einheit,
+    bemerkung: m.bemerkung || null,
+    erstellt_von: nutzer.id,
+  });
+  if (error && error.code !== "23505") {
+    return { fehler: "Material melden geht nur auf Baustellen, auf denen du eingetragen bist." };
+  }
+  revalidatePath(`/baustellen/${m.projektId}`);
+  revalidatePath("/buero");
+  return {};
+}
+
+export async function materialArchivieren(materialId: string): Promise<InhaltErgebnis> {
+  const r = await archivieren("material_usage", materialId);
+  revalidatePath("/buero");
+  return r;
+}
+
+/** Büro hakt Material als besorgt/erledigt ab (oder nimmt den Haken zurück). */
+export async function materialErledigt(materialId: string, erledigt: boolean): Promise<InhaltErgebnis> {
+  await requireRole(BUERO_ROLLEN);
+  if (!id.safeParse(materialId).success) return { fehler: "Ungültiger Eintrag." };
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("material_usage")
+    .update({ erledigt_am: erledigt ? new Date().toISOString() : null })
+    .eq("id", materialId)
+    .select("project_id");
+  if (error || !data.length) return { fehler: "Speichern hat nicht geklappt." };
+  revalidatePath(`/baustellen/${data[0].project_id}`);
+  revalidatePath("/buero");
   return {};
 }

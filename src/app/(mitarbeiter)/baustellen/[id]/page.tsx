@@ -1,18 +1,21 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeftIcon, ClockIcon, ConstructionIcon, ImageIcon, NavigationIcon, StickyNoteIcon } from "lucide-react";
+import { ArrowLeftIcon, ChevronRightIcon, ClockIcon, ImageIcon, NavigationIcon, PackageIcon, RulerIcon, StickyNoteIcon } from "lucide-react";
 import { AnrufLink } from "@/components/anruf-link";
 import { buttonVariants } from "@/components/ui/button";
 import { requireUser } from "@/lib/auth";
+import { EINHEIT_NAMEN, aufmassSummen } from "@/lib/aufmass";
+import { aufmassLaden } from "@/lib/baustellen-daten";
 import { vorschauPfad } from "@/lib/bild";
-import { formatDatum, formatDatumZeit } from "@/lib/format";
+import { formatDatum, formatDatumZeit, formatZahl } from "@/lib/format";
 import { kollegenLaden } from "@/lib/mitarbeiter-daten";
 import { adresseText, kontaktName, mapsLink } from "@/lib/projekt";
 import { istBueroRolle } from "@/lib/rollen";
 import { createClient } from "@/lib/supabase/server";
 import { Warteschlange } from "../../warteschlange";
 import { Fotos, type FotoAnzeige } from "./fotos";
+import { Material, type MaterialAnzeige } from "./material";
 import { Notizen, type NotizAnzeige } from "./notizen";
 import { Team } from "./team";
 
@@ -40,13 +43,16 @@ export default async function BaustelleSeite({ params }: { params: Promise<{ id:
     .maybeSingle();
   if (!p) notFound();
 
-  const [{ data: mitglieder }, kollegen, { data: notizDaten }, { data: fotoDaten }] = await Promise.all([
+  const [{ data: mitglieder }, kollegen, { data: notizDaten }, { data: fotoDaten }, { data: materialDaten }, aufmass] = await Promise.all([
     supabase.from("project_members").select("user_id").eq("project_id", id),
     kollegenLaden(),
     supabase.from("project_notes").select("id, text, erstellt_von, created_at")
       .eq("project_id", id).is("archiviert_am", null).order("created_at", { ascending: false }),
     supabase.from("project_photos").select("id, storage_pfad, kategorie, kommentar, erstellt_von, created_at")
       .eq("project_id", id).is("archiviert_am", null).order("created_at", { ascending: false }),
+    supabase.from("material_usage").select("id, material, menge, einheit, bemerkung, erledigt_am, erstellt_von, created_at")
+      .eq("project_id", id).is("archiviert_am", null).order("created_at", { ascending: false }),
+    aufmassLaden(id),
   ]);
   const team = (mitglieder ?? []).map((m) => kollegen.get(m.user_id)).filter((k): k is NonNullable<typeof k> => Boolean(k));
   const istMitglied = team.some((t) => t.id === nutzer.id);
@@ -75,6 +81,18 @@ export default async function BaustelleSeite({ params }: { params: Promise<{ id:
     wann: formatDatumZeit(f.created_at),
     darfLoeschen: darfLoeschen(f.erstellt_von),
   }));
+  const material: MaterialAnzeige[] = (materialDaten ?? []).map((m) => ({
+    id: m.id,
+    material: m.material,
+    menge: Number(m.menge),
+    einheit: m.einheit,
+    bemerkung: m.bemerkung ?? "",
+    wer: wer(m.erstellt_von),
+    wann: formatDatumZeit(m.created_at),
+    erledigt: m.erledigt_am ? formatDatum(m.erledigt_am) : null,
+    darfLoeschen: darfLoeschen(m.erstellt_von),
+  }));
+  const aufmassSumme = aufmassSummen(aufmass);
   const notizen: NotizAnzeige[] = (notizDaten ?? []).map((n) => ({
     id: n.id,
     text: n.text,
@@ -122,6 +140,8 @@ export default async function BaustelleSeite({ params }: { params: Promise<{ id:
           )}
           <a href="#fotos" className={SCHNELL}><ImageIcon /> Fotos</a>
           <a href="#notizen" className={SCHNELL}><StickyNoteIcon /> Notizen</a>
+          <a href="#material" className={SCHNELL}><PackageIcon /> Material</a>
+          <Link href={`/baustellen/${p.id}/aufmass`} className={SCHNELL}><RulerIcon /> Aufmaß</Link>
         </nav>
       )}
 
@@ -163,10 +183,28 @@ export default async function BaustelleSeite({ params }: { params: Promise<{ id:
       <Fotos projektId={p.id} ichId={nutzer.id} darfHochladen={darfInhalte} fotos={fotos} />
       <Notizen projektId={p.id} ichId={nutzer.id} darfSchreiben={darfInhalte} notizen={notizen} />
 
-      <div className="flex items-start gap-3 rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
-        <ConstructionIcon className="mt-0.5 size-5 shrink-0" />
-        <p>Material und Aufmaß kommen im nächsten Schritt (1.6).</p>
-      </div>
+      <Material projektId={p.id} ichId={nutzer.id} darfMelden={darfInhalte} darfAbhaken={istBuero} eintraege={material} />
+
+      <section className="flex flex-col gap-3">
+        <h2 className="flex items-center gap-2 text-lg font-semibold"><RulerIcon className="size-5" /> Aufmaß</h2>
+        <Link href={`/baustellen/${p.id}/aufmass`} className="flex items-center gap-3 rounded-xl border p-4 transition-colors hover:bg-muted">
+          <span className="min-w-0 flex-1">
+            {aufmassSumme.length === 0 ? (
+              <span className="text-muted-foreground">Noch kein Aufmaß. Antippen zum Erfassen.</span>
+            ) : (
+              <ul className="flex flex-col gap-1">
+                {aufmassSumme.map((s) => (
+                  <li key={`${s.position}|${s.einheit}`} className="flex justify-between gap-3">
+                    <span className="truncate">{s.position}</span>
+                    <span className="shrink-0 font-semibold">{formatZahl(s.menge, { min: 2, max: 2 })} {EINHEIT_NAMEN[s.einheit]}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </span>
+          <ChevronRightIcon className="size-5 shrink-0 text-muted-foreground" />
+        </Link>
+      </section>
     </div>
   );
 }

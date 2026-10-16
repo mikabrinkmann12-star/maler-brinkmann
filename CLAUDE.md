@@ -201,7 +201,12 @@ Legende: ✅ angelegt · ⏳ kommt in der genannten Phase
   - Notizen: Text bis 2.000 Zeichen, neueste zuerst, eigene löschen (= archivieren), läuft über die Warteschlange.
   - Server-Aktionen `notizAnlegen`, `notizArchivieren`, `fotoSpeichern`, `fotoArchivieren` in `baustellen/actions.ts` (idempotent). Die Warteschlange liegt jetzt allgemein in `src/app/(mitarbeiter)/senden.ts` + `warteschlange.tsx`; neue Aktionen dort eintragen.
   - Büro/Admin sehen und löschen alle Fotos/Notizen. Benachrichtigungen fürs Büro bei neuen Fotos gibt es noch nicht (bräuchte eine Migration).
-- [ ] 1.6 Material + Aufmaß (VOB)
+- [x] 1.6 Material + Aufmaß (VOB)
+  - Material (Baustellen-Seite, Abschnitt „Material“): freier Text, Menge (deutsches Komma), Einheit (Stk, Eimer, Liter, kg, Rolle, Kartusche, Packung, Sack, m, m²), Bemerkung. Über die Warteschlange. Büro/Admin haken ab (`materialErledigt`), offene Meldungen aller Baustellen stehen im Kasten „Material-Meldungen“ auf `/buero`.
+  - Aufmaß: `/baustellen/[id]/aufmass` (Summen je Position + Zeilen je Raum), `/aufmass/neu`, `/aufmass/[mid]` (ändern/löschen). Einheit m² (Länge × Höhe × Anzahl − Abzüge), m (Länge × Anzahl) oder Stück. Abzüge mit Live-Anzeige „übermessen“ / „wird abgezogen“. „+ Weitere“ speichert und behält Raum/Position (nächste Wand).
+  - Rechnung nur in `src/lib/aufmass.ts` (getestet), der Server rechnet vor dem Speichern selbst nach. Öffnungen ≤ 2,5 m² Einzelgröße werden übermessen. **Annahme:** Abzüge gelten für die ganze Zeile (nicht × Anzahl) – siehe Offene Fragen.
+  - `aufmassSpeichern` (`baustellen/aufmass-actions.ts`): Zeile erst unsichtbar (archiviert) anlegen, Abzüge dazu, dann freischalten – nie halbe Zeilen. Ändern = neue Fassung, alte wird archiviert (Verlauf bleibt). Idempotent.
+  - Hilfen: `src/lib/baustellen-daten.ts` (`baustelleMitRechten`, `aufmassLaden`).
 - [ ] 1.7 Urlaubsantrag + Genehmigung
 - [ ] 1.8 Migrationen nach live, Test auf iPhone/Android
 
@@ -300,7 +305,7 @@ Firmendaten, Logo/Briefpapier, Nummernkreise (nur Angebote/Projekte, Rechnungen 
 - `src/lib/pwa.ts`: Versionsvergleich, Speicher für das Installations-Angebot. `src/components/pwa-helfer.tsx`, `src/components/app-installieren.tsx`. `src/app/api/version/route.ts`
 - `src/lib/passwort.ts`: `startpasswortErzeugen()`. `src/lib/nutzer-schema.ts`: zod-Schemas für die Nutzerverwaltung
 - `scripts/admin-anlegen.ts`: ersten Admin anlegen. `scripts/seed.ts` + `seed-daten.ts`: Testdaten
-- `tests/rls/`: `00` Login-Adresse, `01` Funktionsrechte, `02` Rollen & Sperren, `03` Projekte/Kunden/Mitglieder/Fahrzeuge/Status/Löschen/ohne Login, `04` Phase 1 (Kollegen hinzufügen, Einteilung, Zeiten + Sperrfrist + mehrere auf einmal/erneut senden, Einstellungen, Urlaub, Notizen/Material/Aufmaß, Fotos-Storage). Insgesamt 71 Tests. Einzelne Datei: `npx vitest run --config vitest.rls.config.mts tests/rls/04-…` (spart Logins)
+- `tests/rls/`: `00` Login-Adresse, `01` Funktionsrechte, `02` Rollen & Sperren, `03` Projekte/Kunden/Mitglieder/Fahrzeuge/Status/Löschen/ohne Login, `04` Phase 1 (Kollegen hinzufügen, Einteilung, Zeiten + Sperrfrist + mehrere auf einmal/erneut senden, Einstellungen, Urlaub, Notizen/Material/Aufmaß inkl. Freischalten + Abhaken, Fotos-Storage). Insgesamt 73 Tests. Einzelne Datei: `npx vitest run --config vitest.rls.config.mts tests/rls/04-…` (spart Logins)
 - Supabase-Regel: Wer per `insert(...).select()` einen Datensatz zurückliest, braucht auch das **Leserecht** darauf, sonst kommt „violates row-level security policy“, obwohl das Anlegen selbst erlaubt wäre.
 - `src/components/ui/`: shadcn/ui-Komponenten
 - `src/lib/format.ts`: deutsche Formatierung (`formatDatum`, `formatDatumZeit`, `formatUhrzeit`, `formatBetrag`, `formatZahl`; leere Werte → „–“)
@@ -320,6 +325,8 @@ Firmendaten, Logo/Briefpapier, Nummernkreise (nur Angebote/Projekte, Rechnungen 
 - Admin-Zugänge für Ralf und Mika in live
 
 ## Offene Fragen
+- **Aufmaß:** Gelten Abzüge (Fenster/Türen) für die ganze Zeile oder je Stück der Zeile (bei Anzahl > 1)? Gebaut ist „ganze Zeile“ (`src/lib/aufmass.ts`). Leibungen werden noch nicht extra erfasst.
+- **Zeiten:** Doppelte Einträge durch Kollegen (A trägt für B ein, B trägt selbst ein) werden nur erkannt, wenn der Eintragende den anderen Eintrag sehen darf. Eine vollständige Prüfung bräuchte eine DB-Funktion (Migration).
 - Format der Projekt- und Kundennummern sowie Exportformat aus Plancraft (Phase 3)
 - Arbeitszeitmodelle und Überstundenregeln (Phase 3)
 - Firmenlogo und Farben

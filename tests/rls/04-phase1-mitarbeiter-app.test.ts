@@ -417,6 +417,37 @@ describe("Notizen, Material, Aufmaß", () => {
     expect(fremdAnlegen.error).not.toBeNull();
   });
 
+  it("Aufmaß wie die App: unsichtbar anlegen, Abzüge dazu, freischalten – Kollegen ändern es nicht", async () => {
+    const id = randomUUID();
+    const neu = await aC.from("measurements").insert({
+      id, project_id: p2, raum: "Flur", position: "Wände streichen", laenge: 5, hoehe: 2.6, menge: 8.6,
+      erstellt_von: malerA.id, archiviert_am: new Date().toISOString(),
+    });
+    expect(neu.error).toBeNull();
+    const abzug = await aC.from("measurement_deductions").insert({ measurement_id: id, bezeichnung: "Tür", breite: 2, hoehe: 2.2 });
+    expect(abzug.error).toBeNull();
+    const frei = await aC.from("measurements").update({ archiviert_am: null }).eq("id", id).select("id");
+    expect(frei.data).toEqual([{ id }]);
+
+    // malerB ist auch auf p2, darf A's Aufmaß aber weder ändern noch Abzüge anhängen
+    const fremd = await bC.from("measurements").update({ archiviert_am: new Date().toISOString() }).eq("id", id).select("id");
+    expect(fremd.data ?? []).toEqual([]);
+    const fremdAbzug = await bC.from("measurement_deductions").insert({ measurement_id: id, bezeichnung: "x", breite: 1, hoehe: 1 });
+    expect(fremdAbzug.error).not.toBeNull();
+    const buero = await bueroC.from("measurements").update({ archiviert_am: new Date().toISOString() }).eq("id", id).select("id");
+    expect(buero.data).toEqual([{ id }]);
+  });
+
+  it("Material: nur das Büro hakt ab, Kollegen können fremde Meldungen nicht ändern", async () => {
+    const { data: m } = await aC.from("material_usage")
+      .insert({ id: randomUUID(), project_id: p2, material: "Abdeckvlies", menge: 1, einheit: "Rolle", erstellt_von: malerA.id })
+      .select("id").single();
+    const kollege = await bC.from("material_usage").update({ erledigt_am: new Date().toISOString() }).eq("id", m!.id).select("id");
+    expect(kollege.data ?? []).toEqual([]);
+    const buero = await bueroC.from("material_usage").update({ erledigt_am: new Date().toISOString() }).eq("id", m!.id).select("id");
+    expect(buero.data).toEqual([{ id: m!.id }]);
+  });
+
   it("Notizen kann niemand löschen, nur archivieren", async () => {
     for (const client of [aC, bueroC]) {
       const { data } = await client.from("project_notes").delete().eq("id", notiz).select("id");

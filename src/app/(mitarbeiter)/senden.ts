@@ -4,7 +4,8 @@ import {
   auftragMerken,
   type Auftrag,
 } from "@/lib/warteschlange";
-import { notizAnlegen, notizArchivieren } from "./baustellen/actions";
+import { materialArchivieren, materialMelden, notizAnlegen, notizArchivieren } from "./baustellen/actions";
+import { aufmassArchivieren, aufmassSpeichern } from "./baustellen/aufmass-actions";
 import { zeitAendern, zeitArchivieren, zeitenAnlegen } from "./zeiten/actions";
 
 // Verbindet die Warteschlange (src/lib/warteschlange.ts) mit den Server-Aktionen.
@@ -19,6 +20,10 @@ const AKTIONEN: Record<string, (n: Nutzlast) => Promise<Ergebnis>> = {
   zeit_archivieren: (n) => zeitArchivieren(String(n.id)),
   notiz_anlegen: (n) => notizAnlegen(n.daten),
   notiz_archivieren: (n) => notizArchivieren(String(n.id)),
+  material_melden: (n) => materialMelden(n.daten),
+  material_archivieren: (n) => materialArchivieren(String(n.id)),
+  aufmass_speichern: (n) => aufmassSpeichern(n.daten),
+  aufmass_archivieren: (n) => aufmassArchivieren(String(n.id)),
 };
 
 export type SendeErgebnis =
