@@ -1,5 +1,6 @@
 import "server-only";
-import { type KatalogArt } from "@/lib/katalog";
+import { ordnerPfadText, type KatalogArt } from "@/lib/katalog";
+import { materialSchluessel } from "@/lib/katalog-import";
 import { suchtext } from "@/lib/suche";
 import { createClient } from "@/lib/supabase/server";
 
@@ -91,4 +92,31 @@ export async function eintraegeLaden(
       lieferant: "", archiviert: s.archiviert_am != null,
     })),
   };
+}
+
+/**
+ * Dubletten-Schlüssel aller vorhandenen Materialien (auch archivierter) für den Import.
+ * Die Datenbank liefert höchstens 1000 Zeilen pro Abfrage, darum wird seitenweise geladen.
+ */
+export async function materialSchluesselLaden(): Promise<Set<string>> {
+  const supabase = await createClient();
+  const ordner = await ordnerLaden("material");
+  const pfad = (id: string | null) => ordnerPfadText(ordner, id).replace(/ › /g, " > ");
+  const schluessel = new Set<string>();
+  const SEITE = 1000;
+
+  for (let von = 0; ; von += SEITE) {
+    const { data, error } = await supabase
+      .from("materials")
+      .select("artikelnr, lieferant, name, einheit, folder_id")
+      .order("id") // stabile Reihenfolge fürs seitenweise Laden
+      .range(von, von + SEITE - 1);
+    if (error) throw new Error("Die vorhandenen Materialien konnten nicht geladen werden.");
+    for (const m of data) {
+      schluessel.add(
+        materialSchluessel({ artikelnr: m.artikelnr ?? "", lieferant: m.lieferant ?? "", name: m.name, einheit: m.einheit, ordnerPfad: pfad(m.folder_id) }),
+      );
+    }
+    if (data.length < SEITE) return schluessel;
+  }
 }

@@ -3,7 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireRole } from "@/lib/auth";
-import { istKatalogArt, type KatalogArt } from "@/lib/katalog";
+import { MAX_PREIS, MAX_ZUSCHLAG, istKatalogArt, type KatalogArt } from "@/lib/katalog";
+import { materialSchluesselLaden, ordnerLaden, type OrdnerZeile } from "@/lib/katalog-daten";
+import { MAX_ORDNER_TIEFE, importStatus, type MaterialEntwurf } from "@/lib/katalog-import";
 import { leistungSchema, materialSchema, ordnerSchema } from "@/lib/katalog-schema";
 import { ersteMeldung } from "@/lib/nutzer-schema";
 import { BUERO_ROLLEN } from "@/lib/rollen";
@@ -184,4 +186,103 @@ export async function eintragArchivieren(art: string, id: string, archivieren: b
 
   aktualisieren();
   return {};
+}
+
+// ---------------------------------------------------------------------------
+// Import aus CSV (nur Admin). Importiert wird nur, was neu ist; nichts wird überschrieben.
+// ---------------------------------------------------------------------------
+export type KatalogImportErgebnis = {
+  fehler?: string;
+  importiert: number;
+  uebersprungen: number;
+  fehlerhaft: number;
+  neueOrdner: number;
+};
+
+const MAX_PRO_AUFRUF = 150;
+
+const importEintragSchema = z.object({
+  ordner: z.array(z.string().trim().min(1).max(100)).max(MAX_ORDNER_TIEFE),
+  artikelnr: z.string().trim().max(50),
+  name: z.string().trim().min(1).max(200),
+  lieferant: z.string().trim().max(100),
+  einheit: z.string().trim().min(1).max(20),
+  ek: z.number().min(0).max(MAX_PREIS),
+  zuschlag: z.number().min(0).max(MAX_ZUSCHLAG),
+  beschreibung: z.string().trim().max(2000),
+});
+
+const nameNormal = (t: string) => t.trim().toLowerCase();
+
+export async function materialienImportieren(eingabe: unknown): Promise<KatalogImportErgebnis> {
+  await requireRole(["admin"]);
+  const leer = { importiert: 0, uebersprungen: 0, fehlerhaft: 0, neueOrdner: 0 };
+  if (!Array.isArray(eingabe) || eingabe.length > MAX_PRO_AUFRUF) return { ...leer, fehler: "Zu viele Materialien auf einmal." };
+
+  const pruefungen = eingabe.map((e) => importEintragSchema.safeParse(e));
+  const gueltig: MaterialEntwurf[] = pruefungen.flatMap((p) => (p.success ? [p.data] : []));
+  const fehlerhaft = pruefungen.length - gueltig.length;
+
+  // Was gibt es schon? Das wird bei jedem Paket neu gelesen, so ist ein erneuter Start gefahrlos.
+  let vorhanden: Set<string>;
+  try {
+    vorhanden = await materialSchluesselLaden();
+  } catch {
+    return { ...leer, fehler: "Die vorhandenen Materialien konnten nicht gelesen werden." };
+  }
+  const status = importStatus(gueltig.map((entwurf, i) => ({ zeile: i, entwurf })), vorhanden);
+  const neue = gueltig.filter((_, i) => status[i] === "neu");
+  if (!neue.length) return { ...leer, fehlerhaft, uebersprungen: gueltig.length };
+
+  // Ordner auflösen, fehlende Ordner anlegen (nur nicht archivierte Ordner werden wiederverwendet)
+  const supabase = await createClient();
+  const ordner = (await ordnerLaden("material")).filter((o) => !o.archiviert);
+  let neueOrdner = 0;
+  const ordnerId = async (pfad: string[]): Promise<string | null> => {
+    let eltern: string | null = null;
+    for (const name of pfad) {
+      let treffer: OrdnerZeile | undefined = ordner.find((o) => o.parentId === eltern && nameNormal(o.name) === nameNormal(name));
+      if (!treffer) {
+        const angelegt: { data: { id: string } | null; error: unknown } = await supabase.from("catalog_folders").insert({ art: "material", name, parent_id: eltern }).select("id").single();
+        if (angelegt.error || !angelegt.data) throw new Error("Ein Ordner konnte nicht angelegt werden.");
+        treffer = { id: angelegt.data.id, parentId: eltern, name, archiviert: false };
+        ordner.push(treffer);
+        neueOrdner++;
+      }
+      eltern = treffer.id;
+    }
+    return eltern;
+  };
+
+  let zeilen;
+  try {
+    zeilen = [];
+    for (const m of neue) {
+      zeilen.push({
+        folder_id: await ordnerId(m.ordner),
+        artikelnr: m.artikelnr || null,
+        name: m.name,
+        beschreibung: m.beschreibung || null,
+        lieferant: m.lieferant || null,
+        einheit: m.einheit,
+        ek: m.ek,
+        zuschlag_prozent: m.zuschlag,
+      });
+    }
+  } catch (e) {
+    aktualisieren();
+    return { ...leer, fehlerhaft, neueOrdner, fehler: e instanceof Error ? e.message : "Der Import ist fehlgeschlagen." };
+  }
+
+  let importiert = 0;
+  const { error } = await supabase.from("materials").insert(zeilen);
+  if (!error) importiert = zeilen.length;
+  else {
+    // Bei einem Fehler einzeln versuchen, damit der Rest trotzdem ankommt
+    for (const z of zeilen) {
+      if (!(await supabase.from("materials").insert(z)).error) importiert++;
+    }
+  }
+  aktualisieren();
+  return { importiert, uebersprungen: gueltig.length - neue.length + (neue.length - importiert), fehlerhaft, neueOrdner };
 }

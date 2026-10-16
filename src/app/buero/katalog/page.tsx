@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ChevronRightIcon, PlusIcon, SearchIcon } from "lucide-react";
+import { ChevronRightIcon, PlusIcon, SearchIcon, UploadIcon } from "lucide-react";
 import { cn } from "cn";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { requireRole } from "@/lib/auth";
@@ -22,7 +22,7 @@ export const metadata: Metadata = { title: "Katalog" };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export default async function KatalogSeite({ searchParams }: PageProps<"/buero/katalog">) {
-  await requireRole(BUERO_ROLLEN);
+  const nutzer = await requireRole(BUERO_ROLLEN);
   const params = await searchParams;
   const wert = (n: string) => (typeof params[n] === "string" ? (params[n] as string) : "");
   const art: KatalogArt = istKatalogArt(wert("art")) ? (wert("art") as KatalogArt) : "material";
@@ -57,9 +57,16 @@ export default async function KatalogSeite({ searchParams }: PageProps<"/buero/k
             Einkaufspreis oder Kosten plus Zuschlag ergeben den Verkaufspreis. Nur Büro und Admin sehen die Preise.
           </p>
         </div>
-        <Link href={neuHref} className={buttonVariants({ size: "lg" })}>
-          <PlusIcon /> {istMaterial ? "Neues Material" : "Neue Leistung"}
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          {istMaterial && nutzer.rolle === "admin" && (
+            <Link href="/buero/katalog/import" className={buttonVariants({ variant: "outline", size: "lg" })}>
+              <UploadIcon /> CSV-Import
+            </Link>
+          )}
+          <Link href={neuHref} className={buttonVariants({ size: "lg" })}>
+            <PlusIcon /> {istMaterial ? "Neues Material" : "Neue Leistung"}
+          </Link>
+        </div>
       </div>
 
       <div className="flex gap-2 text-sm" role="tablist" aria-label="Art">
