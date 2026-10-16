@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { heuteIso, istIsoDatum, tageVerschieben } from "./datum";
+import { heuteIso, istIsoDatum, istMonat, monatVerschieben, monatsGrenzen, tageVerschieben } from "./datum";
 
 describe("heuteIso", () => {
   it("nimmt das deutsche Datum, nicht UTC", () => {
@@ -24,5 +24,25 @@ describe("istIsoDatum", () => {
     expect(istIsoDatum("2026-02-30")).toBe(false);
     expect(istIsoDatum("15.10.2026")).toBe(false);
     expect(istIsoDatum(undefined)).toBe(false);
+  });
+});
+
+describe("Monate", () => {
+  it("verschiebt Monate über Jahresgrenzen", () => {
+    expect(monatVerschieben("2026-01", -1)).toBe("2025-12");
+    expect(monatVerschieben("2026-12", 1)).toBe("2027-01");
+    expect(monatVerschieben("2026-10", 0)).toBe("2026-10");
+  });
+
+  it("kennt Monatsgrenzen inkl. Schaltjahr", () => {
+    expect(monatsGrenzen("2026-02")).toEqual({ erster: "2026-02-01", letzter: "2026-02-28" });
+    expect(monatsGrenzen("2028-02")).toEqual({ erster: "2028-02-01", letzter: "2028-02-29" });
+    expect(monatsGrenzen("2026-10")).toEqual({ erster: "2026-10-01", letzter: "2026-10-31" });
+  });
+
+  it("erkennt gültige Monate", () => {
+    expect(istMonat("2026-10")).toBe(true);
+    expect(istMonat("2026-13")).toBe(false);
+    expect(istMonat("2026-1")).toBe(false);
   });
 });

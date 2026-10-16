@@ -106,3 +106,41 @@ export function formatZahl(
     maximumFractionDigits: nachkommastellen.max,
   }).format(wert);
 }
+
+/**
+ * Stunden (Dezimalzahl aus der Datenbank) als „8:30 Std“.
+ * Gerundet auf volle Minuten, damit 7,33 Std als „7:20 Std“ erscheint.
+ */
+export function formatStunden(stunden: number | null | undefined): string {
+  if (stunden == null || Number.isNaN(stunden)) return LEER;
+  const minuten = Math.round(Math.abs(stunden) * 60);
+  const vorzeichen = stunden < 0 && minuten > 0 ? "-" : "";
+  return `${vorzeichen}${Math.floor(minuten / 60)}:${String(minuten % 60).padStart(2, "0")} Std`;
+}
+
+const tagKurzFormat = new Intl.DateTimeFormat("de-DE", {
+  timeZone: ZEITZONE,
+  weekday: "short",
+  day: "2-digit",
+  month: "2-digit",
+});
+
+/** Kurzer Tag mit Wochentag, z. B. „Do., 15.10.“. */
+export function formatTagKurz(wert: string | null | undefined): string {
+  if (!wert || !NUR_DATUM.test(wert)) return LEER;
+  const datum = zuDate(`${wert}T12:00:00Z`);
+  return datum ? tagKurzFormat.format(datum) : LEER;
+}
+
+const monatFormat = new Intl.DateTimeFormat("de-DE", {
+  timeZone: ZEITZONE,
+  month: "long",
+  year: "numeric",
+});
+
+/** Monat „2026-10“ als „Oktober 2026“. */
+export function formatMonat(monat: string | null | undefined): string {
+  if (!monat || !/^\d{4}-\d{2}$/.test(monat)) return LEER;
+  const datum = zuDate(`${monat}-15T12:00:00Z`);
+  return datum ? monatFormat.format(datum) : LEER;
+}

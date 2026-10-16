@@ -5,6 +5,9 @@ import {
   formatDatum,
   formatDatumLang,
   formatDatumZeit,
+  formatMonat,
+  formatStunden,
+  formatTagKurz,
   formatUhrzeit,
   formatZahl,
 } from "./format";
@@ -83,5 +86,24 @@ describe("formatZahl", () => {
     expect(formatZahl(12.5)).toBe("12,5");
     expect(formatZahl(1234.5, { min: 2, max: 2 })).toBe("1.234,50");
     expect(formatZahl(3)).toBe("3");
+  });
+});
+
+describe("formatStunden", () => {
+  it("zeigt Stunden als Std:Min", () => {
+    expect(formatStunden(8.5)).toBe("8:30 Std");
+    expect(formatStunden(7.33)).toBe("7:20 Std");
+    expect(formatStunden(0)).toBe("0:00 Std");
+    expect(formatStunden(160.75)).toBe("160:45 Std");
+    expect(formatStunden(null)).toBe("–");
+  });
+});
+
+describe("formatTagKurz und formatMonat", () => {
+  it("formatiert Tage und Monate auf Deutsch", () => {
+    expect(formatTagKurz("2026-10-15")).toBe("Do., 15.10.");
+    expect(formatTagKurz("unsinn")).toBe("–");
+    expect(formatMonat("2026-10")).toBe("Oktober 2026");
+    expect(formatMonat("2026-13")).toBe("–");
   });
 });

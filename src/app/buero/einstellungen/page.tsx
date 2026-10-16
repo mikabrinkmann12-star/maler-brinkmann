@@ -1,9 +1,24 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ChevronRightIcon, UserCogIcon } from "lucide-react";
+import { ChevronRightIcon, ClockIcon, UserCogIcon } from "lucide-react";
 import { requireRole } from "@/lib/auth";
 
 export const metadata: Metadata = { title: "Einstellungen" };
+
+const BEREICHE = [
+  {
+    href: "/buero/einstellungen/benutzer",
+    titel: "Benutzer & Rollen",
+    text: "Mitarbeiter anlegen, Rollen ändern, Zugänge sperren",
+    icon: UserCogIcon,
+  },
+  {
+    href: "/buero/einstellungen/zeiterfassung",
+    titel: "Zeiterfassung",
+    text: "Erlaubte Zeit-Arten, Standardzeiten, Sperrfrist",
+    icon: ClockIcon,
+  },
+] as const;
 
 const SPAETER = [
   "Firmendaten, Logo & Briefpapier",
@@ -23,19 +38,20 @@ export default async function EinstellungenSeite() {
     <div className="flex max-w-2xl flex-col gap-6">
       <h1 className="text-2xl font-semibold">Einstellungen</h1>
 
-      <Link
-        href="/buero/einstellungen/benutzer"
-        className="flex items-center gap-4 rounded-xl border p-4 transition-colors hover:bg-muted"
-      >
-        <UserCogIcon className="size-6 text-muted-foreground" />
-        <div className="flex-1">
-          <p className="font-medium">Benutzer & Rollen</p>
-          <p className="text-sm text-muted-foreground">
-            Mitarbeiter anlegen, Rollen ändern, Zugänge sperren
-          </p>
-        </div>
-        <ChevronRightIcon className="size-5 text-muted-foreground" />
-      </Link>
+      <ul className="flex flex-col gap-3">
+        {BEREICHE.map(({ href, titel, text, icon: Icon }) => (
+          <li key={href}>
+            <Link href={href} className="flex items-center gap-4 rounded-xl border p-4 transition-colors hover:bg-muted">
+              <Icon className="size-6 text-muted-foreground" />
+              <div className="flex-1">
+                <p className="font-medium">{titel}</p>
+                <p className="text-sm text-muted-foreground">{text}</p>
+              </div>
+              <ChevronRightIcon className="size-5 text-muted-foreground" />
+            </Link>
+          </li>
+        ))}
+      </ul>
 
       <div className="flex flex-col gap-2">
         <p className="text-sm font-medium text-muted-foreground">Kommt später</p>
