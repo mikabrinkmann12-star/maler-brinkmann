@@ -206,3 +206,22 @@ export async function materialErledigt(materialId: string, erledigt: boolean): P
   revalidatePath("/buero");
   return {};
 }
+
+// ---------------------------------------------------------------------------
+// Projekt archivieren / wiederherstellen (nur Büro/Admin, nichts wird gelöscht)
+// ---------------------------------------------------------------------------
+export async function projektArchivieren(projektId: string, archivieren: boolean): Promise<InhaltErgebnis> {
+  await requireRole(BUERO_ROLLEN);
+  if (!id.safeParse(projektId).success) return { fehler: "Ungültiges Projekt." };
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("projects")
+    .update({ archiviert_am: archivieren ? new Date().toISOString() : null })
+    .eq("id", projektId)
+    .select("id");
+  if (error || !data.length) return { fehler: "Das hat nicht geklappt." };
+  revalidatePath(`/baustellen/${projektId}`);
+  revalidatePath("/baustellen", "layout");
+  revalidatePath("/buero/projekte");
+  return {};
+}

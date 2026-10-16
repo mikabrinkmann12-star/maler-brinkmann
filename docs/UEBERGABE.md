@@ -25,6 +25,8 @@
 
 - **Phase 3.1 (16.10., Migration `20261016180000` in dev UND live):** Kontakte (Liste, Detail, Anlegen/Bearbeiten/Archivieren) und **Kontakte-Import** aus der Plancraft-CSV (Admin, `/buero/kontakte/import`). Die echte Datei ist noch nicht importiert.
 
+- **Phase 3.2 (16.10., Migration `20261016200000` in dev UND live):** Archivierte Projekte für alle Mitarbeiter lesbar (Kunde mit Telefon/Adresse, Team, Notizen, Fotos, Material, Aufmaß), Archiv-Suche für Mitarbeiter, Projektliste mit Filtern fürs Büro, Archivieren/Wiederaktivieren. Projekt anlegen/bearbeiten fehlt noch.
+
 ## Testen (für Mika)
 - **Auf dem Handy mit Demo-Daten:** Zweig `vorschau` auf GitHub → Vercel baut eine Preview-Version, die mit **dev** arbeitet. Adresse: vercel.com → Projekt → Deployments → oberste „Preview“-Zeile (oder `npx.cmd vercel@latest ls`). Für neue Stände: `git push origin main:vorschau`.
 - Anmelden z. B. als `demo-sebastian` (Maler), `demo-buero`, `demo-admin`.

@@ -686,3 +686,74 @@ describe("Fahrzeuge anlegen", () => {
     await adminClient().from("vehicles").delete().eq("id", buero1.data!.id);
   });
 });
+
+// ---------------------------------------------------------------------------
+describe("Archivierte Projekte sind für alle lesbar", () => {
+  it("aktiv: Fremde sehen nichts; archiviert: Projekt, Kunde, Team, Notizen, Material, Aufmaß, Fotos lesbar, aber nichts änderbar", async () => {
+    const db = adminClient();
+    const { data: status } = await db.from("project_statuses").select("id").eq("name", "Abgeschlossen").single();
+    const { data: kunde } = await db.from("contacts")
+      .insert({ kundennummer: `${kennung}-ARCH`, typ: "privat", nachname: "Archivkunde", telefon: "04498 123", strasse: "Weg 5", plz: "26683", ort: "Saterland" })
+      .select("id").single();
+    const { data: projekt } = await db.from("projects")
+      .insert({ projektnummer: `${kennung}-P4`, name: `${kennung} Archivprojekt`, status_id: status!.id, contact_id: kunde!.id })
+      .select("id").single();
+    const pid = projekt!.id;
+    await db.from("project_members").insert({ project_id: pid, user_id: malerA.id, added_by: buero.id });
+    await db.from("project_notes").insert({ project_id: pid, text: "Farbe: Fabton Weiß", erstellt_von: malerA.id });
+    await db.from("material_usage").insert({ project_id: pid, material: "Fabton Weiß", menge: 3, einheit: "Eimer", erstellt_von: malerA.id });
+    const { data: aufmass } = await db.from("measurements")
+      .insert({ project_id: pid, raum: "Flur", position: "Wände", laenge: 4, hoehe: 2.5, menge: 10, erstellt_von: malerA.id }).select("id").single();
+    await db.from("measurement_deductions").insert({ measurement_id: aufmass!.id, bezeichnung: "Tür", breite: 1, hoehe: 2 });
+    const pfad = `${pid}/${kennung}-archiv.jpg`;
+    await db.storage.from("projektfotos").upload(pfad, new Blob([new Uint8Array([0xff, 0xd8, 0xff, 0xd9])], { type: "image/jpeg" }), { contentType: "image/jpeg" });
+    fotoPfade.push(pfad);
+    await db.from("project_photos").insert({ project_id: pid, storage_pfad: pfad, kategorie: "nachher", erstellt_von: malerA.id });
+    await db.from("time_entries").insert({ user_id: malerA.id, project_id: pid, datum: tag(-1), von: "07:00", bis: "08:00", stunden: 1, erstellt_von: buero.id });
+
+    const lesen = async (client: SupabaseClient) => ({
+      projekt: (await client.from("projects").select("id").eq("id", pid)).data?.length ?? 0,
+      kunde: (await client.from("contacts").select("id, telefon").eq("id", kunde!.id)).data?.length ?? 0,
+      team: (await client.from("project_members").select("user_id").eq("project_id", pid)).data?.length ?? 0,
+      notiz: (await client.from("project_notes").select("id").eq("project_id", pid)).data?.length ?? 0,
+      material: (await client.from("material_usage").select("id").eq("project_id", pid)).data?.length ?? 0,
+      aufmass: (await client.from("measurements").select("id").eq("project_id", pid)).data?.length ?? 0,
+      abzug: (await client.from("measurement_deductions").select("id").eq("measurement_id", aufmass!.id)).data?.length ?? 0,
+      foto: (await client.from("project_photos").select("id").eq("project_id", pid)).data?.length ?? 0,
+      datei: (await client.storage.from("projektfotos").download(pfad)).error ? 0 : 1,
+      zeiten: (await client.from("time_entries").select("id").eq("project_id", pid)).data?.length ?? 0,
+    });
+    const nichts = { projekt: 0, kunde: 0, team: 0, notiz: 0, material: 0, aufmass: 0, abzug: 0, foto: 0, datei: 0, zeiten: 0 };
+
+    // aktiv: malerB (kein Mitglied) sieht nichts
+    expect(await lesen(bC)).toEqual(nichts);
+
+    await db.from("projects").update({ archiviert_am: new Date().toISOString() }).eq("id", pid);
+
+    // archiviert: alles lesbar, außer den Zeiten
+    expect(await lesen(bC)).toEqual({ ...nichts, projekt: 1, kunde: 1, team: 1, notiz: 1, material: 1, aufmass: 1, abzug: 1, foto: 1, datei: 1 });
+
+    // ... aber nichts änderbar, kein Anlegen
+    expect((await bC.from("project_notes").insert({ project_id: pid, text: "darf nicht", erstellt_von: malerB.id })).error).not.toBeNull();
+    expect((await bC.from("project_members").insert({ project_id: pid, user_id: malerB.id, added_by: malerB.id })).error).not.toBeNull();
+    expect((await bC.from("projects").update({ name: "geändert" }).eq("id", pid).select("id")).data ?? []).toEqual([]);
+    expect((await bC.from("contacts").update({ telefon: "0" }).eq("id", kunde!.id).select("id")).data ?? []).toEqual([]);
+    // Nicht-archivierte Kunden bleiben unsichtbar
+    const andererKunde = await db.from("contacts").insert({ kundennummer: `${kennung}-NIE`, typ: "privat", nachname: "Nicht im Archiv" }).select("id").single();
+    expect((await bC.from("contacts").select("id").eq("id", andererKunde.data!.id)).data ?? []).toEqual([]);
+    // ohne Login nichts
+    expect((await anonClient().from("projects").select("id").eq("id", pid)).data ?? []).toEqual([]);
+
+    // Aufräumen
+    await db.from("time_entries").delete().eq("project_id", pid);
+    await db.from("project_photos").delete().eq("project_id", pid);
+    await db.storage.from("projektfotos").remove([pfad]);
+    await db.from("measurement_deductions").delete().eq("measurement_id", aufmass!.id);
+    await db.from("measurements").delete().eq("project_id", pid);
+    await db.from("material_usage").delete().eq("project_id", pid);
+    await db.from("project_notes").delete().eq("project_id", pid);
+    await db.from("project_members").delete().eq("project_id", pid);
+    await db.from("projects").delete().eq("id", pid);
+    await db.from("contacts").delete().in("id", [kunde!.id, andererKunde.data!.id]);
+  });
+});

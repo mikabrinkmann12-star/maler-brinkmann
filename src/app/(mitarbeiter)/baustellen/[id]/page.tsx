@@ -17,6 +17,7 @@ import { Warteschlange } from "../../warteschlange";
 import { Fotos, type FotoAnzeige } from "./fotos";
 import { Material, type MaterialAnzeige } from "./material";
 import { Notizen, type NotizAnzeige } from "./notizen";
+import { ProjektArchivieren } from "./projekt-archivieren";
 import { Team } from "./team";
 
 export const metadata: Metadata = { title: "Baustelle" };
@@ -107,8 +108,8 @@ export default async function BaustelleSeite({ params }: { params: Promise<{ id:
 
   return (
     <div className="flex flex-col gap-6">
-      <Link href="/baustellen" className="flex w-fit items-center gap-1 text-sm text-muted-foreground">
-        <ArrowLeftIcon className="size-4" /> Meine Baustellen
+      <Link href={p.archiviert_am && !istMitglied ? "/baustellen/archiv" : istBuero ? "/buero/projekte" : "/baustellen"} className="flex w-fit items-center gap-1 text-sm text-muted-foreground">
+        <ArrowLeftIcon className="size-4" /> {p.archiviert_am && !istMitglied ? "Archiv" : istBuero ? "Projekte" : "Meine Baustellen"}
       </Link>
 
       <div className="flex flex-col gap-2">
@@ -190,7 +191,7 @@ export default async function BaustelleSeite({ params }: { params: Promise<{ id:
         <Link href={`/baustellen/${p.id}/aufmass`} className="flex items-center gap-3 rounded-xl border p-4 transition-colors hover:bg-muted">
           <span className="min-w-0 flex-1">
             {aufmassSumme.length === 0 ? (
-              <span className="text-muted-foreground">Noch kein Aufmaß. Antippen zum Erfassen.</span>
+              <span className="text-muted-foreground">{darfInhalte ? "Noch kein Aufmaß. Antippen zum Erfassen." : "Noch kein Aufmaß."}</span>
             ) : (
               <ul className="flex flex-col gap-1">
                 {aufmassSumme.map((s) => (
@@ -205,6 +206,8 @@ export default async function BaustelleSeite({ params }: { params: Promise<{ id:
           <ChevronRightIcon className="size-5 shrink-0 text-muted-foreground" />
         </Link>
       </section>
+
+      {istBuero && <ProjektArchivieren projektId={p.id} archiviert={Boolean(p.archiviert_am)} />}
     </div>
   );
 }

@@ -17,6 +17,7 @@ import {
 } from "@/lib/kontakt-liste";
 import { kontaktAnzeigename } from "@/lib/kontakt-schema";
 import { BUERO_ROLLEN } from "@/lib/rollen";
+import { suchtext } from "@/lib/suche";
 import { createClient } from "@/lib/supabase/server";
 import { Filterleiste } from "./filterleiste";
 
@@ -24,11 +25,6 @@ export const metadata: Metadata = { title: "Kontakte" };
 
 const PRO_SEITE = 100;
 const SPALTEN = "id, kundennummer, typ, firmenname, vorname, nachname, strasse, plz, ort, telefon, mobil, email, created_at, updated_at";
-
-/** Suchtext für PostgREST-Filter entschärfen (keine Sonderzeichen der Filtersprache). */
-function suchtext(roh: string): string {
-  return roh.replace(/[^\p{L}\p{N} .\-@/]/gu, " ").replace(/\s+/g, " ").trim().slice(0, 60);
-}
 
 export default async function KontakteSeite({ searchParams }: PageProps<"/buero/kontakte">) {
   const nutzer = await requireRole(BUERO_ROLLEN);

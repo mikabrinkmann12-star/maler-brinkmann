@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ChevronRightIcon } from "lucide-react";
+import { ArchiveIcon, ChevronRightIcon } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { heuteIso } from "@/lib/datum";
 import { formatDatum } from "@/lib/format";
@@ -38,6 +38,14 @@ export default async function BaustellenSeite() {
           Du bist noch auf keiner Baustelle eingetragen.
         </p>
       )}
+      <Link href="/baustellen/archiv" className="flex items-center gap-3 rounded-xl border p-4 transition-colors hover:bg-muted">
+        <ArchiveIcon className="size-5 shrink-0 text-muted-foreground" />
+        <span className="flex-1">
+          <span className="block font-medium">Archiv durchsuchen</span>
+          <span className="block text-sm text-muted-foreground">Abgeschlossene Baustellen nachschauen (Farbe, Material, Fotos, Kunde)</span>
+        </span>
+        <ChevronRightIcon className="size-5 shrink-0 text-muted-foreground" />
+      </Link>
       <ul className="flex flex-col gap-3">
         {projekte.map((p) => (
           <li key={p.id}>
