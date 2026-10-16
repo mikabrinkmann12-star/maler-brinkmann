@@ -1431,6 +1431,67 @@ export type Database = {
         }
         Relationships: []
       }
+      work_instructions: {
+        Row: {
+          archiviert_am: string | null
+          created_at: string
+          erstellt_von: string | null
+          freigegeben_am: string | null
+          id: string
+          inhalt: string
+          project_id: string
+          quote_id: string | null
+          titel: string
+          updated_at: string
+        }
+        Insert: {
+          archiviert_am?: string | null
+          created_at?: string
+          erstellt_von?: string | null
+          freigegeben_am?: string | null
+          id?: string
+          inhalt: string
+          project_id: string
+          quote_id?: string | null
+          titel: string
+          updated_at?: string
+        }
+        Update: {
+          archiviert_am?: string | null
+          created_at?: string
+          erstellt_von?: string | null
+          freigegeben_am?: string | null
+          id?: string
+          inhalt?: string
+          project_id?: string
+          quote_id?: string | null
+          titel?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_instructions_erstellt_von_fkey"
+            columns: ["erstellt_von"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_instructions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_instructions_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

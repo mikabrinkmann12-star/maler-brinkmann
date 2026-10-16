@@ -15,6 +15,7 @@ import { istBueroRolle } from "@/lib/rollen";
 import { createClient } from "@/lib/supabase/server";
 import { Warteschlange } from "../../warteschlange";
 import { Angebote } from "./angebote";
+import { Arbeitsanweisung } from "./arbeitsanweisung";
 import { Fotos, type FotoAnzeige } from "./fotos";
 import { Material, type MaterialAnzeige } from "./material";
 import { Notizen, type NotizAnzeige } from "./notizen";
@@ -172,6 +173,8 @@ export default async function BaustelleSeite({ params }: { params: Promise<{ id:
           </ul>
         </section>
       )}
+
+      <Arbeitsanweisung projektId={p.id} istBuero={istBuero} />
 
       <Team
         projektId={p.id}

@@ -17,7 +17,8 @@ const kennung = `TEST-${randomBytes(3).toString("hex")}`;
 let admin: TestNutzer, buero: TestNutzer, maler: TestNutzer;
 let adminC: SupabaseClient, bueroC: SupabaseClient, malerC: SupabaseClient;
 let projekt: string, projekt2: string;
-let angebot: string, position: string;
+let angebot: string, position: string, anweisung: string;
+let malerFremd: TestNutzer, malerFremdC: SupabaseClient;
 const bildPfade: string[] = [];
 
 beforeAll(async () => {
@@ -26,6 +27,8 @@ beforeAll(async () => {
     testNutzerAnlegen("buero"),
     testNutzerAnlegen("mitarbeiter"),
   ]);
+  malerFremd = await testNutzerAnlegen("mitarbeiter");
+  malerFremdC = await einloggen(malerFremd.benutzername, malerFremd.passwort);
   [adminC, bueroC, malerC] = await Promise.all([
     einloggen(admin.benutzername, admin.passwort),
     einloggen(buero.benutzername, buero.passwort),
@@ -54,6 +57,7 @@ afterAll(async () => {
     const { data: quotes } = await db.from("quotes").select("id").in("project_id", projekte);
     const ids = (quotes ?? []).map((q) => q.id);
     if (ids.length) {
+      await db.from("work_instructions").delete().in("quote_id", ids);
       await db.from("quotes").update({ status: "entwurf" }).in("id", ids); // sonst sperrt der Trigger das Löschen
       await db.from("quote_items").delete().in("quote_id", ids);
       await db.from("quotes").delete().in("id", ids);
@@ -61,7 +65,7 @@ afterAll(async () => {
     await db.from("project_members").delete().in("project_id", projekte);
     await db.from("projects").delete().in("id", projekte);
   }
-  await Promise.all([admin, buero, maler].map(testNutzerLoeschen));
+  await Promise.all([admin, buero, maler, malerFremd].map(testNutzerLoeschen));
 });
 
 describe("Angebote anlegen und lesen", () => {
@@ -218,5 +222,51 @@ describe("Bilder im Speicher (Bucket angebotsbilder)", () => {
     const fremd = await malerC.storage.from("angebotsbilder").upload(`${angebot}/hack-${kennung}.png`, png, { contentType: "image/png" });
     expect(fremd.error).not.toBeNull();
     expect((await anonClient().storage.from("angebotsbilder").download(pfad)).error).not.toBeNull();
+  });
+});
+
+describe("Arbeitsanweisung (ohne Preise, erst nach Freigabe für Mitarbeiter)", () => {
+  it("Büro legt eine Arbeitsanweisung an; pro Angebot nur eine aktive", async () => {
+    const r = await bueroC
+      .from("work_instructions")
+      .insert({ project_id: projekt, quote_id: angebot, titel: `${kennung} Anweisung`, inhalt: ["# Wohnzimmer", "- Wände streichen – 313,63 m²"].join("\n") })
+      .select("id, freigegeben_am")
+      .single();
+    expect(r.error).toBeNull();
+    anweisung = r.data!.id;
+    expect(r.data!.freigegeben_am).toBeNull();
+    const doppelt = await adminC.from("work_instructions").insert({ project_id: projekt, quote_id: angebot, titel: "Nochmal", inhalt: "x" });
+    expect(doppelt.error?.code).toBe("23505");
+  });
+
+  it("Mitarbeiter (auch Projektmitglied) sehen den Entwurf nicht und können nichts anlegen oder ändern", async () => {
+    expect((await malerC.from("work_instructions").select("id").eq("id", anweisung)).data ?? []).toEqual([]);
+    expect((await malerC.from("work_instructions").insert({ project_id: projekt, titel: "Hack", inhalt: "x" })).error).not.toBeNull();
+    const upd = await malerC.from("work_instructions").update({ inhalt: "geändert" }).eq("id", anweisung).select("id");
+    expect(upd.data ?? []).toEqual([]);
+  });
+
+  it("nach der Freigabe sehen Projektmitglieder sie, Fremde nicht; ändern geht weiterhin nicht", async () => {
+    expect((await bueroC.from("work_instructions").update({ freigegeben_am: new Date().toISOString() }).eq("id", anweisung)).error).toBeNull();
+    const sicht = await malerC.from("work_instructions").select("id, titel, inhalt").eq("id", anweisung);
+    expect(sicht.data).toHaveLength(1);
+    expect(sicht.data![0].inhalt).toContain("313,63 m²");
+    expect((await malerFremdC.from("work_instructions").select("id").eq("id", anweisung)).data ?? []).toEqual([]);
+    const upd = await malerC.from("work_instructions").update({ inhalt: "geändert" }).eq("id", anweisung).select("id");
+    expect(upd.data ?? []).toEqual([]);
+    expect((await anonClient().from("work_instructions").select("id")).data ?? []).toEqual([]);
+  });
+
+  it("Mitarbeiter sehen auch dann keine Preise: das Angebot selbst bleibt unsichtbar", async () => {
+    expect((await malerC.from("quotes").select("id").eq("id", angebot)).data ?? []).toEqual([]);
+    expect((await malerC.from("quote_items").select("id").eq("quote_id", angebot)).data ?? []).toEqual([]);
+  });
+
+  it("archivierte Arbeitsanweisungen verschwinden für Mitarbeiter; niemand löscht", async () => {
+    await bueroC.from("work_instructions").delete().eq("id", anweisung);
+    expect((await adminClient().from("work_instructions").select("id").eq("id", anweisung)).data).toHaveLength(1);
+    expect((await bueroC.from("work_instructions").update({ archiviert_am: new Date().toISOString() }).eq("id", anweisung)).error).toBeNull();
+    expect((await malerC.from("work_instructions").select("id").eq("id", anweisung)).data ?? []).toEqual([]);
+    expect((await bueroC.from("work_instructions").select("id").eq("id", anweisung)).data).toHaveLength(1);
   });
 });

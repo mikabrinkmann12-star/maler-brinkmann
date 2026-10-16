@@ -2,12 +2,13 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ArchiveIcon, ArchiveRestoreIcon, CopyIcon, DownloadIcon, EyeIcon, SendIcon } from "lucide-react";
+import { ArchiveIcon, ArchiveRestoreIcon, ClipboardListIcon, CopyIcon, DownloadIcon, EyeIcon, SendIcon } from "lucide-react";
 import { toast } from "sonner";
 import { FormularMeldung } from "@/components/formular-meldung";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { STATUS_NAMEN, type AngebotStatus } from "@/lib/angebot";
 import { angebotArchivieren, angebotKopieren, angebotStatusSetzen } from "../actions";
+import { arbeitsanweisungErstellen } from "../anweisung-actions";
 
 const WEITER: Record<AngebotStatus, AngebotStatus[]> = {
   entwurf: ["versendet"],
@@ -45,6 +46,16 @@ export function AktionenLeiste({ angebotId, status, archiviert }: { angebotId: s
     });
   }
 
+  function anweisung() {
+    setFehler(null);
+    starte(async () => {
+      const r = await arbeitsanweisungErstellen(angebotId);
+      if (r.fehler) return setFehler(r.fehler);
+      toast.success("Arbeitsanweisung erzeugt: bitte prüfen und freigeben");
+      router.push(`/baustellen/${r.projektId}#arbeitsanweisung`);
+    });
+  }
+
   function archivieren() {
     setFehler(null);
     starte(async () => {
@@ -66,6 +77,7 @@ export function AktionenLeiste({ angebotId, status, archiviert }: { angebotId: s
           <DownloadIcon /> PDF herunterladen
         </a>
         <Button type="button" variant="outline" onClick={kopieren} disabled={laeuft}><CopyIcon /> Kopieren</Button>
+        <Button type="button" variant="outline" onClick={anweisung} disabled={laeuft}><ClipboardListIcon /> Arbeitsanweisung erstellen</Button>
         <Button type="button" variant="outline" onClick={archivieren} disabled={laeuft}>
           {archiviert ? <ArchiveRestoreIcon /> : <ArchiveIcon />} {archiviert ? "Wiederherstellen" : "Archivieren"}
         </Button>

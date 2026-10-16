@@ -219,9 +219,10 @@ describe("Das Büro …", () => {
     expect(error).not.toBeNull();
   });
 
-  it("darf Fahrzeuge und Status nicht anlegen (nur Admin)", async () => {
-    const fahrzeug = await bueroC.from("vehicles").insert({ name: `${kennung} Büro-Auto` });
-    expect(fahrzeug.error).not.toBeNull();
+  it("darf Fahrzeuge anlegen (seit 16.10.2026), Status aber nicht (nur Admin)", async () => {
+    const fahrzeug = await bueroC.from("vehicles").insert({ name: `${kennung} Büro-Auto` }).select("id").single();
+    expect(fahrzeug.error).toBeNull();
+    spaeterAufraeumen.fahrzeuge.push(fahrzeug.data!.id);
     const status = await bueroC.from("project_statuses").insert({ name: `${kennung} Büro-Status` });
     expect(status.error).not.toBeNull();
   });
