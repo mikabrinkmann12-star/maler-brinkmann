@@ -66,6 +66,7 @@ Entwickler ist **Mika** (Anfänger): kurz erklären, was gemacht wird und warum,
 - Vercel-Team „maler“, Projekt `maler-brinkmann-23nr` (Ordner per `vercel link` verknüpft, `.vercel/` ist nicht im Repo). Mika ist in der Vercel-Befehlszeile angemeldet (`npx vercel@latest …`), damit lassen sich z. B. Variablen (`env ls`) und Deployments prüfen. Jeder Push auf `main` wird automatisch deployed (dauert ca. 2–3 Minuten).
 - Vercel-Variablen nicht im Dashboard bearbeiten, wenn dort „affect multiple environments“ steht: Das ändert auch Production. Gezielt per API bzw. Befehlszeile ändern. `vercel.json`: `framework: nextjs` (sonst 404, siehe docs/SETUP.md), Region `fra1`.
 - Migrationen müssen in **beide** Supabase-Projekte: erst dev, nach dem Test live (Ablauf in docs/SETUP.md, danach immer wieder mit dev verknüpfen).
+- **Testen auf dem Handy mit Demo-Daten:** Zweig `vorschau` (angelegt 16.10.2026). `git push origin main:vorschau` → Vercel baut eine Preview-Version mit **dev**-Datenbank (Adresse unter vercel.com → Deployments bzw. `npx vercel@latest ls`). Production/live hat keine Testdaten.
 - Ausführliche Einrichtung: `docs/SETUP.md`.
 
 - Kein Docker und kein lokales Supabase. DB-Änderungen nur als Migration in `supabase/migrations/`, eingespielt mit `npx supabase db push`.
@@ -212,7 +213,7 @@ Legende: ✅ angelegt · ⏳ kommt in der genannten Phase
   - Büro-Menü „Urlaub“ (`/buero/urlaub`): offene und entschiedene Anträge (letzte 60 Tage + Zukunft). **Nur der Admin** sieht „Genehmigen/Ablehnen“ (+ Antwort), das Büro nur lesen. Entscheider und Zeitpunkt setzt der DB-Trigger. Der Hinweis „… beantragt Urlaub“ auf `/buero` verlinkt dorthin.
   - Genehmigter Urlaub erzeugt (noch) keine Zeiteinträge – siehe Offene Fragen.
   - Aktionen: `urlaubBeantragen`, `urlaubZurueckziehen` (`(mitarbeiter)/urlaub/actions.ts`), `urlaubEntscheiden` (`buero/urlaub/actions.ts`, `requireRole(["admin"])`). Hilfen in `src/lib/urlaub.ts` (getestet).
-- [ ] 1.8 Migrationen nach live, Test auf iPhone/Android
+- [ ] 1.8 Migrationen nach live, Test auf iPhone/Android (für 1.4–1.7 waren **keine** neuen Migrationen nötig, live ist auf dem Stand)
 
 - Startseite „Heute“: Auto, Baustelle, wer ist dabei, Adresse (Link zu Google Maps), Ansprechpartner, Notizen vom Büro
 - Meine Baustellen (nur eigene) + Kollegen hinzufügen (Kernfeature)
