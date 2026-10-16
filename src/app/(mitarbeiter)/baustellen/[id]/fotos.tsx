@@ -41,8 +41,8 @@ let laedtGerade = false;
 
 /** Speicher-Fehler einordnen: schon vorhanden (ok), abgelehnt (Rechte) oder Netzproblem. */
 function speicherFehler(error: { message: string; status?: number; statusCode?: string }): "schon_da" | "abgelehnt" | "netz" {
-  if (error.statusCode === "409" || /already exists|duplicate/i.test(error.message)) return "schon_da";
   const status = error.status ?? Number(error.statusCode);
+  if (status === 409 || error.statusCode === "409" || /already exists|duplicate/i.test(error.message)) return "schon_da";
   return status >= 400 && status < 500 ? "abgelehnt" : "netz";
 }
 
