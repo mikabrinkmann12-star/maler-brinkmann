@@ -27,6 +27,8 @@
 
 - **Phase 3.2 (16.10., Migration `20261016200000` in dev UND live):** Archivierte Projekte für alle Mitarbeiter lesbar (Kunde mit Telefon/Adresse, Team, Notizen, Fotos, Material, Aufmaß), Archiv-Suche für Mitarbeiter, Projektliste mit Filtern fürs Büro, Archivieren/Wiederaktivieren. Projekt anlegen/bearbeiten fehlt noch.
 
+- **Phase 3.3 (16.10., keine Migration):** Projekte anlegen/bearbeiten (Kundensuche, Adresse übernehmen), Projektnummer `P-(JJ00)NNN` mit Vorschlag, Einstellungen → Nummernkreise (Startwert aus Plancraft **noch einzutragen**).
+
 ## Testen (für Mika)
 - **Auf dem Handy mit Demo-Daten:** Zweig `vorschau` auf GitHub → Vercel baut eine Preview-Version, die mit **dev** arbeitet. Adresse: vercel.com → Projekt → Deployments → oberste „Preview“-Zeile (oder `npx.cmd vercel@latest ls`). Für neue Stände: `git push origin main:vorschau`.
 - Anmelden z. B. als `demo-sebastian` (Maler), `demo-buero`, `demo-admin`.

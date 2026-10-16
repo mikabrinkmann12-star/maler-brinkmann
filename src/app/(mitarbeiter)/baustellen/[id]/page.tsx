@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeftIcon, ChevronRightIcon, ClockIcon, ImageIcon, NavigationIcon, PackageIcon, RulerIcon, StickyNoteIcon } from "lucide-react";
+import { ArrowLeftIcon, ChevronRightIcon, PencilIcon, ClockIcon, ImageIcon, NavigationIcon, PackageIcon, RulerIcon, StickyNoteIcon } from "lucide-react";
 import { AnrufLink } from "@/components/anruf-link";
 import { buttonVariants } from "@/components/ui/button";
 import { requireUser } from "@/lib/auth";
@@ -207,7 +207,14 @@ export default async function BaustelleSeite({ params }: { params: Promise<{ id:
         </Link>
       </section>
 
-      {istBuero && <ProjektArchivieren projektId={p.id} archiviert={Boolean(p.archiviert_am)} />}
+      {istBuero && (
+        <div className="flex flex-col gap-3">
+          <Link href={`/buero/projekte/${p.id}/bearbeiten`} className={buttonVariants({ variant: "outline", size: "touch", className: "w-full" })}>
+            <PencilIcon /> Projekt bearbeiten
+          </Link>
+          <ProjektArchivieren projektId={p.id} archiviert={Boolean(p.archiviert_am)} />
+        </div>
+      )}
     </div>
   );
 }

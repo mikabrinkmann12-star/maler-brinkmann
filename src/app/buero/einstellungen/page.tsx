@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ChevronRightIcon, ClockIcon, UserCogIcon } from "lucide-react";
+import { ChevronRightIcon, ClockIcon, HashIcon, UserCogIcon } from "lucide-react";
 import { requireRole } from "@/lib/auth";
 
 export const metadata: Metadata = { title: "Einstellungen" };
@@ -18,11 +18,16 @@ const BEREICHE = [
     text: "Erlaubte Zeit-Arten, Standardzeiten, Sperrfrist",
     icon: ClockIcon,
   },
+  {
+    href: "/buero/einstellungen/nummernkreise",
+    titel: "Nummernkreise",
+    text: "Projektnummern: Startwert aus Plancraft, nächster Vorschlag",
+    icon: HashIcon,
+  },
 ] as const;
 
 const SPAETER = [
   "Firmendaten, Logo & Briefpapier",
-  "Nummernkreise",
   "Zahlungsziel, Anfangs- und Schlusstexte",
   "E-Mail-Vorlagen",
   "Fahrzeuge",

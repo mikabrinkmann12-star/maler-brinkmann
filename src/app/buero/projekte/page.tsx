@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ChevronRightIcon, SearchIcon } from "lucide-react";
+import { ChevronRightIcon, PlusIcon, SearchIcon } from "lucide-react";
 import { cn } from "cn";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { requireRole } from "@/lib/auth";
 import { formatDatum } from "@/lib/format";
 import { adresseText } from "@/lib/projekt";
@@ -36,9 +36,12 @@ export default async function ProjekteSeite({ searchParams }: PageProps<"/buero/
 
   return (
     <div className="flex max-w-4xl flex-col gap-5">
-      <div>
-        <h1 className="text-2xl font-semibold">Projekte</h1>
-        <p className="text-sm text-muted-foreground">{gesamt} {archiv ? "archivierte " : ""}Projekte{q && ` für „${q}“`}</p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Projekte</h1>
+          <p className="text-sm text-muted-foreground">{gesamt} {archiv ? "archivierte " : ""}Projekte{q && ` für „${q}“`}</p>
+        </div>
+        <Link href="/buero/projekte/neu" className={buttonVariants({ size: "lg" })}><PlusIcon /> Neues Projekt</Link>
       </div>
 
       <form className="flex flex-wrap items-center gap-2" role="search">

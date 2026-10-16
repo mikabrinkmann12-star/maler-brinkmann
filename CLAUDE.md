@@ -262,11 +262,15 @@ Legende: ✅ angelegt · ⏳ kommt in der genannten Phase
   - **Entschieden (Mika, 16.10.2026):** Termine tragen **alle** ein (Mitarbeiter und Büro). Büro/Admin sehen alle Termine und planen sie in den Auto-Plan ein; Mitarbeiter sehen nur ihre eigenen.
 
 ### Phase 3 – Büro-Grundlagen + Import aus Plancraft (🔄 3.1 fertig, Rest offen)
+- [x] **3.3 Projekt anlegen und bearbeiten + Projektnummer** (16.10.2026, keine Migration)
+  - `/buero/projekte/neu` und `/buero/projekte/[id]/bearbeiten` (Büro/Admin, Knopf „Projekt bearbeiten“ auf der Projektseite, „Neues Projekt“ in der Liste). Felder: Name, Projektnummer, Status, Beschreibung, **Kunde per Suche** (Name, Ort, Straße, Kundennummer), Baustellen-Adresse (beim Wählen eines Kunden automatisch vom Kunden übernommen, sonst Knopf „Adresse vom Kunden übernehmen“), Beginn/Ende, Büro-Ansprechpartner. Eingabeprüfung `src/lib/projekt-schema.ts`, Aktionen `src/app/buero/projekte/actions.ts`. Doppelte Projektnummer wird von der Datenbank abgelehnt (UNIQUE) und verständlich gemeldet.
+  - **Projektnummer (Mika, 16.10.2026):** Format wie in Plancraft `P-(JJ00)NNN`, z. B. `P-(2600)448`: Jahr (2 Ziffern) + `00` in der Klammer, laufende Nummer **zählt über die Jahre ohne Neustart weiter**. Vorschlag automatisch (`projektnummerVorschlag()`, Regel `src/lib/projektnummer.ts`, getestet), berücksichtigt auch archivierte Projekte, Knopf „Neu vorschlagen“. **Startwert:** Mika wollte nach der höchsten Plancraft-Nummer weiterzählen; die Zahl trägt der **Admin unter Einstellungen → Nummernkreise** ein (`app_settings`-Schlüssel `nummernkreise` = `{ projekt_start }`). **Solange dort nichts steht, beginnt der Vorschlag bei `P-(2600)001`.** Die Demo-Projekte (`D-2026-…`) haben ein anderes Format und zählen nicht mit.
+  - Deutung des Klammer-Teils `(JJ00)` ist eine Annahme aus einem Beispiel (`P-(2400)447`): Falls die „00“ in Plancraft etwas anderes bedeutet (z. B. Monat), in `src/lib/projektnummer.ts` anpassen.
 - [x] **3.2 Projektliste + Archiv für alle lesbar** (16.10.2026, Migration `…200000` in dev und live)
   - **Rechte:** Archivierte Projekte (`archiviert_am` gesetzt) sind für **alle aktiven Nutzer lesbar**, inkl. Kunde (Telefon, Adresse), Team, Notizen, Fotos (auch im Speicher), Material, Aufmaß. **Nicht** freigegeben: Zeiten, Einsätze, Termine. Ändern geht nicht. Aktive Projekte bleiben auf Mitglieder beschränkt. Umgesetzt mit zusätzlichen SELECT-Policies `…_lesen_archiv` und den Funktionen `ist_archiviertes_projekt()`, `ist_kontakt_im_archiv()`, `aufmass_im_archiv()`. Getestet in `tests/rls/04` (Fremder sieht aktives Projekt nicht, archiviertes ja, ändern nein, Zeiten nein).
   - **Mitarbeiter:** „Meine Baustellen“ → „Archiv durchsuchen“ (`/baustellen/archiv`): Suche nach Kunde, Straße, Ort, Projekt; Projektseite wie sonst, nur lesend.
   - **Büro/Admin:** `/buero/projekte`: Projektliste mit Suche (Projekt, Kunde, Nummer, Straße, Ort), Aktiv/Archiv, Status-Filter, Sortierung (neueste/älteste, Name A–Z/Z–A, zuletzt bearbeitet). Logik `src/lib/projekt-liste.ts`. Auf der Projektseite „Projekt archivieren / Wieder aktivieren“ (nur Büro/Admin, nichts wird gelöscht).
-  - **Noch offen in 3.x:** Projekt **anlegen und bearbeiten** (Formular, Projektnummer-Format klären: Plancraft zeigt z. B. `P-(2400)447`), Zeiten-Übersicht fürs Büro, Materialien/Leistungen (Katalog), Plancraft-Import der Arbeitszeiten, DATANORM.
+  - **Noch offen in 3.x:** Zeiten-Übersicht fürs Büro, Materialien/Leistungen (Katalog), Plancraft-Import der Arbeitszeiten, DATANORM.
 - [x] **3.1 Kontakte + Kontakte-Import** (16.10.2026, Migration `…180000` in dev und live)
   - `/buero/kontakte`: Liste mit Suche (Name, Ort, Straße, PLZ, Kundennummer, Telefon, E-Mail), Filter Alle/Privat/Firmen/Archiv, bis 300 Treffer. Büro und Admin dürfen anlegen, bearbeiten, archivieren (nie löschen).
   - Detailseite nach dem Vorbild von Plancraft: Allgemein, Beschreibung, Adresse, **Empfänger** (Briefanschrift, aus Anrede/Name/Adresse gebildet oder von Hand), Zahlungsziel & Skonto, Steuer (0/7/19 %), rechts die Projekte des Kunden. Formular `kontakt-formular.tsx` (Neu und Bearbeiten).
@@ -380,7 +384,7 @@ Firmendaten, Logo/Briefpapier, Nummernkreise (nur Angebote/Projekte, Rechnungen 
 ## Offene Fragen
 - **Aufmaß:** Abzüge (Fenster/Türen) gelten für die ganze Zeile (Mika: „lass so“, `src/lib/aufmass.ts`). Leibungen werden noch nicht extra erfasst.
 - **Urlaub:** Feiertage Niedersachsen werden noch nicht von den Werktagen abgezogen und nicht gebucht (kommt mit den Einstellungen „Feiertage“). Die übrigen Mitarbeiter (außer Christian 30, Sebastian/Carmen/Manuel 28) haben noch keinen Anspruch eingetragen – Mika/Ralf tragen ihn in der Nutzerverwaltung ein, sobald die echten Nutzer angelegt sind.
-- Format der Projekt- und Kundennummern sowie Exportformat aus Plancraft (Phase 3)
+- **Höchste Projektnummer in Plancraft** (Startwert, Admin trägt sie unter Einstellungen → Nummernkreise ein). Das Format der Projekt- und Kundennummern ist geklärt.
 - Arbeitszeitmodelle und Überstundenregeln (Phase 3)
 - Firmenlogo und Farben
 - Abschlags-/Schlussrechnungen: klären mit dem Steuerberater (Phase 5)
