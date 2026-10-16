@@ -1,0 +1,80 @@
+// Firmendaten und Angebots-Einstellungen (Admin pflegt sie unter Einstellungen).
+// Die Werte stehen in app_settings (Schlüssel „firma“ und „angebote“), nie im Code.
+// Auch im Browser nutzbar.
+
+import { z } from "zod";
+import { REVERSE_CHARGE_TEXT, STANDARD_EINLEITUNG, STANDARD_SCHLUSSTEXT } from "@/lib/angebot";
+
+const text = (max: number, label: string) =>
+  z.string({ error: `${label} fehlt.` }).trim().max(max, `${label}: höchstens ${max} Zeichen.`);
+
+export const firmaSchema = z.object({
+  name: text(100, "Firmenname").min(1, "Bitte den Firmennamen eingeben."),
+  inhaber: text(100, "Inhaber"),
+  strasse: text(100, "Straße"),
+  plz: text(10, "PLZ"),
+  ort: text(100, "Ort"),
+  telefon: text(50, "Telefon"),
+  email: text(100, "E-Mail"),
+  website: text(100, "Webseite"),
+  ustid: text(30, "USt-ID"),
+  steuernummer: text(30, "Steuernummer"),
+  bank: text(100, "Bank"),
+  iban: text(40, "IBAN"),
+  bic: text(20, "BIC"),
+});
+
+export type Firma = z.infer<typeof firmaSchema>;
+
+export const FIRMA_LEER: Firma = {
+  name: "", inhaber: "", strasse: "", plz: "", ort: "", telefon: "", email: "", website: "",
+  ustid: "", steuernummer: "", bank: "", iban: "", bic: "",
+};
+
+export const angebotEinstellungenSchema = z.object({
+  einleitung: text(3000, "Anfangstext"),
+  schlusstext: text(3000, "Schlusstext"),
+  reverse_charge_text: text(500, "Reverse-Charge-Hinweis").min(1, "Bitte den Reverse-Charge-Hinweis eingeben."),
+  standard_steuersatz: z.union([z.literal(0), z.literal(7), z.literal(19)], { error: "Steuersatz: 0, 7 oder 19 %." }),
+  standard_rabatt: z.number({ error: "Rabatt: bitte eine Zahl." }).min(0, "Rabatt: 0 bis 100 %.").max(100, "Rabatt: 0 bis 100 %."),
+});
+
+export type AngebotEinstellungen = z.infer<typeof angebotEinstellungenSchema>;
+
+export const ANGEBOT_EINSTELLUNGEN_STANDARD: AngebotEinstellungen = {
+  einleitung: STANDARD_EINLEITUNG,
+  schlusstext: STANDARD_SCHLUSSTEXT,
+  reverse_charge_text: REVERSE_CHARGE_TEXT,
+  standard_steuersatz: 19,
+  standard_rabatt: 0,
+};
+
+/** Gespeicherten Wert (jsonb) lesen; Fehlendes oder Ungültiges wird durch Standardwerte ersetzt. */
+export function firmaAusWert(wert: unknown): Firma {
+  const roh = typeof wert === "object" && wert !== null ? (wert as Record<string, unknown>) : {};
+  const ergebnis = { ...FIRMA_LEER };
+  for (const k of Object.keys(FIRMA_LEER) as (keyof Firma)[]) {
+    if (typeof roh[k] === "string") ergebnis[k] = (roh[k] as string).slice(0, 500);
+  }
+  return ergebnis;
+}
+
+export function angebotEinstellungenAusWert(wert: unknown): AngebotEinstellungen {
+  const roh = typeof wert === "object" && wert !== null ? (wert as Record<string, unknown>) : {};
+  const s = ANGEBOT_EINSTELLUNGEN_STANDARD;
+  const satz = roh.standard_steuersatz;
+  const rabatt = roh.standard_rabatt;
+  return {
+    einleitung: typeof roh.einleitung === "string" ? roh.einleitung : s.einleitung,
+    schlusstext: typeof roh.schlusstext === "string" ? roh.schlusstext : s.schlusstext,
+    reverse_charge_text:
+      typeof roh.reverse_charge_text === "string" && roh.reverse_charge_text.trim() ? roh.reverse_charge_text : s.reverse_charge_text,
+    standard_steuersatz: satz === 0 || satz === 7 || satz === 19 ? satz : s.standard_steuersatz,
+    standard_rabatt: typeof rabatt === "number" && rabatt >= 0 && rabatt <= 100 ? rabatt : s.standard_rabatt,
+  };
+}
+
+/** Absenderzeile über dem Empfänger: „Maler Betrieb Brinkmann | Zur Ziegelei 18 | 26683 Saterland“ */
+export function absenderZeile(f: Firma): string {
+  return [f.name, f.strasse, [f.plz, f.ort].filter(Boolean).join(" ")].filter(Boolean).join(" | ");
+}

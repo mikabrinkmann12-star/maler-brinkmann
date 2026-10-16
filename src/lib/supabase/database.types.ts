@@ -1103,6 +1103,151 @@ export type Database = {
           },
         ]
       }
+      quote_items: {
+        Row: {
+          bild_pfad: string | null
+          created_at: string
+          einheit: string | null
+          einzelpreis: number | null
+          id: string
+          kurztext: string | null
+          langtext: string | null
+          material_id: string | null
+          menge: number | null
+          quote_id: string
+          service_id: string | null
+          sortierung: number
+          typ: Database["public"]["Enums"]["angebot_baustein"]
+          updated_at: string
+        }
+        Insert: {
+          bild_pfad?: string | null
+          created_at?: string
+          einheit?: string | null
+          einzelpreis?: number | null
+          id?: string
+          kurztext?: string | null
+          langtext?: string | null
+          material_id?: string | null
+          menge?: number | null
+          quote_id: string
+          service_id?: string | null
+          sortierung: number
+          typ: Database["public"]["Enums"]["angebot_baustein"]
+          updated_at?: string
+        }
+        Update: {
+          bild_pfad?: string | null
+          created_at?: string
+          einheit?: string | null
+          einzelpreis?: number | null
+          id?: string
+          kurztext?: string | null
+          langtext?: string | null
+          material_id?: string | null
+          menge?: number | null
+          quote_id?: string
+          service_id?: string | null
+          sortierung?: number
+          typ?: Database["public"]["Enums"]["angebot_baustein"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quote_items_material_id_fkey"
+            columns: ["material_id"]
+            isOneToOne: false
+            referencedRelation: "materials"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quote_items_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quote_items_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quotes: {
+        Row: {
+          archiviert_am: string | null
+          betreff: string
+          created_at: string
+          created_by: string | null
+          datum: string
+          einleitung: string | null
+          empfaenger: string | null
+          id: string
+          leistungsort: string | null
+          project_id: string
+          rabatt_prozent: number
+          reverse_charge: boolean
+          schlusstext: string | null
+          status: Database["public"]["Enums"]["angebot_status"]
+          steuersatz: number
+          updated_at: string
+        }
+        Insert: {
+          archiviert_am?: string | null
+          betreff: string
+          created_at?: string
+          created_by?: string | null
+          datum?: string
+          einleitung?: string | null
+          empfaenger?: string | null
+          id?: string
+          leistungsort?: string | null
+          project_id: string
+          rabatt_prozent?: number
+          reverse_charge?: boolean
+          schlusstext?: string | null
+          status?: Database["public"]["Enums"]["angebot_status"]
+          steuersatz?: number
+          updated_at?: string
+        }
+        Update: {
+          archiviert_am?: string | null
+          betreff?: string
+          created_at?: string
+          created_by?: string | null
+          datum?: string
+          einleitung?: string | null
+          empfaenger?: string | null
+          id?: string
+          leistungsort?: string | null
+          project_id?: string
+          rabatt_prozent?: number
+          reverse_charge?: boolean
+          schlusstext?: string | null
+          status?: Database["public"]["Enums"]["angebot_status"]
+          steuersatz?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quotes_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quotes_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       services: {
         Row: {
           archiviert_am: string | null
@@ -1347,6 +1492,8 @@ export type Database = {
       }
     }
     Enums: {
+      angebot_baustein: "position" | "titel" | "text" | "zwischensumme" | "bild"
+      angebot_status: "entwurf" | "versendet" | "angenommen" | "abgelehnt"
       app_rolle: "admin" | "buero" | "mitarbeiter"
       aufmass_einheit: "m2" | "m" | "stk"
       foto_kategorie: "vorher" | "nachher" | "mangel" | "sonstiges"
@@ -1491,6 +1638,8 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      angebot_baustein: ["position", "titel", "text", "zwischensumme", "bild"],
+      angebot_status: ["entwurf", "versendet", "angenommen", "abgelehnt"],
       app_rolle: ["admin", "buero", "mitarbeiter"],
       aufmass_einheit: ["m2", "m", "stk"],
       foto_kategorie: ["vorher", "nachher", "mangel", "sonstiges"],

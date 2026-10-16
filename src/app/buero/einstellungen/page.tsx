@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ChevronRightIcon, ClockIcon, HashIcon, UserCogIcon } from "lucide-react";
+import { Building2Icon, ChevronRightIcon, ClockIcon, FileTextIcon, HashIcon, UserCogIcon } from "lucide-react";
 import { requireRole } from "@/lib/auth";
 
 export const metadata: Metadata = { title: "Einstellungen" };
@@ -24,11 +24,23 @@ const BEREICHE = [
     text: "Projektnummern: Startwert aus Plancraft, nächster Vorschlag",
     icon: HashIcon,
   },
+  {
+    href: "/buero/einstellungen/firma",
+    titel: "Firmendaten",
+    text: "Briefkopf, USt-ID, Steuernummer und Bank für Angebote",
+    icon: Building2Icon,
+  },
+  {
+    href: "/buero/einstellungen/angebote",
+    titel: "Angebote – Vorgaben",
+    text: "Anfangs- und Schlusstext, Reverse-Charge-Hinweis, Standard-Steuersatz",
+    icon: FileTextIcon,
+  },
 ] as const;
 
 const SPAETER = [
-  "Firmendaten, Logo & Briefpapier",
-  "Zahlungsziel, Anfangs- und Schlusstexte",
+  "Logo & Briefpapier",
+  "Zahlungsziel",
   "E-Mail-Vorlagen",
   "Fahrzeuge",
   "Arbeitszeitmodelle & Feiertage",
