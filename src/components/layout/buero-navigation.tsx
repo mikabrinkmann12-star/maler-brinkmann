@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   CalendarDaysIcon,
   ClockIcon,
+  FileTextIcon,
   FolderKanbanIcon,
   LibraryIcon,
   LayoutDashboardIcon,
@@ -18,6 +19,7 @@ const EINTRAEGE = [
   { href: "/buero", name: "Übersicht", icon: LayoutDashboardIcon, nurAdmin: false },
   { href: "/buero/plantafel", name: "Einteilung", icon: CalendarDaysIcon, nurAdmin: false },
   { href: "/buero/projekte", name: "Projekte", icon: FolderKanbanIcon, nurAdmin: false },
+  { href: "/buero/angebote", name: "Angebote", icon: FileTextIcon, nurAdmin: false },
   { href: "/buero/kontakte", name: "Kontakte", icon: UsersIcon, nurAdmin: false },
   { href: "/buero/katalog", name: "Katalog", icon: LibraryIcon, nurAdmin: false },
   { href: "/buero/zeiten", name: "Zeiten", icon: ClockIcon, nurAdmin: false },

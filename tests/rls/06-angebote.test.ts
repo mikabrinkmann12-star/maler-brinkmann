@@ -83,6 +83,16 @@ describe("Angebote anlegen und lesen", () => {
     expect((await malerC.from("quote_items").insert({ quote_id: angebot, sortierung: 0, typ: "text", langtext: "x" })).error).not.toBeNull();
   });
 
+  it("Mitarbeiter (auch als Projektmitglied) ändern und archivieren das Projekt nicht, sehen aber Notizen", async () => {
+    const db = adminClient();
+    await db.from("project_notes").insert({ project_id: projekt, text: `${kennung} Notiz`, erstellt_von: buero.id });
+    expect((await malerC.from("projects").update({ name: "geändert" }).eq("id", projekt).select("id")).data ?? []).toEqual([]);
+    expect((await malerC.from("projects").update({ archiviert_am: new Date().toISOString() }).eq("id", projekt).select("id")).data ?? []).toEqual([]);
+    const { data: notizen } = await malerC.from("project_notes").select("id").eq("project_id", projekt);
+    expect(notizen).toHaveLength(1);
+    await db.from("project_notes").delete().eq("project_id", projekt);
+  });
+
   it("ohne Login geht nichts", async () => {
     expect((await anonClient().from("quotes").select("id")).data ?? []).toEqual([]);
     expect((await anonClient().from("quote_items").select("id")).data ?? []).toEqual([]);

@@ -14,6 +14,7 @@ import { adresseText, kontaktName, mapsLink } from "@/lib/projekt";
 import { istBueroRolle } from "@/lib/rollen";
 import { createClient } from "@/lib/supabase/server";
 import { Warteschlange } from "../../warteschlange";
+import { Angebote } from "./angebote";
 import { Fotos, type FotoAnzeige } from "./fotos";
 import { Material, type MaterialAnzeige } from "./material";
 import { Notizen, type NotizAnzeige } from "./notizen";
@@ -206,6 +207,8 @@ export default async function BaustelleSeite({ params }: { params: Promise<{ id:
           <ChevronRightIcon className="size-5 shrink-0 text-muted-foreground" />
         </Link>
       </section>
+
+      {istBuero && <Angebote projektId={p.id} archiviert={Boolean(p.archiviert_am)} />}
 
       {istBuero && (
         <div className="flex flex-col gap-3">
