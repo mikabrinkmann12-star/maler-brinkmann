@@ -13,7 +13,7 @@ export type KalAbwesenheit = {
   userId: string;
   von: string;
   bis: string;
-  art: "urlaub" | "unbezahlter_urlaub";
+  art: "urlaub" | "unbezahlter_urlaub" | "ueberstundenabbau";
   status: "offen" | "genehmigt";
 };
 export type KalKrank = { userId: string; datum: string };
@@ -42,7 +42,7 @@ export function istWochenende(datum: string): boolean {
   return w === 0 || w === 6;
 }
 
-export type AbwesenheitsInfo = { text: "Urlaub" | "Unbezahlter Urlaub" | "Krank"; offen: boolean };
+export type AbwesenheitsInfo = { text: "Urlaub" | "Unbezahlter Urlaub" | "Abfeiern" | "Krank"; offen: boolean };
 
 export type MitarbeiterZelle = {
   einsaetze: { fahrzeug: string; projekte: { id: string; name: string }[] }[];
@@ -56,7 +56,7 @@ export function mitarbeiterZelle(userId: string, datum: string, d: KalDaten): Mi
   const urlaub = d.abwesenheiten.filter((a) => a.userId === userId && a.von <= datum && datum <= a.bis);
   // Genehmigter Urlaub geht vor offenem
   const gen = urlaub.find((a) => a.status === "genehmigt") ?? urlaub[0];
-  if (gen) abwesend = { text: gen.art === "urlaub" ? "Urlaub" : "Unbezahlter Urlaub", offen: gen.status === "offen" };
+  if (gen) abwesend = { text: gen.art === "urlaub" ? "Urlaub" : gen.art === "ueberstundenabbau" ? "Abfeiern" : "Unbezahlter Urlaub", offen: gen.status === "offen" };
   if (d.krank.some((k) => k.userId === userId && k.datum === datum)) abwesend = { text: "Krank", offen: false };
   return {
     einsaetze: d.einsaetze

@@ -3,9 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireUser } from "@/lib/auth";
-import { istIsoDatum } from "@/lib/datum";
-import { formatDatum } from "@/lib/format";
+import { heuteIso, istIsoDatum } from "@/lib/datum";
+import { formatDatum, formatStunden, formatStundenSaldo } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
+import { abbauPruefen, sollSumme } from "@/lib/ueberstunden";
+import { kontenLaden } from "@/lib/ueberstunden-daten";
 import { URLAUB_ARTEN } from "@/lib/urlaub";
 
 // Urlaub beantragen und zurückziehen (eigene Anträge). Entscheiden darf nur
@@ -54,6 +56,11 @@ export async function urlaubBeantragen(eingabe: unknown): Promise<UrlaubErgebnis
     return { fehler: `Für diese Tage gibt es schon einen Antrag (${formatDatum(andere[0].von)}–${formatDatum(andere[0].bis)}).` };
   }
 
+  if (a.art === "ueberstundenabbau") {
+    const fehler = await abbauFehler(nutzer.id, a.von, a.bis);
+    if (fehler) return { fehler };
+  }
+
   const { error } = await supabase.from("leave_requests").insert({
     id: a.id,
     user_id: nutzer.id,
@@ -67,6 +74,34 @@ export async function urlaubBeantragen(eingabe: unknown): Promise<UrlaubErgebnis
 
   aktualisieren();
   return {};
+}
+
+/**
+ * Abfeiern geht nur, solange das Überstundenkonto danach nicht negativ wird (Entscheidung Mika, 16.10.2026).
+ * Diese Prüfung läuft hier auf dem Server; endgültig entscheidet der Admin beim Genehmigen.
+ */
+async function abbauFehler(userId: string, von: string, bis: string): Promise<string | null> {
+  const heute = heuteIso();
+  const konto = (await kontenLaden({ monat: heute.slice(0, 7), userIds: [userId] })).get(userId);
+  if (!konto) return "Für dich ist noch kein Überstundenkonto eingerichtet. Bitte im Büro melden.";
+  if (sollSumme(von, bis, konto.soll) === 0) return "In diesem Zeitraum gibt es keinen Arbeitstag zum Abfeiern (Wochenende oder Feiertag).";
+
+  const supabase = await createClient();
+  const { data: andere } = await supabase
+    .from("leave_requests")
+    .select("von, bis")
+    .eq("user_id", userId)
+    .eq("art", "ueberstundenabbau")
+    .in("status", ["offen", "genehmigt"])
+    .gte("bis", heute);
+  const r = abbauPruefen({ stand: konto.stand, soll: konto.soll, heute, neu: { von, bis }, vorgemerkt: andere ?? [] });
+  if (r.ok) return null;
+  return (
+    `Dein Überstundenkonto reicht dafür nicht: Stand ${formatStundenSaldo(konto.stand)}, ` +
+    `dieser Antrag braucht ${formatStunden(r.benoetigt)}` +
+    (r.reserviert > 0 ? `, andere Anträge schon ${formatStunden(r.reserviert)}` : "") +
+    ". Beantrage weniger Tage."
+  );
 }
 
 export async function urlaubZurueckziehen(antragId: string): Promise<UrlaubErgebnis> {

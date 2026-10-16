@@ -9,8 +9,16 @@ describe("werktage", () => {
     expect(werktage("2026-10-16", "2026-10-16")).toBe(1); // ein Freitag
   });
 
+  it("Feiertage in Niedersachsen zählen nicht", () => {
+    expect(werktage("2026-10-26", "2026-10-30")).toBe(5);
+    expect(werktage("2026-12-21", "2026-12-25")).toBe(4); // 25.12. ist Feiertag
+    expect(werktage("2026-04-02", "2026-04-07")).toBe(2); // Do, (Karfreitag), (Sa/So), (Ostermontag), Di
+    expect(werktage("2026-10-31", "2026-10-31")).toBe(0); // Reformationstag (Samstag)
+    expect(werktage("2026-05-14", "2026-05-14")).toBe(0); // Christi Himmelfahrt
+  });
+
   it("über Monats- und Jahreswechsel, Ende vor Beginn = 0", () => {
-    expect(werktage("2026-12-28", "2027-01-08")).toBe(10);
+    expect(werktage("2026-12-28", "2027-01-08")).toBe(9); // 1. Januar ist ein Feiertag
     expect(werktage("2026-10-23", "2026-10-19")).toBe(0);
   });
 });
@@ -18,7 +26,7 @@ describe("werktage", () => {
 describe("urlaubskonto", () => {
   const antraege = [
     { von: "2026-11-09", bis: "2026-11-13", art: "urlaub", status: "genehmigt" as const }, // 5
-    { von: "2026-12-28", bis: "2027-01-08", art: "urlaub", status: "genehmigt" as const }, // 4 in 2026, 6 in 2027
+    { von: "2026-12-28", bis: "2027-01-08", art: "urlaub", status: "genehmigt" as const }, // 4 in 2026, 5 in 2027 (1. Januar ist Feiertag)
     { von: "2026-10-19", bis: "2026-10-20", art: "urlaub", status: "offen" as const }, // 2 beantragt
     { von: "2026-10-21", bis: "2026-10-21", art: "unbezahlter_urlaub", status: "genehmigt" as const }, // zählt nicht
     { von: "2026-10-22", bis: "2026-10-23", art: "urlaub", status: "abgelehnt" as const }, // zählt nicht
@@ -29,7 +37,7 @@ describe("urlaubskonto", () => {
   });
 
   it("teilt Urlaub über den Jahreswechsel auf", () => {
-    expect(urlaubskonto(30, antraege, 2027)).toMatchObject({ genehmigt: 6, rest: 24 });
+    expect(urlaubskonto(30, antraege, 2027)).toMatchObject({ genehmigt: 5, rest: 25 });
   });
 
   it("ohne eingetragenen Anspruch gibt es keinen Rest", () => {

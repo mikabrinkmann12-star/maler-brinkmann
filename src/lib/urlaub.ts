@@ -1,15 +1,18 @@
 // Urlaubsanträge (auch im Browser nutzbar). Genehmigen darf nur der Admin –
 // das prüft die Datenbank (Trigger urlaub_pruefen + RLS).
 
+import { feiertagName } from "@/lib/feiertage";
 import type { Database } from "@/lib/supabase/database.types";
 
 export type UrlaubStatus = Database["public"]["Enums"]["urlaub_status"];
-export type UrlaubArt = "urlaub" | "unbezahlter_urlaub";
+/** „ueberstundenabbau“ (Abfeiern) ist eine Unterkategorie von Urlaub: Es verbraucht keinen Urlaubsanspruch, sondern Überstunden. */
+export type UrlaubArt = "urlaub" | "unbezahlter_urlaub" | "ueberstundenabbau";
 
-export const URLAUB_ARTEN = ["urlaub", "unbezahlter_urlaub"] as const satisfies readonly UrlaubArt[];
+export const URLAUB_ARTEN = ["urlaub", "unbezahlter_urlaub", "ueberstundenabbau"] as const satisfies readonly UrlaubArt[];
 export const URLAUB_ART_NAMEN: Record<UrlaubArt, string> = {
   urlaub: "Urlaub",
   unbezahlter_urlaub: "Unbezahlter Urlaub",
+  ueberstundenabbau: "Überstunden abfeiern",
 };
 
 export const URLAUB_STATUS_NAMEN: Record<UrlaubStatus, string> = {
@@ -28,8 +31,8 @@ export const URLAUB_STATUS_FARBE: Record<UrlaubStatus, string> = {
 };
 
 /**
- * Werktage Montag–Freitag zwischen zwei Daten (beide eingeschlossen).
- * Feiertage werden noch NICHT abgezogen (kommen mit den Einstellungen „Feiertage“).
+ * Werktage Montag–Freitag zwischen zwei Daten (beide eingeschlossen),
+ * ohne gesetzliche Feiertage in Niedersachsen.
  */
 export function werktage(von: string, bis: string): number {
   if (bis < von) return 0;
@@ -38,7 +41,7 @@ export function werktage(von: string, bis: string): number {
   let tage = 0;
   for (const d = start; d <= ende; d.setUTCDate(d.getUTCDate() + 1)) {
     const wochentag = d.getUTCDay();
-    if (wochentag !== 0 && wochentag !== 6) tage++;
+    if (wochentag !== 0 && wochentag !== 6 && !feiertagName(d.toISOString().slice(0, 10))) tage++;
   }
   return tage;
 }

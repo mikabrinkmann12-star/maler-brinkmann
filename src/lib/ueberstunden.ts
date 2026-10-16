@@ -135,3 +135,43 @@ export function kontoBerechnen(e: KontoEingabe, monat: string): KontoErgebnis | 
     monat: periodenBilanz(monatsAb, monatsBis, e.soll, e.eintraege),
   };
 }
+
+// ---------------------------------------------------------------------------
+// Abfeiern: reicht das Konto?
+// ---------------------------------------------------------------------------
+
+/** Soll-Stunden aller Tage von `von` bis `bis` (beide inklusive), ohne Wochenenden und Feiertage. */
+export function sollSumme(von: string, bis: string, soll: SollWoche): number {
+  let summe = 0;
+  for (let tag = von; tag <= bis; tag = tageVerschieben(tag, 1)) summe = runde(summe + tagesSoll(tag, soll));
+  return summe;
+}
+
+export type AbbauPruefung = {
+  ok: boolean;
+  /** Stunden, die der neue Antrag ab heute braucht */
+  benoetigt: number;
+  /** Stunden, die schon durch andere offene/genehmigte Abfeier-Anträge ab heute vorgemerkt sind */
+  reserviert: number;
+  /** Konto-Stand nach allen Anträgen (kann negativ sein) */
+  nachher: number;
+};
+
+/**
+ * Darf dieser Abfeier-Antrag gestellt werden? Nur, wenn das Konto danach nicht negativ wird.
+ * Tage vor heute stecken schon im Konto-Stand (dort fehlte die Arbeitszeit), sie zählen
+ * hier nicht noch einmal. Andere offene oder genehmigte Anträge ab heute sind vorgemerkt.
+ */
+export function abbauPruefen(opts: {
+  stand: number;
+  soll: SollWoche;
+  heute: string;
+  neu: { von: string; bis: string };
+  vorgemerkt: { von: string; bis: string }[];
+}): AbbauPruefung {
+  const ab = (von: string) => (von > opts.heute ? von : opts.heute);
+  const benoetigt = sollSumme(ab(opts.neu.von), opts.neu.bis, opts.soll);
+  const reserviert = opts.vorgemerkt.reduce((s, a) => runde(s + sollSumme(ab(a.von), a.bis, opts.soll)), 0);
+  const nachher = runde(opts.stand - reserviert - benoetigt);
+  return { ok: nachher >= 0, benoetigt, reserviert, nachher };
+}

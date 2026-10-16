@@ -8,6 +8,7 @@ import {
   type KontoEintrag,
   type KontoErgebnis,
   type SollEinstellung,
+  type SollWoche,
 } from "@/lib/ueberstunden";
 import { zeiterfassungEinstellungen } from "@/lib/zeiten-daten";
 
@@ -16,7 +17,7 @@ import { zeiterfassungEinstellungen } from "@/lib/zeiten-daten";
 // Wer das Büro-Verzeichnis nutzt, ruft vorher requireRole auf; für Mitarbeiter ist
 // `userIds` immer ausdrücklich die eigene ID (wie in mitarbeiter-daten.ts).
 
-export type Konto = KontoErgebnis & { kontoAb: string };
+export type Konto = KontoErgebnis & { kontoAb: string; soll: SollWoche };
 
 const SEITE = 1000;
 const zahlOderNull = (w: number | string | null) => (w == null ? null : Number(w));
@@ -70,20 +71,21 @@ export async function kontenLaden(opts: { monat: string; userIds?: string[] }): 
   const standard = standardSoll(einstellungen);
   const ergebnis = new Map<string, Konto>();
   for (const p of profile) {
+    const soll = sollAufloesen(
+      [p.soll_mo, p.soll_di, p.soll_mi, p.soll_do, p.soll_fr].map(zahlOderNull) as SollEinstellung,
+      standard,
+    );
     const konto = kontoBerechnen(
       {
         kontoAb: p.konto_ab,
         anfangssaldo: Number(p.konto_anfangssaldo),
-        soll: sollAufloesen(
-          [p.soll_mo, p.soll_di, p.soll_mi, p.soll_do, p.soll_fr].map(zahlOderNull) as SollEinstellung,
-          standard,
-        ),
+        soll,
         eintraege: nachPerson.get(p.id) ?? [],
         heute,
       },
       opts.monat,
     );
-    if (konto && p.konto_ab) ergebnis.set(p.id, { ...konto, kontoAb: p.konto_ab });
+    if (konto && p.konto_ab) ergebnis.set(p.id, { ...konto, kontoAb: p.konto_ab, soll });
   }
   return ergebnis;
 }

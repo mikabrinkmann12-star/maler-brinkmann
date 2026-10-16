@@ -83,7 +83,7 @@ export default async function EinteilungSeite({ searchParams }: PageProps<"/buer
 
   // Wer ist heute nicht da? (genehmigter Urlaub, Krank-Eintrag)
   const abwesend: Record<string, string> = {};
-  for (const u of urlaub.data ?? []) abwesend[u.user_id] = u.art === "urlaub" ? "Urlaub" : "Unbezahlter Urlaub";
+  for (const u of urlaub.data ?? []) abwesend[u.user_id] = u.art === "urlaub" ? "Urlaub" : u.art === "ueberstundenabbau" ? "Abfeiern" : "Unbezahlter Urlaub";
   for (const k of krank.data ?? []) abwesend[k.user_id] = "Krank";
 
   return (

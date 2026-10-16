@@ -1131,6 +1131,7 @@ export type Database = {
         Returns: boolean
       }
       ist_buero_oder_admin: { Args: never; Returns: boolean }
+      ist_feiertag_ni: { Args: { p_tag: string }; Returns: boolean }
       ist_im_einsatz: { Args: { p_assignment_id: string }; Returns: boolean }
       ist_im_termin: { Args: { p_termin_id: string }; Returns: boolean }
       ist_kontakt_im_archiv: {
@@ -1156,7 +1157,9 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: undefined
       }
+      ostersonntag: { Args: { p_jahr: number }; Returns: string }
       projekt_aus_pfad: { Args: { p_pfad: string }; Returns: string }
+      soll_stunden: { Args: { p_tag: string; p_user: string }; Returns: number }
       zeit_art_erlaubt: {
         Args: { p_art: Database["public"]["Enums"]["zeit_art"] }
         Returns: boolean
@@ -1182,6 +1185,7 @@ export type Database = {
         | "schlechtwetter"
         | "kurzarbeit"
         | "sonstiges"
+        | "ueberstundenabbau"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1324,6 +1328,7 @@ export const Constants = {
         "schlechtwetter",
         "kurzarbeit",
         "sonstiges",
+        "ueberstundenabbau",
       ],
     },
   },

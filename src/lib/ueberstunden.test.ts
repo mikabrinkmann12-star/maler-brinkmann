@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { STANDARD_EINSTELLUNGEN } from "./zeiten";
 import {
+  abbauPruefen,
   kontoBerechnen,
   periodenBilanz,
   saldoLesen,
   sollAufloesen,
+  sollSumme,
   standardSoll,
   tagesBilanz,
   tagesSoll,
@@ -97,6 +99,13 @@ describe("tagesBilanz", () => {
   it("Urlaub und mehr gearbeitet als Soll: Mehrstunden bleiben Plus", () => {
     expect(tagesBilanz(8.5, [{ art: "urlaub", stunden: 8.5 }, { art: "arbeitszeit", stunden: 10 }]).differenz).toBe(1.5);
   });
+  it("Überstundenabbau (Abfeiern) zählt nicht als gearbeitet: Das Soll bleibt, das Konto sinkt", () => {
+    expect(tagesBilanz(8.5, [{ art: "ueberstundenabbau", stunden: 8.5 }])).toEqual({ soll: 8.5, ist: 0, differenz: -8.5 });
+    // Mit Teilzeit-Soll: gebuchte Stunden sind egal, es zählt das Soll des Tages
+    expect(tagesBilanz(4.67, [{ art: "ueberstundenabbau", stunden: 8.5 }]).differenz).toBe(-4.67);
+    // Auf einem Feiertag (Soll 0) ändert Abfeiern nichts
+    expect(tagesBilanz(0, [{ art: "ueberstundenabbau", stunden: 8.5 }]).differenz).toBe(0);
+  });
   it("Unbezahlter Urlaub und Kurzarbeit nehmen das Soll weg", () => {
     expect(tagesBilanz(8.5, [{ art: "unbezahlter_urlaub", stunden: 8.5 }])).toEqual({ soll: 0, ist: 0, differenz: 0 });
     expect(tagesBilanz(8.5, [{ art: "kurzarbeit", stunden: 8.5 }]).differenz).toBe(0);
@@ -175,5 +184,49 @@ describe("kontoBerechnen", () => {
 
   it("zukünftiger Monat: Bilanz 0", () => {
     expect(kontoBerechnen({ ...basis, kontoAb: "2026-10-05", heute: "2026-10-16" }, "2026-12")?.monat.soll).toBe(0);
+  });
+});
+
+describe("sollSumme / abbauPruefen", () => {
+  it("sollSumme zählt Soll-Tage ohne Wochenende und Feiertage", () => {
+    expect(sollSumme("2026-10-05", "2026-10-11", STANDARD)).toBe(40);
+    expect(sollSumme("2026-10-30", "2026-11-02", STANDARD)).toBe(14.5); // Fr 6 + Mo 8,5; 31.10. ist Samstag
+    expect(sollSumme("2026-12-24", "2026-12-28", STANDARD)).toBe(17); // Do 8,5 + Mo 8,5; 25./26.12. Feiertage
+  });
+
+  const basis = { soll: STANDARD, heute: "2026-10-16", vorgemerkt: [] as { von: string; bis: string }[] };
+
+  it("reicht: Stand 20 Std, Antrag für 2 Tage (17 Std)", () => {
+    const r = abbauPruefen({ ...basis, stand: 20, neu: { von: "2026-10-19", bis: "2026-10-20" } });
+    expect(r).toEqual({ ok: true, benoetigt: 17, reserviert: 0, nachher: 3 });
+  });
+
+  it("reicht genau (nachher 0) ist erlaubt, ein Rest-Minus nicht", () => {
+    expect(abbauPruefen({ ...basis, stand: 8.5, neu: { von: "2026-10-19", bis: "2026-10-19" } }).ok).toBe(true);
+    expect(abbauPruefen({ ...basis, stand: 8.49, neu: { von: "2026-10-19", bis: "2026-10-19" } }).ok).toBe(false);
+  });
+
+  it("negatives Konto: kein Abfeiern", () => {
+    expect(abbauPruefen({ ...basis, stand: -1, neu: { von: "2026-10-19", bis: "2026-10-19" } }).ok).toBe(false);
+  });
+
+  it("andere offene oder genehmigte Anträge ab heute sind vorgemerkt", () => {
+    const r = abbauPruefen({
+      ...basis, stand: 20,
+      vorgemerkt: [{ von: "2026-10-26", bis: "2026-10-26" }],
+      neu: { von: "2026-10-19", bis: "2026-10-20" },
+    });
+    expect(r).toMatchObject({ reserviert: 8.5, benoetigt: 17, nachher: -5.5, ok: false });
+  });
+
+  it("Tage vor heute zählen nicht noch einmal (stecken schon im Stand)", () => {
+    const r = abbauPruefen({ ...basis, stand: 5, neu: { von: "2026-10-12", bis: "2026-10-16" } });
+    expect(r.benoetigt).toBe(6); // nur Freitag 16.10. (heute)
+    expect(r.ok).toBe(false);
+    expect(abbauPruefen({ ...basis, stand: 5, neu: { von: "2026-10-12", bis: "2026-10-15" } })).toMatchObject({ benoetigt: 0, ok: true });
+  });
+
+  it("Feiertage und Wochenenden brauchen keine Stunden", () => {
+    expect(abbauPruefen({ ...basis, stand: 0, neu: { von: "2026-10-31", bis: "2026-11-01" } }).ok).toBe(true);
   });
 });

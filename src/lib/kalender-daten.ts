@@ -53,7 +53,7 @@ export async function kalenderLaden(von: string, bis: string) {
       userId: u.user_id,
       von: u.von,
       bis: u.bis,
-      art: u.art as "urlaub" | "unbezahlter_urlaub",
+      art: u.art as "urlaub" | "unbezahlter_urlaub" | "ueberstundenabbau",
       status: u.status as "offen" | "genehmigt",
     })),
     krank: krank.data.map((k) => ({ userId: k.user_id, datum: k.datum })),

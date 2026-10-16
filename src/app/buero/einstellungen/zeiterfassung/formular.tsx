@@ -11,7 +11,7 @@ import { abschicken } from "@/lib/formular";
 import {
   MAX_KULANZ_TAGE,
   MAX_PAUSE_MIN,
-  ZEIT_ARTEN,
+  MITARBEITER_ARTEN,
   ZEIT_ART_NAMEN,
   arbeitsMinuten,
   type ZeitArt,
@@ -55,7 +55,7 @@ export function ZeiterfassungFormular({ werte }: { werte: ZeiterfassungEinstellu
 
       <Abschnitt titel="Erlaubte Arten für Mitarbeiter">
         <ul className="grid gap-2 sm:grid-cols-2">
-          {ZEIT_ARTEN.map((art) => (
+          {MITARBEITER_ARTEN.map((art) => (
             <li key={art}>
               <label className="flex h-12 cursor-pointer items-center gap-3 rounded-lg border px-3 has-checked:border-primary has-checked:bg-primary/5">
                 <input

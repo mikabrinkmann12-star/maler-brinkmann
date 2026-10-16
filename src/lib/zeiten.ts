@@ -16,7 +16,14 @@ export const ZEIT_ARTEN = [
   "unbezahlter_urlaub",
   "krank",
   "kurzarbeit",
+  "ueberstundenabbau",
 ] as const satisfies readonly ZeitArt[];
+
+/**
+ * Arten, die der Admin für Mitarbeiter freigeben kann. Überstundenabbau fehlt mit Absicht:
+ * Abfeiern läuft nur über einen genehmigten Antrag (Urlaub → „Überstunden abfeiern“).
+ */
+export const MITARBEITER_ARTEN = ZEIT_ARTEN.filter((a) => a !== "ueberstundenabbau");
 
 export const ZEIT_ART_NAMEN: Record<ZeitArt, string> = {
   arbeitszeit: "Arbeitszeit",
@@ -27,6 +34,7 @@ export const ZEIT_ART_NAMEN: Record<ZeitArt, string> = {
   unbezahlter_urlaub: "Unbezahlter Urlaub",
   krank: "Krank",
   kurzarbeit: "Kurzarbeit",
+  ueberstundenabbau: "Überstundenabbau",
 };
 
 export function istZeitArt(wert: unknown): wert is ZeitArt {
@@ -74,7 +82,7 @@ export function einstellungenLesen(wert: unknown): ZeiterfassungEinstellungen {
   const ganzzahl = (x: unknown, standard: number, max: number) =>
     typeof x === "number" && Number.isInteger(x) && x >= 0 && x <= max ? x : standard;
   return {
-    erlaubteArten: ZEIT_ARTEN.filter((a) => arten.includes(a)),
+    erlaubteArten: MITARBEITER_ARTEN.filter((a) => arten.includes(a)),
     standardBeginn: istUhrzeit(w.standard_beginn) ? w.standard_beginn : s.standardBeginn,
     standardEnde: istUhrzeit(w.standard_ende) ? w.standard_ende : s.standardEnde,
     standardPauseMin: ganzzahl(w.standard_pause_min, s.standardPauseMin, MAX_PAUSE_MIN),

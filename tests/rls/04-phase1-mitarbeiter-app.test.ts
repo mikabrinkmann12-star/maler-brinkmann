@@ -4,6 +4,7 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { feiertagName } from "@/lib/feiertage";
 import {
   adminClient,
   anonClient,
@@ -514,13 +515,13 @@ describe("Urlaubsanträge", () => {
     expect(data!.entschieden_am).toBeTruthy();
   });
 
-  it("genehmigter Urlaub wird je Werktag als Zeit gebucht (Mo–Do 8,5 Std, Fr 6 Std)", async () => {
+  it("genehmigter Urlaub wird je Werktag (ohne Feiertage) als Zeit gebucht (Mo–Do 8,5 Std, Fr 6 Std)", async () => {
     const { data } = await aC.from("time_entries")
       .select("datum, art, stunden, leave_request_id").eq("leave_request_id", antrag).is("archiviert_am", null).order("datum");
     const erwartet: { datum: string; stunden: number }[] = [];
     for (let i = 30; i <= 34; i++) {
       const wochentag = new Date(`${tag(i)}T12:00:00Z`).getUTCDay();
-      if (wochentag !== 0 && wochentag !== 6) erwartet.push({ datum: tag(i), stunden: wochentag === 5 ? 6 : 8.5 });
+      if (wochentag !== 0 && wochentag !== 6 && !feiertagName(tag(i))) erwartet.push({ datum: tag(i), stunden: wochentag === 5 ? 6 : 8.5 });
     }
     expect((data ?? []).map((t) => ({ datum: t.datum, stunden: Number(t.stunden) }))).toEqual(erwartet);
     expect(data?.every((t) => t.art === "urlaub")).toBe(true);
@@ -536,6 +537,93 @@ describe("Urlaubsanträge", () => {
   it("nach der Entscheidung kann der Mitarbeiter den Antrag nicht mehr ändern", async () => {
     const { data } = await aC.from("leave_requests").update({ status: "zurueckgezogen" }).eq("id", antrag).select("id");
     expect(data ?? []).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+describe("Überstunden abfeiern (Urlaubsantrag der Art Überstundenabbau) und Feiertage", () => {
+  let antrag: string;
+
+  // Das persönliche Soll wieder leeren, damit die Tests danach von Standardwerten ausgehen
+  afterAll(async () => {
+    await adminClient().from("profiles")
+      .update({ soll_mo: null, soll_di: null, soll_mi: null, soll_do: null, soll_fr: null }).eq("id", malerA.id);
+  });
+
+  it("Mitarbeiter stellen einen Abfeier-Antrag, das Büro bekommt einen passenden Hinweis", async () => {
+    // Persönliches Soll von malerA: Mo–Do 8 Std, Fr 5 Std
+    await adminClient().from("profiles")
+      .update({ soll_mo: 8, soll_di: 8, soll_mi: 8, soll_do: 8, soll_fr: 5 }).eq("id", malerA.id);
+    // Do 24.12.2026 bis Mo 28.12.2026: 25. und 26.12. sind Feiertage, 27.12. ist ein Sonntag
+    const { data, error } = await aC.from("leave_requests")
+      .insert({ von: "2026-12-24", bis: "2026-12-28", art: "ueberstundenabbau" })
+      .select("id, status, art").single();
+    expect(error).toBeNull();
+    expect(data).toMatchObject({ status: "offen", art: "ueberstundenabbau" });
+    antrag = data!.id;
+    const hinweis = await bueroC.from("notifications").select("text")
+      .eq("typ", "urlaubsantrag").eq("ausgeloest_von", malerA.id).like("text", "%Überstunden abfeiern%");
+    expect(hinweis.data?.length).toBe(1);
+  });
+
+  it("andere Arten sind weiterhin nicht möglich", async () => {
+    const r = await aC.from("leave_requests").insert({ von: tag(50), bis: tag(51), art: "krank" });
+    expect(r.error).not.toBeNull();
+  });
+
+  it("genehmigt bucht der Server nur Tage mit Soll: persönliches Soll, ohne Feiertage und Wochenende", async () => {
+    const { error } = await adminC.from("leave_requests").update({ status: "genehmigt" }).eq("id", antrag);
+    expect(error).toBeNull();
+    const { data } = await aC.from("time_entries")
+      .select("datum, art, stunden").eq("leave_request_id", antrag).is("archiviert_am", null).order("datum");
+    expect((data ?? []).map((t) => ({ datum: t.datum, art: t.art, stunden: Number(t.stunden) }))).toEqual([
+      { datum: "2026-12-24", art: "ueberstundenabbau", stunden: 8 },
+      { datum: "2026-12-28", art: "ueberstundenabbau", stunden: 8 },
+    ]);
+  });
+
+  it("Mitarbeiter können Überstundenabbau nicht selbst als Zeit eintragen", async () => {
+    const r = await aC.from("time_entries").insert({
+      user_id: malerA.id, datum: tag(0), art: "ueberstundenabbau", stunden: 8, erstellt_von: malerA.id,
+    });
+    expect(r.error).not.toBeNull();
+  });
+
+  it("wird die Genehmigung zurückgenommen, werden die Abfeier-Tage archiviert", async () => {
+    const { error } = await adminC.from("leave_requests").update({ status: "abgelehnt" }).eq("id", antrag);
+    expect(error).toBeNull();
+    const { data } = await aC.from("time_entries").select("id").eq("leave_request_id", antrag).is("archiviert_am", null);
+    expect(data ?? []).toEqual([]);
+  });
+
+  it("Feiertage Niedersachsen (SQL-Funktion) stimmen mit der App überein", async () => {
+    const tage: [string, boolean][] = [
+      ["2026-01-01", true], ["2026-04-03", true], ["2026-04-06", true], ["2026-05-01", true],
+      ["2026-05-14", true], ["2026-05-25", true], ["2026-10-03", true], ["2026-10-31", true],
+      ["2026-12-25", true], ["2026-12-26", true], ["2027-03-26", true],
+      ["2026-01-06", false], ["2026-06-04", false], ["2026-11-01", false], ["2026-11-18", false], ["2026-10-16", false],
+    ];
+    for (const [datum, erwartet] of tage) {
+      const r = await aC.rpc("ist_feiertag_ni", { p_tag: datum });
+      expect(r.error).toBeNull();
+      expect({ datum, feiertag: r.data }).toEqual({ datum, feiertag: erwartet });
+      expect(Boolean(feiertagName(datum))).toBe(erwartet);
+    }
+    expect((await anonClient().rpc("ist_feiertag_ni", { p_tag: "2026-10-03" })).error).not.toBeNull();
+  });
+
+  it("soll_stunden: persönliches Soll, Feiertag und Wochenende 0 – nur intern aufrufbar", async () => {
+    const soll = async (datum: string) => {
+      const r = await adminClient().rpc("soll_stunden", { p_user: malerA.id, p_tag: datum });
+      expect(r.error).toBeNull();
+      return Number(r.data);
+    };
+    expect(await soll("2026-12-24")).toBe(8);  // Donnerstag
+    expect(await soll("2026-12-18")).toBe(5);  // Freitag
+    expect(await soll("2026-12-25")).toBe(0);  // Feiertag (Freitag)
+    expect(await soll("2026-12-19")).toBe(0);  // Samstag
+    const fremd = await aC.rpc("soll_stunden", { p_user: malerA.id, p_tag: "2026-12-24" });
+    expect(fremd.error).not.toBeNull();
   });
 });
 

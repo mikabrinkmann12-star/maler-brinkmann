@@ -3,6 +3,7 @@ import { istIsoDatum } from "@/lib/datum";
 import {
   MAX_KULANZ_TAGE,
   MAX_PAUSE_MIN,
+  MITARBEITER_ARTEN,
   ZEIT_ARTEN,
   arbeitsMinuten,
   brauchtProjekt,
@@ -26,7 +27,7 @@ const ganzeMinuten = z.coerce
 export const einstellungenSchema = z
   .object({
     erlaubteArten: z
-      .array(z.enum(ZEIT_ARTEN, { error: "Unbekannte Zeit-Art." }))
+      .array(z.enum(MITARBEITER_ARTEN, { error: "Unbekannte Zeit-Art." }))
       .min(1, "Bitte mindestens eine Art für Mitarbeiter erlauben."),
     standardBeginn: uhrzeit("Bitte einen Standard-Beginn eingeben (z. B. 06:30)."),
     standardEnde: uhrzeit("Bitte ein Standard-Ende eingeben (z. B. 15:45)."),
@@ -45,7 +46,7 @@ export const einstellungenSchema = z
     const f = arbeitsMinuten(d.standardBeginn, d.freitagEnde, d.freitagPauseMin);
     if ("fehler" in f) ctx.addIssue({ code: "custom", message: `Freitag: ${f.fehler}` });
   })
-  .transform((d) => ({ ...d, erlaubteArten: ZEIT_ARTEN.filter((a) => d.erlaubteArten.includes(a)) }));
+  .transform((d) => ({ ...d, erlaubteArten: MITARBEITER_ARTEN.filter((a) => d.erlaubteArten.includes(a)) }));
 
 // ---------------------------------------------------------------------------
 // Ein Zeiteintrag
