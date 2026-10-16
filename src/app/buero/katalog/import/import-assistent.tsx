@@ -12,11 +12,12 @@ import {
   STATUS_TEXT,
   VORLAGE_CSV,
   importStatus,
-  materialienAusCsv,
+  katalogAusCsv,
   type ImportStatus,
   type ImportZeile,
 } from "@/lib/katalog-import";
-import { materialienImportieren, type KatalogImportErgebnis } from "../actions";
+import { KATALOG_ART_NAMEN, type KatalogArt } from "@/lib/katalog";
+import { katalogImportieren, type KatalogImportErgebnis } from "../actions";
 
 const PAKET = 100;
 const STATUS_FARBE: Record<ImportStatus, string> = {
@@ -26,7 +27,9 @@ const STATUS_FARBE: Record<ImportStatus, string> = {
   fehler: "bg-red-100 text-red-900",
 };
 
-export function ImportAssistent({ bestehendeSchluessel, anzahlBestehend }: { bestehendeSchluessel: string[]; anzahlBestehend: number }) {
+export function ImportAssistent({ art, bestehendeSchluessel, anzahlBestehend }: { art: KatalogArt; bestehendeSchluessel: string[]; anzahlBestehend: number }) {
+  const istMaterial = art === "material";
+  const was = KATALOG_ART_NAMEN[art];
   const dateiRef = useRef<HTMLInputElement>(null);
   const [dateiname, setDateiname] = useState("");
   const [zeilen, setZeilen] = useState<ImportZeile[] | null>(null);
@@ -63,23 +66,23 @@ export function ImportAssistent({ bestehendeSchluessel, anzahlBestehend }: { bes
     if (!datei) return;
     setDateiname(datei.name);
     if (datei.size > 10 * 1024 * 1024) return setLesefehler("Die Datei ist zu groß (höchstens 10 MB).");
-    const r = materialienAusCsv(await datei.text());
+    const r = katalogAusCsv(art, await datei.text());
     if (r.fehlendeSpalten.length) return setFehlendeSpalten(r.fehlendeSpalten);
     if (r.zuViele) return setLesefehler("Die Datei hat mehr als 5.000 Zeilen. Bitte in mehrere Dateien aufteilen.");
-    if (!r.zeilen.length) return setLesefehler("In der Datei stehen keine Materialien.");
+    if (!r.zeilen.length) return setLesefehler(`In der Datei stehen keine ${was}.`);
     setZeilen(r.zeilen);
   }
 
   async function importieren() {
     if (!zeilen || laeuft) return;
     const neue = zeilen.filter((_, i) => status[i] === "neu").map((z) => z.entwurf!);
-    if (!window.confirm(`${neue.length} neue Materialien importieren?`)) return;
+    if (!window.confirm(`${neue.length} neue ${was} importieren?`)) return;
     setLaeuft(true);
     setFortschritt(0);
     const summe: KatalogImportErgebnis = { importiert: 0, uebersprungen: 0, fehlerhaft: 0, neueOrdner: 0 };
     try {
       for (let i = 0; i < neue.length; i += PAKET) {
-        const r = await materialienImportieren(neue.slice(i, i + PAKET));
+        const r = await katalogImportieren(art, neue.slice(i, i + PAKET));
         summe.importiert += r.importiert;
         summe.uebersprungen += r.uebersprungen;
         summe.fehlerhaft += r.fehlerhaft;
@@ -88,7 +91,7 @@ export function ImportAssistent({ bestehendeSchluessel, anzahlBestehend }: { bes
         setFortschritt(Math.min(neue.length, i + PAKET));
       }
     } catch {
-      summe.fehler = "Die Verbindung ist abgebrochen. Du kannst den Import gefahrlos nochmal starten, schon importierte Materialien werden übersprungen.";
+      summe.fehler = "Die Verbindung ist abgebrochen. Du kannst den Import gefahrlos nochmal starten, schon importierte Einträge werden übersprungen.";
     }
     setLaeuft(false);
     setErgebnis(summe);
@@ -97,10 +100,10 @@ export function ImportAssistent({ bestehendeSchluessel, anzahlBestehend }: { bes
   }
 
   function vorlageHerunterladen() {
-    const url = URL.createObjectURL(new Blob([`﻿${VORLAGE_CSV}`], { type: "text/csv;charset=utf-8" }));
+    const url = URL.createObjectURL(new Blob([`﻿${VORLAGE_CSV[art]}`], { type: "text/csv;charset=utf-8" }));
     const a = document.createElement("a");
     a.href = url;
-    a.download = "materialien-vorlage.csv";
+    a.download = `${art === "material" ? "materialien" : "leistungen"}-vorlage.csv`;
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -113,7 +116,7 @@ export function ImportAssistent({ bestehendeSchluessel, anzahlBestehend }: { bes
         <FileSpreadsheetIcon className="size-6 text-muted-foreground" />
         <div className="min-w-0 flex-1">
           <p className="font-medium">{dateiname || "Noch keine Datei gewählt"}</p>
-          <p className="text-sm text-muted-foreground">Aktuell {anzahlBestehend} Materialien im Katalog.</p>
+          <p className="text-sm text-muted-foreground">Aktuell {anzahlBestehend} {was} im Katalog.</p>
         </div>
         <Button type="button" variant="outline" size="lg" onClick={vorlageHerunterladen}><DownloadIcon /> Vorlage</Button>
         <input ref={dateiRef} type="file" accept=".csv,text/csv" onChange={dateiGewaehlt} className="sr-only" id="csv" />
@@ -123,11 +126,14 @@ export function ImportAssistent({ bestehendeSchluessel, anzahlBestehend }: { bes
       <details className="rounded-xl border p-4 text-sm">
         <summary className="cursor-pointer font-medium">Welche Spalten braucht die Datei?</summary>
         <ul className="mt-2 list-disc space-y-1 pl-5 text-muted-foreground">
-          <li>Pflicht: <strong>{PFLICHT_SPALTEN.join(", ")}</strong></li>
-          <li>Optional: <strong>Ordner</strong> (mit „&gt;“ für Unterordner, z. B. „Farben &gt; Dispersion“), Artikelnummer, Lieferant, Zuschlag (in %), Beschreibung</li>
+          <li>Pflicht: <strong>{PFLICHT_SPALTEN[art].join(", ")}</strong></li>
+          <li>
+            Optional: <strong>Ordner</strong> (mit „&gt;“ für Unterordner, z. B. „Farben &gt; Dispersion“; ein „/“ im Namen bleibt erhalten),{" "}
+            {istMaterial ? "Artikelnummer, Lieferant, Beschreibung" : "Nummer, Langtext"}, Zuschlag (in %)
+          </li>
           <li>Fehlt „Zuschlag“, aber es gibt eine Spalte „Verkaufspreis“, wird der Zuschlag daraus berechnet.</li>
           <li>Preise im deutschen Format (12,50). Trennzeichen Semikolon oder Komma. Die Vorlage oben zeigt das Muster.</li>
-          <li>Ein Material gilt als „schon da“, wenn Artikelnummer und Lieferant übereinstimmen, ohne Artikelnummer bei gleichem Namen, gleicher Einheit und gleichem Ordner.</li>
+          <li>Ein Eintrag gilt als „schon da“, wenn Nummer und Lieferant übereinstimmen, ohne Nummer bei gleichem Namen, gleicher Einheit, gleichem Lieferanten, gleichem Ordner und gleichem Preis.</li>
         </ul>
       </details>
 
@@ -142,7 +148,7 @@ export function ImportAssistent({ bestehendeSchluessel, anzahlBestehend }: { bes
         <div className="flex flex-col gap-3 rounded-xl border border-green-300 bg-green-50 p-4 text-green-950">
           <p className="flex items-center gap-2 font-semibold"><CheckCircle2Icon className="size-5" /> Import beendet</p>
           <p>
-            {ergebnis.importiert} Materialien importiert, {ergebnis.uebersprungen} übersprungen
+            {ergebnis.importiert} {was} importiert, {ergebnis.uebersprungen} übersprungen
             {ergebnis.fehlerhaft ? `, ${ergebnis.fehlerhaft} fehlerhaft` : ""}
             {ergebnis.neueOrdner ? `, ${ergebnis.neueOrdner} neue Ordner angelegt` : ""}.
           </p>
@@ -168,8 +174,8 @@ export function ImportAssistent({ bestehendeSchluessel, anzahlBestehend }: { bes
             <table className="w-full text-sm">
               <thead className="sticky top-0 bg-muted">
                 <tr className="text-left">
-                  <th className="p-2">Zeile</th><th className="p-2">Ordner</th><th className="p-2">Artikelnr.</th><th className="p-2">Bezeichnung</th>
-                  <th className="p-2">Einheit</th><th className="p-2 text-right">EK</th><th className="p-2 text-right">Zuschlag</th><th className="p-2">Status</th>
+                  <th className="p-2">Zeile</th><th className="p-2">Ordner</th><th className="p-2">{istMaterial ? "Artikelnr." : "Nr."}</th><th className="p-2">{istMaterial ? "Bezeichnung" : "Kurztext"}</th>
+                  <th className="p-2">Einheit</th><th className="p-2 text-right">{istMaterial ? "EK" : "Kosten"}</th><th className="p-2 text-right">Zuschlag</th><th className="p-2">Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -195,7 +201,7 @@ export function ImportAssistent({ bestehendeSchluessel, anzahlBestehend }: { bes
 
           <div className="flex flex-wrap items-center gap-3">
             <Button type="button" size="touch" onClick={importieren} disabled={laeuft || zaehler.neu === 0}>
-              {laeuft ? `Importiere … ${fortschritt} von ${zaehler.neu}` : `${zaehler.neu} neue Materialien importieren`}
+              {laeuft ? `Importiere … ${fortschritt} von ${zaehler.neu}` : `${zaehler.neu} neue ${was} importieren`}
             </Button>
             <p className="text-sm text-muted-foreground">
               Übersprungen werden {zeilen.length - zaehler.neu} Zeilen (schon vorhanden, doppelt oder fehlerhaft).

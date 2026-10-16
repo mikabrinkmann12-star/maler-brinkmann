@@ -50,3 +50,6 @@ next-env.d.ts
 
 # Einmalige Zugangsdaten-Dateien (Startpasswörter), nie committen
 zugangsdaten-*.txt
+
+# CSV-Dateien mit Preisen für den Katalog-Import (nie ins Repo)
+/import-dateien/

@@ -58,8 +58,8 @@ export default async function KatalogSeite({ searchParams }: PageProps<"/buero/k
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {istMaterial && nutzer.rolle === "admin" && (
-            <Link href="/buero/katalog/import" className={buttonVariants({ variant: "outline", size: "lg" })}>
+          {nutzer.rolle === "admin" && (
+            <Link href={`/buero/katalog/import?art=${art}`} className={buttonVariants({ variant: "outline", size: "lg" })}>
               <UploadIcon /> CSV-Import
             </Link>
           )}

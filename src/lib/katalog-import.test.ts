@@ -3,15 +3,17 @@ import {
   VORLAGE_CSV,
   entwurfSchluessel,
   importStatus,
-  materialSchluessel,
+  katalogSchluessel,
+  leistungenAusCsv,
   materialienAusCsv,
   ordnerPfadLesen,
 } from "./katalog-import";
 
 describe("ordnerPfadLesen", () => {
-  it("zerlegt Pfade mit >, / und ›", () => {
+  it("zerlegt Pfade mit > und ›, ein / bleibt im Namen", () => {
     expect(ordnerPfadLesen("Farben > Dispersion")).toEqual(["Farben", "Dispersion"]);
-    expect(ordnerPfadLesen("Farben/Lacke / Weiß")).toEqual(["Farben", "Lacke", "Weiß"]);
+    expect(ordnerPfadLesen("Farben/ Lacke/ Spray")).toEqual(["Farben/ Lacke/ Spray"]);
+    expect(ordnerPfadLesen("Farben/ Lacke > Weiß")).toEqual(["Farben/ Lacke", "Weiß"]);
     expect(ordnerPfadLesen("Farben › Dispersion")).toEqual(["Farben", "Dispersion"]);
     expect(ordnerPfadLesen("  ")).toEqual([]);
     expect(ordnerPfadLesen("Tapeten")).toEqual(["Tapeten"]);
@@ -20,7 +22,7 @@ describe("ordnerPfadLesen", () => {
 
 describe("materialienAusCsv", () => {
   it("liest die Vorlage (Semikolon, deutsche Zahlen)", () => {
-    const r = materialienAusCsv(VORLAGE_CSV);
+    const r = materialienAusCsv(VORLAGE_CSV.material);
     expect(r.fehlendeSpalten).toEqual([]);
     expect(r.zeilen).toHaveLength(2);
     expect(r.zeilen[0].entwurf).toEqual({
@@ -79,22 +81,63 @@ describe("materialienAusCsv", () => {
 });
 
 describe("Dubletten", () => {
+  const basis = { artikelnr: "", lieferant: "", name: "Malerkrepp 50 m", einheit: "Rolle", ek: 2.49, ordnerPfad: "Zubehör" };
+
   it("mit Artikelnummer: gleiche Nummer beim gleichen Lieferanten, egal wie geschrieben", () => {
-    const a = materialSchluessel({ artikelnr: "DF-125", lieferant: "Wilts", name: "A", einheit: "Eimer", ordnerPfad: "x" });
-    const b = materialSchluessel({ artikelnr: "df 125", lieferant: "WILTS", name: "ganz anders", einheit: "Stk", ordnerPfad: "y" });
+    const a = katalogSchluessel({ ...basis, artikelnr: "DF-125", lieferant: "Wilts" });
+    const b = katalogSchluessel({ ...basis, artikelnr: "df 125", lieferant: "WILTS", name: "ganz anders", einheit: "Stk", ek: 99 });
     expect(a).toBe(b);
-    expect(a).not.toBe(materialSchluessel({ artikelnr: "DF-125", lieferant: "Brillux", name: "A", einheit: "Eimer", ordnerPfad: "x" }));
+    expect(a).not.toBe(katalogSchluessel({ ...basis, artikelnr: "DF-125", lieferant: "Brillux" }));
   });
 
-  it("ohne Artikelnummer: gleicher Name, Einheit und Ordner", () => {
-    const a = materialSchluessel({ artikelnr: "", lieferant: "", name: "Malerkrepp 50 m", einheit: "Rolle", ordnerPfad: "Zubehör" });
-    expect(a).toBe(materialSchluessel({ artikelnr: " ", lieferant: "Egal", name: "malerkrepp 50 M", einheit: "rolle", ordnerPfad: "zubehör" }));
-    expect(a).not.toBe(materialSchluessel({ artikelnr: "", lieferant: "", name: "Malerkrepp 50 m", einheit: "Rolle", ordnerPfad: "Farben" }));
+  it("ohne Nummer: gleicher Name, Einheit, Lieferant, Ordner und Preis", () => {
+    const a = katalogSchluessel(basis);
+    expect(a).toBe(katalogSchluessel({ ...basis, artikelnr: " ", name: "malerkrepp  50 M", einheit: "rolle", ordnerPfad: "zubehör" }));
+    expect(a).not.toBe(katalogSchluessel({ ...basis, ordnerPfad: "Farben" }));
+    expect(a).not.toBe(katalogSchluessel({ ...basis, lieferant: "Wilts" }));
+  });
+
+  it("gleicher Name mit anderem Preis ist ein eigener Eintrag (zwei Preisstände)", () => {
+    expect(katalogSchluessel(basis)).not.toBe(katalogSchluessel({ ...basis, ek: 2.5 }));
+  });
+
+  it("kleine Schreibunterschiede im Namen (PG1-S / PG 1-S) sind keine Dubletten", () => {
+    expect(katalogSchluessel({ ...basis, name: "Indeko PG1-S 7,5L" })).not.toBe(katalogSchluessel({ ...basis, name: "Indeko PG 1-S 7,5L" }));
   });
 
   it("importStatus: neu, schon vorhanden, doppelt in der Datei, Fehler", () => {
-    const r = materialienAusCsv("Ordner;Artikelnummer;Bezeichnung;Lieferant;Einheit;Einkaufspreis\nA;1;X;W;Stk;1\nA;2;Y;W;Stk;1\nA;2;Y;W;Stk;5\nA;3;Z;W;Stk;kaputt");
+    const csv = ["Ordner;Artikelnummer;Bezeichnung;Lieferant;Einheit;Einkaufspreis", "A;1;X;W;Stk;1", "A;2;Y;W;Stk;1", "A;2;Y;W;Stk;5", "A;3;Z;W;Stk;kaputt"].join("\n");
+    const r = materialienAusCsv(csv);
     const vorhanden = new Set([entwurfSchluessel(r.zeilen[0].entwurf!)]);
     expect(importStatus(r.zeilen, vorhanden)).toEqual(["vorhanden", "neu", "doppelt_in_datei", "fehler"]);
+  });
+});
+
+describe("Leistungen", () => {
+  it("liest Kurztext, Langtext, Kosten; Nummer landet in artikelnr", () => {
+    const r = leistungenAusCsv(VORLAGE_CSV.leistung);
+    expect(r.fehlendeSpalten).toEqual([]);
+    expect(r.zeilen[0].entwurf).toEqual({
+      ordner: ["Malerarbeiten"], artikelnr: "01.0010", name: "Wandflächen weiß streichen", lieferant: "",
+      einheit: "m²", ek: 5.65, zuschlag: 0, beschreibung: "Zweimal streichen, Dispersionsfarbe",
+    });
+  });
+
+  it("verlangt Kurztext, Einheit und Kosten", () => {
+    expect(leistungenAusCsv(["Bezeichnung;Einheit", "A;Stk"].join("\n")).fehlendeSpalten).toEqual(["Kosten"]);
+    expect(leistungenAusCsv(["x", "1"].join("\n")).fehlendeSpalten).toEqual(["Kurztext", "Einheit", "Kosten"]);
+  });
+
+  it("Langtext bis 5.000 Zeichen und mit Zeilenumbrüchen", () => {
+    const lang = ["Zeile 1", "Zeile 2 " + "x".repeat(3000)].join("\n");
+    const kopf = "Kurztext;Einheit;Kosten;Langtext\r\n";
+    const r = leistungenAusCsv(`${kopf}Gerüst;Stk;0;"${lang}"`);
+    expect(r.zeilen[0].entwurf?.beschreibung).toBe(lang);
+    expect(leistungenAusCsv(`${kopf}Gerüst;Stk;0;"${"x".repeat(5001)}"`).zeilen[0].fehler).toContain("Langtext");
+  });
+
+  it("Zuschlag aus Verkaufspreis, Ordner mit / im Namen bleibt ein Ordner", () => {
+    const r = leistungenAusCsv(["Ordner;Kurztext;Einheit;Kosten;Verkaufspreis", "Farben/ Lacke;Streichen;m²;10,00;12,50"].join("\n"));
+    expect(r.zeilen[0].entwurf).toMatchObject({ ordner: ["Farben/ Lacke"], zuschlag: 25 });
   });
 });

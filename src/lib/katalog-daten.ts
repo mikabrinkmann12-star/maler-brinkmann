@@ -1,6 +1,6 @@
 import "server-only";
 import { ordnerPfadText, type KatalogArt } from "@/lib/katalog";
-import { materialSchluessel } from "@/lib/katalog-import";
+import { katalogSchluessel } from "@/lib/katalog-import";
 import { suchtext } from "@/lib/suche";
 import { createClient } from "@/lib/supabase/server";
 
@@ -95,28 +95,34 @@ export async function eintraegeLaden(
 }
 
 /**
- * Dubletten-Schlüssel aller vorhandenen Materialien (auch archivierter) für den Import.
+ * Dubletten-Schlüssel aller vorhandenen Einträge einer Art (auch archivierter) für den Import.
  * Die Datenbank liefert höchstens 1000 Zeilen pro Abfrage, darum wird seitenweise geladen.
  */
-export async function materialSchluesselLaden(): Promise<Set<string>> {
+export async function katalogSchluesselLaden(art: KatalogArt): Promise<Set<string>> {
   const supabase = await createClient();
-  const ordner = await ordnerLaden("material");
+  const ordner = await ordnerLaden(art);
   const pfad = (id: string | null) => ordnerPfadText(ordner, id).replace(/ › /g, " > ");
   const schluessel = new Set<string>();
   const SEITE = 1000;
 
   for (let von = 0; ; von += SEITE) {
-    const { data, error } = await supabase
-      .from("materials")
-      .select("artikelnr, lieferant, name, einheit, folder_id")
-      .order("id") // stabile Reihenfolge fürs seitenweise Laden
-      .range(von, von + SEITE - 1);
-    if (error) throw new Error("Die vorhandenen Materialien konnten nicht geladen werden.");
-    for (const m of data) {
+    const seite =
+      art === "material"
+        ? await supabase.from("materials").select("artikelnr, lieferant, name, einheit, ek, folder_id").order("id").range(von, von + SEITE - 1)
+        : await supabase.from("services").select("nummer, name, einheit, kosten, folder_id").order("id").range(von, von + SEITE - 1);
+    if (seite.error) throw new Error("Die vorhandenen Einträge konnten nicht geladen werden.");
+    for (const m of seite.data as Record<string, unknown>[]) {
       schluessel.add(
-        materialSchluessel({ artikelnr: m.artikelnr ?? "", lieferant: m.lieferant ?? "", name: m.name, einheit: m.einheit, ordnerPfad: pfad(m.folder_id) }),
+        katalogSchluessel({
+          artikelnr: String((art === "material" ? m.artikelnr : m.nummer) ?? ""),
+          lieferant: String(m.lieferant ?? ""),
+          name: String(m.name),
+          einheit: String(m.einheit),
+          ek: Number(art === "material" ? m.ek : m.kosten),
+          ordnerPfad: pfad((m.folder_id as string | null) ?? null),
+        }),
       );
     }
-    if (data.length < SEITE) return schluessel;
+    if (seite.data.length < SEITE) return schluessel;
   }
 }
