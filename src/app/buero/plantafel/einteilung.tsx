@@ -22,6 +22,7 @@ import {
   ArrowDownIcon,
   ArrowUpIcon,
   GripVerticalIcon,
+  MapPinIcon,
   SaveIcon,
   TruckIcon,
   UserIcon,
@@ -36,6 +37,7 @@ import { tageVerschieben } from "@/lib/datum";
 import { ZEIT_ART_TEXT, stoppVerschieben, type StoppZeitArt } from "@/lib/einsatz";
 import type { EinteilungsGruppe } from "@/lib/einteilung-erkennung";
 import { formatDatumLang } from "@/lib/format";
+import { mapsLink } from "@/lib/projekt";
 import {
   OHNE_AUTO,
   kartenSchluessel,
@@ -52,9 +54,22 @@ import { einsaetzeSpeichern, wieGestern } from "./actions";
 import { Spracheingabe } from "./spracheingabe";
 
 export type Fahrzeug = { id: string; name: string; kennzeichen: string | null };
-export type ProjektOption = { id: string; name: string; ort: string; aktuell: boolean; stichworte: string[] };
+export type ProjektOption = { id: string; name: string; ort: string; adresse: string; aktuell: boolean; stichworte: string[] };
 export type Person = { id: string; vorname: string; nachname: string };
 export type TerminAnzeige = TerminFuerPlan & { ort: string; zeit: string | null };
+
+/** Adresse einer Baustelle mit Link, der in Google Maps öffnet (auf dem Handy die Navigation). */
+function Adresse({ adresse }: { adresse: string }) {
+  if (!adresse) return <p className="px-1 text-xs text-muted-foreground">Keine Adresse hinterlegt</p>;
+  return (
+    <a href={mapsLink({ strasse: adresse }) ?? undefined} target="_blank" rel="noopener noreferrer"
+      className="flex w-fit items-center gap-1 px-1 text-sm text-primary underline-offset-4 hover:underline">
+      <MapPinIcon className="size-4 shrink-0" />
+      {adresse}
+      <span className="text-xs text-muted-foreground no-underline">· in Google Maps öffnen</span>
+    </a>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Mitarbeiter-Chip (ziehbar)
@@ -334,8 +349,8 @@ export function Einteilung({
                     </p>
                     <p className="text-sm text-muted-foreground">
                       {t.personIds.map((id) => person(id)?.vorname).filter(Boolean).join(", ") || "niemand zugeordnet"}
-                      {t.ort && ` · ${t.ort}`}
                     </p>
+                    <Adresse adresse={t.ort || (t.projectId ? projekte.find((p) => p.id === t.projectId)?.adresse ?? "" : "")} />
                   </div>
                   <Auswahl aria-label={`„${t.titel}“ in Auto übernehmen`} value="" className="w-52"
                     onChange={(e) => termineUebernehmen(t, e.target.value)}>
@@ -433,6 +448,7 @@ export function Einteilung({
                           <XIcon />
                         </Button>
                       </div>
+                      <Adresse adresse={projekte.find((p) => p.id === st.projectId)?.adresse ?? ""} />
                       <div className="flex flex-wrap items-center gap-2">
                         <Input type="time" aria-label="Uhrzeit (optional)" value={st.zeit ?? ""}
                           onChange={(e) => zeitSetzen(s, i, e.target.value)} className="h-10 w-32 text-base" />

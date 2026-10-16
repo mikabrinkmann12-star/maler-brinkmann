@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { requireRole } from "@/lib/auth";
 import { heuteIso, istIsoDatum } from "@/lib/datum";
 import { stoppsSortieren } from "@/lib/einsatz";
+import { adresseText } from "@/lib/projekt";
 import { BUERO_ROLLEN } from "@/lib/rollen";
 import { createClient } from "@/lib/supabase/server";
 import { Einteilung, type ProjektOption } from "./einteilung";
@@ -23,7 +24,7 @@ export default async function EinteilungSeite({ searchParams }: PageProps<"/buer
     supabase
       .from("projects")
       .select(
-        "id, projektnummer, name, baustelle_strasse, baustelle_ort, project_statuses(name, sortierung), contacts(firmenname, nachname)",
+        "id, projektnummer, name, baustelle_strasse, baustelle_plz, baustelle_ort, project_statuses(name, sortierung), contacts(firmenname, nachname)",
       )
       .is("archiviert_am", null)
       .order("name"),
@@ -56,6 +57,7 @@ export default async function EinteilungSeite({ searchParams }: PageProps<"/buer
       id: p.id,
       name: p.name,
       ort: p.baustelle_ort ?? "",
+      adresse: adresseText({ strasse: p.baustelle_strasse, plz: p.baustelle_plz, ort: p.baustelle_ort }),
       aktuell: AKTUELL.includes(p.project_statuses?.name ?? ""),
       stichworte: [kunde, p.baustelle_ort ?? "", p.baustelle_strasse ?? "", p.projektnummer].filter(Boolean),
     };
