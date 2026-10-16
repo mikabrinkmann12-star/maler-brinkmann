@@ -1,7 +1,7 @@
 // Phase 1: Kollegen hinzufügen, Einteilung, Zeiten (Sperrfrist), Urlaub,
 // Notizen/Material/Aufmaß/Fotos, Benachrichtigungen, Einstellungen.
 // Arbeitet mit eigenen Wegwerf-Daten (TEST-…), räumt am Ende alles auf.
-import { randomBytes } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
@@ -277,6 +277,33 @@ describe("Zeiten", () => {
     expect(umschreiben.error !== null || (umschreiben.data ?? []).length === 0).toBe(true);
   });
 
+  it("mehrere Einträge auf einmal (ich + Kollege) mit vorab erzeugten IDs – nochmal senden speichert nichts doppelt", async () => {
+    const ids = [randomUUID(), randomUUID()];
+    const zeilen = [malerA.id, malerB.id].map((user_id, i) => ({
+      id: ids[i], user_id, erstellt_von: malerA.id, project_id: p2, datum: tag(), von: "16:00", bis: "17:00", stunden: 1,
+    }));
+    expect((await aC.from("time_entries").insert(zeilen)).error).toBeNull();
+    const nochmal = await aC.from("time_entries").insert(zeilen);
+    expect(nochmal.error?.code).toBe("23505");
+    const sicht = await aC.from("time_entries").select("id").in("id", ids);
+    expect(sicht.data?.length).toBe(2);
+
+    // eigene Zeit „löschen“ = archivieren geht innerhalb der Sperrfrist
+    const archiv = await aC.from("time_entries").update({ archiviert_am: new Date().toISOString() })
+      .eq("id", ids[0]).select("id");
+    expect(archiv.data).toEqual([{ id: ids[0] }]);
+  });
+
+  it("ist ein Kollege nicht auf der Baustelle, wird gar nichts gespeichert (alles oder nichts)", async () => {
+    const ids = [randomUUID(), randomUUID()];
+    const zeilen = [malerA.id, malerC.id].map((user_id, i) => ({
+      id: ids[i], user_id, erstellt_von: malerA.id, project_id: p2, datum: tag(), von: "17:00", bis: "18:00", stunden: 1,
+    }));
+    expect((await aC.from("time_entries").insert(zeilen)).error).not.toBeNull();
+    const sicht = await bueroC.from("time_entries").select("id").in("id", ids);
+    expect(sicht.data ?? []).toEqual([]);
+  });
+
   it("Zeiten kann niemand löschen (archivieren statt löschen)", async () => {
     for (const client of [aC, bueroC, adminC]) {
       const { data } = await client.from("time_entries").delete().eq("id", eintragA).select("id");
@@ -307,6 +334,12 @@ describe("Einstellungen", () => {
     expect(bueroAenderung.data ?? []).toEqual([]);
     const adminAenderung = await adminC.from("app_settings").update({ wert }).eq("schluessel", "zeiterfassung").select("schluessel");
     expect(adminAenderung.data?.length).toBe(1);
+
+    // So speichert die Einstellungsseite (upsert): Büro nein, Admin ja
+    const bueroUpsert = await bueroC.from("app_settings").upsert({ schluessel: "zeiterfassung", wert });
+    expect(bueroUpsert.error).not.toBeNull();
+    const adminUpsert = await adminC.from("app_settings").upsert({ schluessel: "zeiterfassung", wert, updated_by: admin.id });
+    expect(adminUpsert.error).toBeNull();
   });
 });
 

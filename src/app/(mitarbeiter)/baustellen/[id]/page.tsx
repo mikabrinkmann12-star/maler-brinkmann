@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeftIcon, ConstructionIcon, NavigationIcon } from "lucide-react";
+import { ArrowLeftIcon, ClockIcon, ConstructionIcon, NavigationIcon } from "lucide-react";
 import { AnrufLink } from "@/components/anruf-link";
 import { buttonVariants } from "@/components/ui/button";
 import { requireUser } from "@/lib/auth";
@@ -92,6 +92,12 @@ export default async function BaustelleSeite({ params }: { params: Promise<{ id:
             )}
           </ul>
         </section>
+      )}
+
+      {istMitglied && !p.archiviert_am && (
+        <Link href={`/zeiten/neu?projekt=${p.id}`} className={buttonVariants({ variant: "outline", size: "touch", className: "w-full" })}>
+          <ClockIcon /> Zeit eintragen
+        </Link>
       )}
 
       <Team

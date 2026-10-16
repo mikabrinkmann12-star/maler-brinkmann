@@ -78,6 +78,7 @@ export async function testNutzerLoeschen(nutzer?: TestNutzer): Promise<void> {
   if (!nutzer) return;
   const db = adminClient();
   await db.from("notifications").delete().eq("ausgeloest_von", nutzer.id);
+  await db.from("app_settings").update({ updated_by: null }).eq("updated_by", nutzer.id);
   await db.from("project_members").delete().eq("user_id", nutzer.id);
   await db.from("project_members").delete().eq("added_by", nutzer.id);
   const { error } = await db.auth.admin.deleteUser(nutzer.id);

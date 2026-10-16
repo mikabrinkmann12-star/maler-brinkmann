@@ -36,7 +36,7 @@ Entwickler ist **Mika** (Anfänger): kurz erklären, was gemacht wird und warum,
 - **Firmendaten** (Briefkopf, USt-ID, Steuernummer, Bank …) kommen nur aus den Einstellungen, nie hardcoden.
 - **Testdaten (Seed) nur in `brinkmann-dev`**, nie in Live. Das Seed-Skript bricht ab, wenn nicht `APP_ENV=development` gesetzt ist.
 - Mobile-first für Mitarbeiter: große Buttons (mind. 48 px), wenig Text, keine verschachtelten Menüs (Plancraft war den Mitarbeitern zu kompliziert).
-- Formulare dürfen Eingaben nicht verlieren, wenn das Senden fehlschlägt: lokal zwischenspeichern und erneut senden. Ein Offline-Modus wird nicht gebaut.
+- Formulare dürfen Eingaben nicht verlieren, wenn das Senden fehlschlägt: lokal zwischenspeichern und erneut senden. Ein Offline-Modus wird nicht gebaut. Dafür die Warteschlange (`src/lib/warteschlange.ts`) nutzen und Server-Aktionen idempotent bauen (IDs neuer Datensätze erzeugt die App mit `neueId()`).
 - **Formulare mit kontrollierten Feldern (useState) nie mit `<form action={…}>` abschicken**, sondern mit `onSubmit={(e) => abschicken(e, aktion)}` aus `src/lib/formular.ts`. Grund: React setzt das Formular sonst nach dem Speichern zurück, ein `<select>` zeigt dann den alten Wert, und beim nächsten Speichern wird dieser falsche Wert geschickt. Dieser Fehler ist in 0.4 im Browser aufgefallen.
 
 ## Tech-Stack
@@ -187,7 +187,14 @@ Legende: ✅ angelegt · ⏳ kommt in der genannten Phase
   - `/buero`: Kasten „Hinweise“ (ungelesene notifications, „gelesen“ / „Alle gelesen“, `src/app/buero/actions.ts`).
   - Hilfen: `src/lib/projekt.ts` (adresseText, mapsLink, telLink, kontaktName, getestet), `src/lib/mitarbeiter-daten.ts` (kollegenLaden, meineProjektIds, meineEinsaetze – IMMER explizit nach dem Nutzer filtern), `src/components/anruf-link.tsx`.
   - Test-Aufräumen robuster: `testNutzerLoeschen` entfernt vorher notifications/project_members des Nutzers.
-- [ ] 1.4 Zeit eintragen, „Meine Zeiten“, Einstellungen „Zeiterfassung“, Entwürfe gegen Datenverlust
+- [x] 1.4 Zeit eintragen, „Meine Zeiten“, Einstellungen „Zeiterfassung“, Entwürfe gegen Datenverlust
+  - `/zeiten` („Meine Zeiten“): Monatsliste (`?monat=JJJJ-MM`) mit Tages- und Monatssumme (je Art), eigene Zeiten + „Für Kollege …“ (selbst für andere eingetragen, nur lesen), Schloss = nicht mehr änderbar.
+  - `/zeiten/neu` (`?projekt=<id>` von „Heute“/Baustelle): Tag (Heute/Gestern/Datum, Mitarbeiter nur innerhalb der Sperrfrist), Art (nur erlaubte), Baustelle (Einsatz des Tages vorausgewählt, bei zwei Einsätzen die noch offene), Von–bis + Pause-Knöpfe oder „Nur Stunden“, Kollegen derselben Baustelle ankreuzen (jeder bekommt einen eigenen Eintrag). Zweiter Eintrag am Tag: Beginn = letztes Ende, keine zweite Pause. Überschneidungen werden vorher angezeigt und vom Server abgelehnt (geprüft gegen alle Zeiten, die der Nutzer sehen darf).
+  - `/zeiten/[id]`: eigene Zeit ändern oder löschen (= archivieren), sonst nur Ansicht mit Grund.
+  - Server-Aktionen `zeitenAnlegen`, `zeitAendern`, `zeitArchivieren` in `src/app/(mitarbeiter)/zeiten/actions.ts`. Sie sind **idempotent**: Die App erzeugt die IDs neuer Einträge selbst, ein zweites Senden speichert nichts doppelt.
+  - **Warteschlange gegen Datenverlust** (`src/lib/warteschlange.ts`, `zeiten/senden.ts`, `zeiten/warteschlange.tsx`): Jede Eingabe wird VOR dem Senden im localStorage (pro Nutzer) abgelegt und erst nach Erfolg entfernt. Bei Funkloch erscheint „Noch nicht gespeichert“ (auf Heute, Zeiten, Formular), Neuversuch beim Öffnen, bei „online“ und jede Minute. Lehnt der Server ab, bleibt die Meldung stehen, bis man verwirft. Im Browser getestet (Senden blockiert → gemerkt → nachgesendet).
+  - Admin-Seite `/buero/einstellungen/zeiterfassung`: erlaubte Arten, Standardzeiten, Kulanztage (0–15). Speichert per upsert mit `updated_by`.
+  - Logik in `src/lib/zeiten.ts` (Sperrfrist, Stunden, Vorschläge – spiegelt die DB-Regeln) und `src/lib/zeit-schema.ts` (zod), beide getestet. Anzeige der Stunden als „8:30 Std“ (`formatStunden`).
 - [ ] 1.5 Fotos + Notizen
 - [ ] 1.6 Material + Aufmaß (VOB)
 - [ ] 1.7 Urlaubsantrag + Genehmigung
@@ -265,7 +272,7 @@ Firmendaten, Logo/Briefpapier, Nummernkreise (nur Angebote/Projekte, Rechnungen 
   - Inhalt: 25 erfundene Kunden aus der Region, 12 Projekte in allen 9 Status (eins archiviert), 4 Fahrzeuge und 3 Einsätze für den Seed-Tag (Sprinter 1 → Gerdes, Sprinter 2 → Ringstraße, Caddy → Kramer). Termine relativ zum Seed-Tag, sodass immer 3 Projekte „In Arbeit“ sind.
   - Räumt vorher auch alle Phase-1-Daten weg, die an Demo-Nutzern, -Projekten oder -Fahrzeugen hängen (Einsätze, Zeiten, Urlaub, Notizen, Fotos inkl. Speicher, Material, Aufmaß, Hinweise). Neue Tabellen mit Verweis auf Demo-Daten **hier ergänzen**, sonst scheitert der Seed.
   - Telefonnummern aus dem Film-Nummernbereich `040 66969 …`, E-Mails `@example.com`, damit nie echte Personen erwischt werden.
-- Wegwerf-Daten der DB-Tests: Benutzer `test-…`, Kunden/Projekte/Fahrzeuge/Status `TEST-…`. Die Tests räumen sie selbst wieder auf.
+- Wegwerf-Daten der DB-Tests: Benutzer `test-…`, Kunden/Projekte/Fahrzeuge/Status `TEST-…`. Die Tests räumen sie selbst wieder auf. Achtung: Spalten wie `app_settings.updated_by` verweisen auf Nutzer und blockieren sonst das Löschen (`testNutzerLoeschen` setzt sie vorher auf null).
 - Skripte in `scripts/` laufen mit `tsx`, das die `@/`-Pfade versteht. Kein `await` auf oberster Ebene, stattdessen `main()`.
 - Zeigt der Dev-Server nach Änderungen Fehler wie „… is not a function“, obwohl `npm run build` sauber ist: Dev-Server neu starten.
 - Supabase-CLI: `npx supabase …`. Mika ist eingeloggt (`supabase login`), der Ordner ist mit `brinkmann-dev` verknüpft (Ref `akbqdpwajeaynwqczfkg`, eu-central-1).
@@ -288,7 +295,7 @@ Firmendaten, Logo/Briefpapier, Nummernkreise (nur Angebote/Projekte, Rechnungen 
 - `src/lib/pwa.ts`: Versionsvergleich, Speicher für das Installations-Angebot. `src/components/pwa-helfer.tsx`, `src/components/app-installieren.tsx`. `src/app/api/version/route.ts`
 - `src/lib/passwort.ts`: `startpasswortErzeugen()`. `src/lib/nutzer-schema.ts`: zod-Schemas für die Nutzerverwaltung
 - `scripts/admin-anlegen.ts`: ersten Admin anlegen. `scripts/seed.ts` + `seed-daten.ts`: Testdaten
-- `tests/rls/`: `00` Login-Adresse, `01` Funktionsrechte, `02` Rollen & Sperren, `03` Projekte/Kunden/Mitglieder/Fahrzeuge/Status/Löschen/ohne Login, `04` Phase 1 (Kollegen hinzufügen, Einteilung, Zeiten + Sperrfrist, Einstellungen, Urlaub, Notizen/Material/Aufmaß, Fotos-Storage). Insgesamt 69 Tests. Einzelne Datei: `npx vitest run --config vitest.rls.config.mts tests/rls/04-…` (spart Logins)
+- `tests/rls/`: `00` Login-Adresse, `01` Funktionsrechte, `02` Rollen & Sperren, `03` Projekte/Kunden/Mitglieder/Fahrzeuge/Status/Löschen/ohne Login, `04` Phase 1 (Kollegen hinzufügen, Einteilung, Zeiten + Sperrfrist + mehrere auf einmal/erneut senden, Einstellungen, Urlaub, Notizen/Material/Aufmaß, Fotos-Storage). Insgesamt 71 Tests. Einzelne Datei: `npx vitest run --config vitest.rls.config.mts tests/rls/04-…` (spart Logins)
 - Supabase-Regel: Wer per `insert(...).select()` einen Datensatz zurückliest, braucht auch das **Leserecht** darauf, sonst kommt „violates row-level security policy“, obwohl das Anlegen selbst erlaubt wäre.
 - `src/components/ui/`: shadcn/ui-Komponenten
 - `src/lib/format.ts`: deutsche Formatierung (`formatDatum`, `formatDatumZeit`, `formatUhrzeit`, `formatBetrag`, `formatZahl`; leere Werte → „–“)

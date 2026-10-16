@@ -5,23 +5,38 @@ import { AnrufLink } from "@/components/anruf-link";
 import { buttonVariants } from "@/components/ui/button";
 import { requireUser } from "@/lib/auth";
 import { heuteIso } from "@/lib/datum";
-import { formatDatumLang } from "@/lib/format";
+import { formatDatumLang, formatStunden } from "@/lib/format";
 import { kollegenLaden, meineEinsaetze } from "@/lib/mitarbeiter-daten";
 import { adresseText, kontaktName, mapsLink } from "@/lib/projekt";
+import { createClient } from "@/lib/supabase/server";
+import { Warteschlange } from "../zeiten/warteschlange";
 
 export const metadata: Metadata = { title: "Heute" };
 
 export default async function HeuteSeite() {
   const nutzer = await requireUser();
   const heute = heuteIso();
-  const [einsaetze, kollegen] = await Promise.all([meineEinsaetze(nutzer.id, heute), kollegenLaden()]);
+  const supabase = await createClient();
+  const [einsaetze, kollegen, { data: heuteZeiten }] = await Promise.all([
+    meineEinsaetze(nutzer.id, heute),
+    kollegenLaden(),
+    supabase.from("time_entries").select("stunden").eq("user_id", nutzer.id).eq("datum", heute).is("archiviert_am", null),
+  ]);
+  const heuteStunden = (heuteZeiten ?? []).reduce((s, t) => s + Number(t.stunden), 0);
 
   return (
     <div className="flex flex-col gap-6">
       <div>
         <p className="text-muted-foreground">{formatDatumLang(heute)}</p>
         <p className="text-2xl font-semibold">Moin, {nutzer.vorname}!</p>
+        {heuteZeiten && heuteZeiten.length > 0 && (
+          <Link href="/zeiten" className="mt-1 flex w-fit items-center gap-1 text-sm text-green-700 underline-offset-4 hover:underline">
+            <ClockIcon className="size-4" /> Heute eingetragen: {formatStunden(heuteStunden)}
+          </Link>
+        )}
       </div>
+
+      <Warteschlange userId={nutzer.id} />
 
       {einsaetze.length === 0 && (
         <div className="flex flex-col gap-3 rounded-xl border border-dashed p-5">
@@ -126,7 +141,7 @@ export default async function HeuteSeite() {
               </div>
             )}
 
-            <Link href="/zeiten" className={buttonVariants({ variant: "outline", size: "touch", className: "w-full" })}>
+            <Link href={p ? `/zeiten/neu?projekt=${p.id}` : "/zeiten/neu"} className={buttonVariants({ variant: "outline", size: "touch", className: "w-full" })}>
               <ClockIcon />
               Zeit eintragen
             </Link>

@@ -5,6 +5,7 @@ import {
   einstellungenAlsJson,
   einstellungenLesen,
   fruehesterAenderbarerTag,
+  projektVorschlag,
   stundenAusMinuten,
   ueberschneidetSich,
   uhrzeitKurz,
@@ -112,5 +113,33 @@ describe("einstellungenLesen", () => {
 
   it("einstellungenAlsJson ist die Umkehrung", () => {
     expect(einstellungenLesen(einstellungenAlsJson(STANDARD_EINSTELLUNGEN))).toEqual(STANDARD_EINSTELLUNGEN);
+  });
+});
+
+describe("projektVorschlag", () => {
+  const einsaetze = [
+    { datum: "2026-10-16", projektId: "gerdes" },
+    { datum: "2026-10-16", projektId: "kramer" },
+    { datum: "2026-10-15", projektId: "ring" },
+  ];
+  const meine = ["gerdes", "kramer", "ring"];
+
+  it("nimmt die eingeteilte Baustelle des Tages", () => {
+    expect(projektVorschlag("2026-10-15", einsaetze, [], meine)).toBe("ring");
+    expect(projektVorschlag("2026-10-16", einsaetze, [], meine)).toBe("gerdes");
+  });
+
+  it("bei zwei Einsätzen die, für die noch nichts eingetragen ist", () => {
+    const eintraege = [{ datum: "2026-10-16", projektId: "gerdes" }];
+    expect(projektVorschlag("2026-10-16", einsaetze, eintraege, meine)).toBe("kramer");
+  });
+
+  it("ohne Einsatz: nur wenn es genau eine Baustelle gibt", () => {
+    expect(projektVorschlag("2026-10-14", einsaetze, [], meine)).toBe("");
+    expect(projektVorschlag("2026-10-14", einsaetze, [], ["ring"])).toBe("ring");
+  });
+
+  it("ignoriert Einsätze auf Baustellen, die nicht (mehr) zur Auswahl stehen", () => {
+    expect(projektVorschlag("2026-10-15", einsaetze, [], ["gerdes"])).toBe("gerdes");
   });
 });

@@ -177,3 +177,24 @@ export function fruehesterAenderbarerTag(heute: string, kulanzTage: number): str
 export function zeitNochAenderbar(datum: string, heute: string, kulanzTage: number): boolean {
   return datum <= heute && datum >= fruehesterAenderbarerTag(heute, kulanzTage);
 }
+
+/**
+ * Welche Baustelle soll vorausgewählt sein? Die Baustelle aus dem Einsatz an
+ * dem Tag, für die ich noch nichts eingetragen habe (bei zwei Einsätzen also
+ * die zweite). Ohne Einsatz: meine einzige Baustelle, sonst keine.
+ */
+export function projektVorschlag(
+  datum: string,
+  einsaetze: { datum: string; projektId: string }[],
+  eintraege: { datum: string; projektId: string | null }[],
+  meineProjektIds: string[],
+): string {
+  const eingeteilt = einsaetze
+    .filter((e) => e.datum === datum && meineProjektIds.includes(e.projektId))
+    .map((e) => e.projektId);
+  const schonEingetragen = new Set(eintraege.filter((t) => t.datum === datum).map((t) => t.projektId));
+  const offen = eingeteilt.find((id) => !schonEingetragen.has(id));
+  if (offen) return offen;
+  if (eingeteilt.length) return eingeteilt[0];
+  return meineProjektIds.length === 1 ? meineProjektIds[0] : "";
+}
