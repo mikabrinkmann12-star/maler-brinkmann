@@ -1,53 +1,49 @@
-# Übergabe an einen neuen Chat (Stand 16.10.2026, nach Phase 2)
+# Übergabe an einen neuen Chat (Stand 16.10.2026, nach Phase 3.3)
 
 **Text zum Einfügen in den neuen Chat:**
 
-> Du arbeitest weiter an meiner Handwerker-Software für den Malerbetrieb meines Vaters (Ralf Brinkmann, Saterland). Lies zuerst **CLAUDE.md** (vollständige Regeln, Datenmodell, Rechte, Entscheidungen, Befehle) und **docs/UEBERGABE.md** (diese Datei) sowie **docs/SETUP.md**. Arbeite auf **Experten-Niveau** (gründlich, sicherheitsbewusst, getestet), erkläre mir als Anfänger aber kurz auf Deutsch, was du tust und warum. **Bei jeder Rückfrage zu Geschäftslogik oder Entscheidungen: frag mich über das Auswahl-Menü (AskUserQuestion mit Optionen, Empfehlung zuerst), nicht als Freitext, und rate nie.** Arbeite in kleinen Teilschritten, nach jedem Schritt: Tests, Commit, Zusammenfassung „was fertig / was testen / wie testen“. Nächster Schritt: **Phase 1.8** (Test auf iPhone/Android, vor allem Drag & Drop in der Einteilung), danach **Phase 3** (Büro-Grundlagen, Import aus Plancraft, archivierte Projekte für alle lesbar).
+> Du arbeitest weiter an meiner Handwerker-Software für den Malerbetrieb meines Vaters (Ralf Brinkmann, Saterland). Lies zuerst **CLAUDE.md** (vollständige Regeln, Datenmodell, Rechte, Entscheidungen, Befehle, Phasenstatus), **docs/UEBERGABE.md** (diese Datei) und **docs/SETUP.md**. Arbeite auf **Experten-Niveau** (gründlich, sicherheitsbewusst, getestet), erkläre mir als Anfänger aber kurz auf Deutsch, was du tust und warum. **Bei jeder Rückfrage zu Geschäftslogik oder Entscheidungen: frag mich über das Auswahl-Menü (AskUserQuestion mit Optionen, Empfehlung zuerst), nicht als Freitext, und rate nie.** Arbeite in kleinen Teilschritten, nach jedem Schritt: Tests, Commit, Push, Zusammenfassung „was fertig / was testen / wie testen“. Wenn du für einen Schritt etwas von mir brauchst, überspring ihn und mach erst etwas anderes. Nächster Schritt: **Phase 3 weiter** (siehe „Nächste Schritte“), davor frag mich kurz, womit ich anfangen will.
 
 ## Projekt in Kürze
-- Eigene Software statt Plancraft. **Status: Prototyp** – Mika stellt sie Ralf vor, erst danach wird gekauft. Bis dahin **nur Gratis-Dienste**, keine echten Daten.
-- Stack: Next.js 16 (App Router, `src/`, Turbopack, Cache Components AUS), React 19, Tailwind 4, shadcn/ui (Base UI), Supabase (Postgres/Auth/Storage, Frankfurt), Vercel (Hobby, fra1), Vitest, tsx-Skripte.
-- Repo: github.com/mikabrinkmann12-star/maler-brinkmann (privat). Online: https://maler-brinkmann-23nr.vercel.app (Push auf `main` = automatisches Deployment, ~1 Min).
-- Supabase: `brinkmann-dev` (Ref akbqdpwajeaynwqczfkg, Demo-Daten, Ordner ist damit verknüpft) und `brinkmann-live` (Ref tezveryzixrysviapmal, keine Testdaten). Vercel: Production → live, Preview → dev.
-- Live-Admin: `mika.brinkmann`. Dev-Admin: `mikabrinkmann`. Demo-Zugänge (dev): `demo-admin`, `demo-buero`, `demo-sebastian`, `-christian`, `-jan`, `-tobias`, `-marco`, `-dennis`, `-lukas`, `-kevin` – Passwort `SEED_PASSWORT` in `.env.local`.
+- Eigene Software statt Plancraft. **Status: Prototyp**, Mika stellt sie Ralf vor, erst danach wird gekauft. Nur **Gratis-Dienste** (Vercel Hobby, Supabase Free), keine bezahlten APIs (auch keine KI) ohne ausdrücklichen Kostenhinweis.
+- Stack: Next.js 16 (App Router, `src/`, Turbopack, Cache Components AUS), React 19, Tailwind 4, shadcn/ui (Base UI), Supabase (Postgres/Auth/Storage, Frankfurt), Vercel (Hobby, fra1), Vitest, `@dnd-kit/core`, tsx-Skripte.
+- Repo: github.com/mikabrinkmann12-star/maler-brinkmann (privat). **Live:** https://maler-brinkmann-23nr.vercel.app (Push auf `main` = automatisches Deployment, 1–3 Min).
+- **Testen mit Demo-Daten:** Zweig `vorschau` (`git push origin main:vorschau`) → Vercel baut eine Preview-Version mit der **dev**-Datenbank. Adresse: vercel.com → Deployments oder `npx.cmd vercel@latest ls`. Alte Preview-Adressen brechen nach Datenbank-Änderungen. Vercel Hobby baut nur einen Stand gleichzeitig, Previews warten manchmal („Queued“).
+- Supabase: `brinkmann-dev` (Ref akbqdpwajeaynwqczfkg, Demo-Daten, Ordner ist damit verknüpft) und `brinkmann-live` (Ref tezveryzixrysviapmal).
 
-## Erledigt
-- **Phase 0 komplett** (Login per Benutzername, Rollen, Nutzerverwaltung, PWA, Seed, RLS, Audit, Deployment).
-- **Phase 1.1–1.3**: Datenbank der Mitarbeiter-App, Einteilung mit Spracheingabe, „Heute“, „Meine Baustellen“, Kollegen hinzufügen.
-- **Phase 1.4** Zeiterfassung: `/zeiten` (Monatsliste, Summen), `/zeiten/neu` (Einsatz-Baustelle + 6:30–15:45/45 Min vorausgefüllt, Kollegen ankreuzen, Überschneidungsschutz), `/zeiten/[id]` (ändern/löschen), Admin-Einstellungen „Zeiterfassung“. **Warteschlange**: Eingaben bleiben bei Funkloch auf dem Handy und werden nachgesendet (Server-Aktionen idempotent).
-- **Phase 1.5** Fotos (Kamera/Galerie, im Browser verkleinert, privater Speicher, IndexedDB bei Funkloch) + Notizen auf der Baustellen-Seite.
-- **Phase 1.6** Material melden (Büro hakt ab, Kasten auf `/buero`) + Aufmaß (`/baustellen/[id]/aufmass`, VOB: Öffnungen ≤ 2,5 m² übermessen).
-- **Phase 1.7** Urlaub: `/urlaub` (beantragen, zurückziehen), `/buero/urlaub` (nur Admin entscheidet).
-- Tests: 103 Unit-Tests (`npm test`), 77 DB-/Rechte-Tests (`npm run test:rls`). Alles im Browser durchgespielt (mit Wegwerf-Zugängen, danach gelöscht).
-- **Nachtrag 16.10. (Migration `20261016140000`, in dev UND live eingespielt):** Freitag 6:30–12:45 mit 15 Min Pause · Zeiten derselben Person dürfen sich nie überlappen (DB-Regel) · Urlaubsanspruch pro Mitarbeiter in der Nutzerverwaltung (Christian 30, Sebastian/Carmen/Manuel 28 noch einzutragen, sobald es sie gibt) · genehmigter Urlaub bucht automatisch Zeiten (Mo–Do 8:30, Fr 6:00) · Resturlaub-Anzeige.
+## Konten (16.10.2026 angelegt, dev und live)
+- `ralf.brinkmann` (Admin), `lena.eigenmeier` (Büro), `christian.lampe` (30 Urlaubstage), `sebastian.plentner`, `carmen.bronn`, `manuel.hinrichs` (je 28), dazu die Entwickler-Admins `mikabrinkmann` (dev) und `mika.brinkmann` (live). Startpasswörter nur in `zugangsdaten-dev.txt` / `zugangsdaten-live.txt` im Projektordner (per `.gitignore` nie im Repo, nach Weitergabe löschen). Alle müssen beim ersten Login das Passwort ändern.
+- Die Demo-Konten (`demo-…`) und `test.user` sind in dev gelöscht. `npm run seed` legt die `demo-…`-Konten bei Bedarf wieder an (Passwort `SEED_PASSWORT` aus `.env.local`, für den Assistenten gesperrt).
+- **Bewusste Ausnahme** von „keine echten Daten“ (Mika): echte Namen sind drin, aber ohne Backups (Supabase Pro) bleiben Zeiten/Fotos ungesichert.
 
-- **Phase 2 (16.10., Migration `20261016160000` in dev UND live):** Plantafel mit Tag/Woche/Monat/Termine, Drag & Drop, mehrere Baustellen pro Auto (festes Team, Zeit um/ab optional), Termine für alle (Mitarbeiter: `/termine`, Büro: `/buero/plantafel/termine`), „Heute“ zeigt alle Stopps und Termine. Details in CLAUDE.md → Phase 2.
-
-- **Phase 3.1 (16.10., Migration `20261016180000` in dev UND live):** Kontakte (Liste, Detail, Anlegen/Bearbeiten/Archivieren) und **Kontakte-Import** aus der Plancraft-CSV (Admin, `/buero/kontakte/import`). Die echte Datei ist noch nicht importiert.
-
-- **Phase 3.2 (16.10., Migration `20261016200000` in dev UND live):** Archivierte Projekte für alle Mitarbeiter lesbar (Kunde mit Telefon/Adresse, Team, Notizen, Fotos, Material, Aufmaß), Archiv-Suche für Mitarbeiter, Projektliste mit Filtern fürs Büro, Archivieren/Wiederaktivieren. Projekt anlegen/bearbeiten fehlt noch.
-
-- **Phase 3.3 (16.10., keine Migration):** Projekte anlegen/bearbeiten (Kundensuche, Adresse übernehmen), Projektnummer `P-(JJ00)NNN` mit Vorschlag, Einstellungen → Nummernkreise (Startwert aus Plancraft **noch einzutragen**).
-
-## Testen (für Mika)
-- **Auf dem Handy mit Demo-Daten:** Zweig `vorschau` auf GitHub → Vercel baut eine Preview-Version, die mit **dev** arbeitet. Adresse: vercel.com → Projekt → Deployments → oberste „Preview“-Zeile (oder `npx.cmd vercel@latest ls`). Für neue Stände: `git push origin main:vorschau`.
-- Anmelden z. B. als `demo-sebastian` (Maler), `demo-buero`, `demo-admin`.
-- Einsätze gibt es für den 16.10.2026 (Caddy hat zwei Baustellen, die zweite ab 13:00). An einem anderen Tag als `demo-buero` unter **Einteilung → „Wie gestern“** übernehmen (holt den letzten Tag mit Einsätzen, max. 7 Tage zurück).
+## Erledigt (alles gepusht, alle Migrationen in dev UND live)
+- **Phase 0** Grundgerüst, Login, Rollen, Nutzerverwaltung, PWA, Seed, RLS, Audit, Deployment.
+- **Phase 1** (Mitarbeiter-App): Einteilung mit Spracheingabe, Heute, Meine Baustellen, Kollegen hinzufügen, Zeiterfassung (Standard 6:30–15:45/45 Min, **Freitag 6:30–12:45/15 Min**, keine überlappenden Zeiten per DB-Regel, Warteschlange gegen Datenverlust bei Funkloch, Sperrfrist), Fotos (verkleinert, IndexedDB bei Funkloch) + Notizen, Material melden, Aufmaß nach VOB (≤ 2,5 m² übermessen), Urlaub (Resturlaub pro Kalenderjahr ohne Übertrag, **genehmigter Urlaub bucht automatisch Zeiten**, nur Admin entscheidet).
+- **Phase 2** Plantafel: Tag (Drag & Drop, mehrere Baustellen pro Auto mit Zeit „um/ab“, Adresse + Google-Maps-Link, **Auto per Kennzeichen hinzufügen** für Büro/Admin), Woche/Monat (pro Mitarbeiter oder Baustelle, Urlaub/Krank/Termine), Termine für alle (Mitarbeiter eigene, Büro für alle).
+- **Phase 3.1** Kontakte: Liste (Suche, Sortierung Name A–Z/Z–A, bearbeitet/angelegt, Filter Ort und „Es fehlt …“), Detailseite nach Plancraft-Vorbild (Empfänger, Zahlungsziel & Skonto, Steuersatz), Formular, Archivieren, **Import** der Plancraft-CSV (nur Admin, Vorschau, nur Neues, nichts wird überschrieben), **Kundennummer-Vorschlag** `KD-<JJ><laufende 4-stellige Nummer>` (zählt weiter, z. B. `KD-261351`).
+- **Phase 3.2** Archivierte Projekte für **alle** aktiven Nutzer lesbar (inkl. Kunde mit Telefon/Adresse, Team, Notizen, Fotos, Material, Aufmaß; nicht Zeiten/Einsätze/Termine), Archiv-Suche für Mitarbeiter, Büro-Projektliste mit Filtern, Projekt archivieren/wieder aktivieren.
+- **Phase 3.3** Projekt anlegen/bearbeiten (Kundensuche, Adresse übernehmen), **Projektnummer** `P-(JJ00)NNN` mit Vorschlag (zählt weiter), Einstellungen → Nummernkreise (Startwert).
+- Tests: 161 Unit-Tests (`npm test`), 89 DB-/Rechte-Tests (`npm run test:rls`, max. ~2× pro 5 Min wegen Login-Limit). Alle Abläufe wurden lokal im Browser mit Wegwerf-Zugängen durchgespielt.
 
 ## Nächste Schritte
-- **1.8** Test auf iPhone/Android (Kamera-Upload, Zeit eintragen, Funkloch = Flugmodus), Feiertage Niedersachsen (Urlaub, Werktage) einplanen.
-- Danach Phase 3 (Büro + Import, vorher nach Plancraft-Exportformat fragen), 4 (Angebote), 5 (Lexware), 6 (später, inkl. Idee „Jarvis“).
+1. **Mika prüft/erledigt** (offen): Import der echten Datei `kontakte_2026-10-16.csv` (333 Kontakte) selbst in der App (erst in der Vorschau/dev üben, dann live); **höchste Projektnummer aus Plancraft** unter Einstellungen → Nummernkreise eintragen (sonst startet der Vorschlag bei `P-(2600)001`); bestätigen, dass die Klammer `(JJ00)` in `P-(2400)447` „Jahr + 00“ bedeutet (sonst `src/lib/projektnummer.ts` anpassen).
+2. **1.8 Test auf iPhone/Android:** Kamera-Upload, Zeit eintragen, Flugmodus (Warteschlange), vor allem **Drag & Drop in der Einteilung** (nur am PC mit simulierter Maus getestet; am Handy gibt es Auswahlfelder als Ersatz).
+3. **Phase 3 Rest:** Zeiten-Übersicht fürs Büro (Filter, Summen, Überstunden, Urlaub/Krank, CSV/Excel-Export für den Lohn), Leistungs-/Materialkatalog (EK + Zuschlag → VK, Ordner), Import der Plancraft-Arbeitszeiten (CSV/Excel, Zuordnung Name → Konto), GAEB-Leistungsverzeichnisse, DATANORM („Wilts 2025“). Alte Projekte werden **nicht** importiert (so entschieden).
+4. **Phase 4** Angebote (Editor, Rechner, PDF; Kundennummer-Vorschlag und Zahlungsziel/Steuer nutzen), danach **KI-Assistent für Angebote** (erst nach Ralfs Entscheidung wegen Kosten, Schnittstelle austauschbar vorbereiten). **Phase 5** Lexware (Rechnungen nur dort, nie selbst nummerieren; offen: Wer vergibt Kundennummern, wenn Lexware Kontakte anlegt?). Phase 6 später (Dashboard, Berichte, Push, „Jarvis“).
+5. Kleinere Wünsche/Lücken: Feiertage Niedersachsen (Werktage, Urlaub, Einstellungen „Feiertage“), Kontakte mit mehreren Telefonnummern/E-Mails mit Art und „Zugehörige Kontakte“ wie in Plancraft (Mika fragen, ob nötig), Büro-Benachrichtigung bei neuen Fotos (braucht Migration), Link zur Adresse auch in Wochen-/Monatsansicht.
 
-## Entscheidungen (Kurzliste, Details in CLAUDE.md)
-Benutzername-Login · Umschalter Büro↔Mitarbeiter · App-Name „Maler Brinkmann“ · 2 Supabase-Projekte, kein Docker · Commits mit GitHub-noreply-Adresse · Fahrzeuge/Status pflegt nur Admin · Sperrfrist Monatsende + 3 Tage Kulanz · Zeit-Arten für Mitarbeiter in Einstellungen konfigurierbar · Mitarbeiter dürfen für Kollegen derselben Baustelle Zeit eintragen · Urlaub genehmigt nur der Admin · VOB-Übermessung automatisch · Einteilung mit Spracheingabe + Namen-Erkennung (keine bezahlte/externe KI) · iPhone-Nutzer (Mika). Neu (Annahmen, noch zu bestätigen): Aufmaß-Abzüge gelten für die ganze Zeile; Stunden werden als „8:30 Std“ angezeigt; Material-Einheiten als feste Liste.
+## Wichtige Entscheidungen (Kurzliste, Details in CLAUDE.md)
+Benutzername-Login · Umschalter Büro↔Mitarbeiter · 2 Supabase-Projekte, kein Docker · Commits mit GitHub-noreply-Adresse · Fahrzeuge dürfen Büro und Admin anlegen · Urlaub genehmigt nur der Admin · Ein Auto hat ein festes Team für alle Baustellen des Tages · Termine tragen alle ein · Archivierte Projekte für alle lesbar (inkl. Kundendaten) · Kontakte-Import zuerst, keine alten Projekte · Kundennummer `KD-JJ####` und Projektnummer `P-(JJ00)NNN` laufen ohne Jahresneustart weiter · Rechnungsnummern vergibt nur Lexware.
 
 ## Wichtige Stolperfallen
-- Windows-PowerShell: `npm.cmd`/`npx.cmd` verwenden (Execution Policy). Git: `C:\Program Files\Git\cmd\git.exe`.
-- Migrationen nie nachträglich ändern; neue Migration → erst dev (`npx supabase db push`), Code mit neuen Tabellen erst pushen, wenn Migration **auch in live** ist (link live → push → **sofort zurück auf dev** linken).
-- Kontrollierte Formulare nie mit `<form action>`; Links im Button-Stil mit `buttonVariants`.
-- Neue Server-Aktionen, die aus Formularen der Mitarbeiter-App kommen: idempotent bauen (ID kommt aus `neueId()`) und in `src/app/(mitarbeiter)/senden.ts` eintragen.
-- `insert().select()` braucht auch Leserecht (sonst RLS-Fehler).
-- Neue Tabellen mit Verweis auf Demo-Daten im Seed-Aufräumen ergänzen; Test-Aufräumen muss notifications mitlöschen und `app_settings.updated_by` zurücksetzen.
-- Login-Fehler: nur `invalid_credentials` = „falsch“, sonst technischer Hinweis + Log.
-- Vercel-Variablen nie im Dashboard bearbeiten, wenn „affect multiple environments“ steht.
-- Hilfsskripte (Wegwerf-Testzugänge, Reste-Kontrolle) lagen nur im temporären Scratchpad – bei Bedarf neu schreiben. Für Browser-Tests eigene Wegwerf-Nutzer mit selbst erzeugtem Passwort anlegen (das Seed-Passwort ist für Claude gesperrt) und danach samt Daten und Foto-Dateien löschen.
+- Windows-PowerShell: `npm.cmd`/`npx.cmd` (Execution Policy). Git: `C:\Program Files\Git\cmd\git.exe`.
+- **Migrationen nie nachträglich ändern.** Ablauf: neue Migration → `npx supabase db push` (dev, Ordner ist verknüpft) → `npm run db:types` → testen → live: `npx supabase link --project-ref tezveryzixrysviapmal`, `db push --dry-run`, `db push`, **sofort zurück** `npx supabase link --project-ref akbqdpwajeaynwqczfkg`. Code mit neuen Tabellen erst pushen, wenn die Migration auch in live ist.
+- Kontrollierte Formulare nie mit `<form action>` (stattdessen `abschicken()` oder eigenes `onSubmit`); Links im Button-Stil mit `buttonVariants`.
+- Neue Server-Aktionen der Mitarbeiter-App **idempotent** bauen (ID kommt aus `neueId()`) und in `src/app/(mitarbeiter)/senden.ts` eintragen (Warteschlange).
+- `insert().select()` braucht auch Leserecht (sonst RLS-Fehler). Archivieren statt löschen.
+- Neue Tabellen mit Verweis auf Nutzer/Demo-Daten im Seed-Aufräumen (`scripts/seed.ts`) und in `testNutzerLoeschen` (`tests/rls/hilfen.ts`) ergänzen.
+- Next 16: `middleware.ts` heißt `proxy.ts`; vor neuem Next-Code `node_modules/next/dist/docs/` lesen. Nach neuen Routen `npx next typegen` (sonst fehlen `PageProps`-Typen).
+- Lint-Regel `react-hooks/set-state-in-effect`: keine synchronen `setState`-Aufrufe in Effekten (Handler/Timer stattdessen).
+- Login-Fehler: nur `invalid_credentials` = „falsch“, sonst technischer Hinweis + Log. Vercel-Variablen nie im Dashboard bearbeiten, wenn „affect multiple environments“ steht.
+- **Browser-Tests:** eigene Wegwerf-Nutzer mit selbst erzeugtem Passwort anlegen (das Seed-Passwort ist für den Assistenten gesperrt), danach Nutzer, Kontakte, Projekte, Fotodateien und Einstellungen wieder löschen. Die Hilfsskripte (Testnutzer, Aufräumen, Konten, Reste-Kontrolle) lagen nur im temporären Scratchpad und sind im neuen Chat weg, bei Bedarf neu schreiben (Muster: `nutzerAnlegen` aus `src/lib/nutzer.ts`, Admin-Client, nur gegen dev).
+- Reale Kundendaten (z. B. die Kontakte-CSV in Downloads) nie in Code, Doku oder Repo übernehmen und nicht selbst in eine Datenbank laden; Auswertung nur als Zählungen.
