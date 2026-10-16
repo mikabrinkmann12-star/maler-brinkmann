@@ -195,7 +195,12 @@ Legende: ✅ angelegt · ⏳ kommt in der genannten Phase
   - **Warteschlange gegen Datenverlust** (`src/lib/warteschlange.ts`, `zeiten/senden.ts`, `zeiten/warteschlange.tsx`): Jede Eingabe wird VOR dem Senden im localStorage (pro Nutzer) abgelegt und erst nach Erfolg entfernt. Bei Funkloch erscheint „Noch nicht gespeichert“ (auf Heute, Zeiten, Formular), Neuversuch beim Öffnen, bei „online“ und jede Minute. Lehnt der Server ab, bleibt die Meldung stehen, bis man verwirft. Im Browser getestet (Senden blockiert → gemerkt → nachgesendet).
   - Admin-Seite `/buero/einstellungen/zeiterfassung`: erlaubte Arten, Standardzeiten, Kulanztage (0–15). Speichert per upsert mit `updated_by`.
   - Logik in `src/lib/zeiten.ts` (Sperrfrist, Stunden, Vorschläge – spiegelt die DB-Regeln) und `src/lib/zeit-schema.ts` (zod), beide getestet. Anzeige der Stunden als „8:30 Std“ (`formatStunden`).
-- [ ] 1.5 Fotos + Notizen
+- [x] 1.5 Fotos + Notizen (auf `/baustellen/[id]`, Schnellzugriff „Zeit / Fotos / Notizen“ oben)
+  - Fotos: „Foto aufnehmen“ (Kamera) oder „Aus Galerie“ (bis 10), Art Vorher/Nachher/Mangel/Sonstiges, Kommentar. Im Browser verkleinert (`src/lib/bild.ts`: max. 1920 px, JPEG 0,82, dazu Vorschau 480 px als `<id>_klein.jpg`; GPS-Daten fallen dabei weg). Upload direkt aus dem Browser in den privaten Bucket (`src/lib/supabase/client.ts`, RLS), danach legt `fotoSpeichern` den Datensatz an (prüft, dass die Datei da ist). Anzeige über signierte Adressen (1 Std), Filter nach Art, Großansicht, eigene löschen (= archivieren).
+  - Fotos, die nicht hochgeladen werden konnten, bleiben in **IndexedDB** (`src/lib/foto-speicher.ts`), weil Kamera-Fotos auf dem iPhone sonst weg wären. Neuversuch beim Öffnen, bei Netz und jede Minute. Im Browser getestet (Upload blockiert → neu geladen → automatisch hochgeladen).
+  - Notizen: Text bis 2.000 Zeichen, neueste zuerst, eigene löschen (= archivieren), läuft über die Warteschlange.
+  - Server-Aktionen `notizAnlegen`, `notizArchivieren`, `fotoSpeichern`, `fotoArchivieren` in `baustellen/actions.ts` (idempotent). Die Warteschlange liegt jetzt allgemein in `src/app/(mitarbeiter)/senden.ts` + `warteschlange.tsx`; neue Aktionen dort eintragen.
+  - Büro/Admin sehen und löschen alle Fotos/Notizen. Benachrichtigungen fürs Büro bei neuen Fotos gibt es noch nicht (bräuchte eine Migration).
 - [ ] 1.6 Material + Aufmaß (VOB)
 - [ ] 1.7 Urlaubsantrag + Genehmigung
 - [ ] 1.8 Migrationen nach live, Test auf iPhone/Android

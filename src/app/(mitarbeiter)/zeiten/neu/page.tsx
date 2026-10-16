@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ArrowLeftIcon } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { zeitFormularDaten } from "@/lib/zeiten-daten";
-import { Warteschlange } from "../warteschlange";
+import { Warteschlange } from "../../warteschlange";
 import { ZeitFormular } from "../zeit-formular";
 
 export const metadata: Metadata = { title: "Zeit eintragen" };

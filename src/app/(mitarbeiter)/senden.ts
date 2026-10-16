@@ -4,16 +4,21 @@ import {
   auftragMerken,
   type Auftrag,
 } from "@/lib/warteschlange";
-import { zeitAendern, zeitArchivieren, zeitenAnlegen, type ZeitErgebnis } from "./actions";
+import { notizAnlegen, notizArchivieren } from "./baustellen/actions";
+import { zeitAendern, zeitArchivieren, zeitenAnlegen } from "./zeiten/actions";
 
 // Verbindet die Warteschlange (src/lib/warteschlange.ts) mit den Server-Aktionen.
+// Neue Aktionen hier eintragen. Jede muss idempotent sein (zweimal senden = einmal speichern).
 
 type Nutzlast = { id?: unknown; daten?: unknown };
+type Ergebnis = { fehler?: string };
 
-const AKTIONEN: Record<string, (n: Nutzlast) => Promise<ZeitErgebnis>> = {
+const AKTIONEN: Record<string, (n: Nutzlast) => Promise<Ergebnis>> = {
   zeit_anlegen: (n) => zeitenAnlegen(n),
   zeit_aendern: (n) => zeitAendern(String(n.id), n.daten),
   zeit_archivieren: (n) => zeitArchivieren(String(n.id)),
+  notiz_anlegen: (n) => notizAnlegen(n.daten),
+  notiz_archivieren: (n) => notizArchivieren(String(n.id)),
 };
 
 export type SendeErgebnis =
@@ -37,7 +42,7 @@ export async function auftragSenden(
 
   const { schluessel, typ, titel, nutzlast } = auftrag; // ohne alte Fehlermeldung
   auftragMerken(userId, { schluessel, typ, titel, nutzlast });
-  let ergebnis: ZeitErgebnis;
+  let ergebnis: Ergebnis;
   try {
     ergebnis = await aktion((nutzlast ?? {}) as Nutzlast);
   } catch {

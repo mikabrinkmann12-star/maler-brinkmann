@@ -11,7 +11,7 @@ import { istBueroRolle } from "@/lib/rollen";
 import { createClient } from "@/lib/supabase/server";
 import { ZEIT_ARTEN, ZEIT_ART_NAMEN, fruehesterAenderbarerTag, uhrzeitKurz, zeitNochAenderbar } from "@/lib/zeiten";
 import { zeiterfassungEinstellungen } from "@/lib/zeiten-daten";
-import { Warteschlange } from "./warteschlange";
+import { Warteschlange } from "../warteschlange";
 
 export const metadata: Metadata = { title: "Zeiten" };
 

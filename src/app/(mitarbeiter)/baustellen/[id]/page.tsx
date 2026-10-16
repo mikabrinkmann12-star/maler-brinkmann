@@ -1,18 +1,24 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeftIcon, ClockIcon, ConstructionIcon, NavigationIcon } from "lucide-react";
+import { ArrowLeftIcon, ClockIcon, ConstructionIcon, ImageIcon, NavigationIcon, StickyNoteIcon } from "lucide-react";
 import { AnrufLink } from "@/components/anruf-link";
 import { buttonVariants } from "@/components/ui/button";
 import { requireUser } from "@/lib/auth";
-import { formatDatum } from "@/lib/format";
+import { vorschauPfad } from "@/lib/bild";
+import { formatDatum, formatDatumZeit } from "@/lib/format";
 import { kollegenLaden } from "@/lib/mitarbeiter-daten";
 import { adresseText, kontaktName, mapsLink } from "@/lib/projekt";
 import { istBueroRolle } from "@/lib/rollen";
 import { createClient } from "@/lib/supabase/server";
+import { Warteschlange } from "../../warteschlange";
+import { Fotos, type FotoAnzeige } from "./fotos";
+import { Notizen, type NotizAnzeige } from "./notizen";
 import { Team } from "./team";
 
 export const metadata: Metadata = { title: "Baustelle" };
+
+const SCHNELL = buttonVariants({ variant: "outline", size: "touch", className: "h-16 flex-col gap-1 px-1 text-sm" });
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -34,14 +40,50 @@ export default async function BaustelleSeite({ params }: { params: Promise<{ id:
     .maybeSingle();
   if (!p) notFound();
 
-  const [{ data: mitglieder }, kollegen] = await Promise.all([
+  const [{ data: mitglieder }, kollegen, { data: notizDaten }, { data: fotoDaten }] = await Promise.all([
     supabase.from("project_members").select("user_id").eq("project_id", id),
     kollegenLaden(),
+    supabase.from("project_notes").select("id, text, erstellt_von, created_at")
+      .eq("project_id", id).is("archiviert_am", null).order("created_at", { ascending: false }),
+    supabase.from("project_photos").select("id, storage_pfad, kategorie, kommentar, erstellt_von, created_at")
+      .eq("project_id", id).is("archiviert_am", null).order("created_at", { ascending: false }),
   ]);
   const team = (mitglieder ?? []).map((m) => kollegen.get(m.user_id)).filter((k): k is NonNullable<typeof k> => Boolean(k));
   const istMitglied = team.some((t) => t.id === nutzer.id);
-  const adresse = { strasse: p.baustelle_strasse, plz: p.baustelle_plz, ort: p.baustelle_ort };
-  const navi = mapsLink(adresse);
+  const istBuero = istBueroRolle(nutzer.rolle);
+  const darfInhalte = (istMitglied || istBuero) && !p.archiviert_am;
+  const wer = (uid: string | null) => {
+    if (uid === nutzer.id) return "Du";
+    const k = uid ? kollegen.get(uid) : undefined;
+    return k ? `${k.vorname} ${k.nachname}`.trim() : "Ehemaliger Kollege";
+  };
+  const darfLoeschen = (uid: string | null) => istBuero || (uid === nutzer.id && istMitglied);
+
+  // Fotos liegen im privaten Speicher: zeitlich begrenzte Adressen (1 Stunde) erzeugen
+  const pfade = (fotoDaten ?? []).flatMap((f) => [f.storage_pfad, vorschauPfad(f.storage_pfad)]);
+  const { data: adressen } = pfade.length
+    ? await supabase.storage.from("projektfotos").createSignedUrls(pfade, 60 * 60)
+    : { data: [] };
+  const adresse = new Map((adressen ?? []).filter((a) => a.signedUrl && !a.error).map((a) => [a.path, a.signedUrl]));
+  const fotos: FotoAnzeige[] = (fotoDaten ?? []).map((f) => ({
+    id: f.id,
+    kategorie: f.kategorie,
+    kommentar: f.kommentar ?? "",
+    bildUrl: adresse.get(f.storage_pfad) ?? null,
+    vorschauUrl: adresse.get(vorschauPfad(f.storage_pfad)) ?? adresse.get(f.storage_pfad) ?? null,
+    wer: wer(f.erstellt_von),
+    wann: formatDatumZeit(f.created_at),
+    darfLoeschen: darfLoeschen(f.erstellt_von),
+  }));
+  const notizen: NotizAnzeige[] = (notizDaten ?? []).map((n) => ({
+    id: n.id,
+    text: n.text,
+    wer: wer(n.erstellt_von),
+    wann: formatDatumZeit(n.created_at),
+    darfLoeschen: darfLoeschen(n.erstellt_von),
+  }));
+  const anschrift = { strasse: p.baustelle_strasse, plz: p.baustelle_plz, ort: p.baustelle_ort };
+  const navi = mapsLink(anschrift);
   const kunde = p.contacts;
   const bueroKontakt = p.buero_ansprechpartner_id ? kollegen.get(p.buero_ansprechpartner_id) : undefined;
 
@@ -59,7 +101,7 @@ export default async function BaustelleSeite({ params }: { params: Promise<{ id:
           {p.archiviert_am && " · archiviert"}
         </p>
         <h1 className="text-2xl font-semibold leading-tight">{p.name}</h1>
-        {adresseText(adresse) && <p className="text-lg">{adresseText(adresse)}</p>}
+        {adresseText(anschrift) && <p className="text-lg">{adresseText(anschrift)}</p>}
         {navi && (
           <a href={navi} target="_blank" rel="noopener noreferrer" className={buttonVariants({ size: "touch", className: "w-full" })}>
             <NavigationIcon /> Navigation starten
@@ -67,6 +109,21 @@ export default async function BaustelleSeite({ params }: { params: Promise<{ id:
         )}
         {p.beschreibung && <p className="whitespace-pre-line text-muted-foreground">{p.beschreibung}</p>}
       </div>
+
+      <Warteschlange userId={nutzer.id} />
+
+      {/* Schnellzugriff: ein Tipp zur gewünschten Stelle */}
+      {darfInhalte && (
+        <nav aria-label="Auf dieser Baustelle" className="grid grid-cols-3 gap-2">
+          {istMitglied && (
+            <Link href={`/zeiten/neu?projekt=${p.id}`} className={SCHNELL}>
+              <ClockIcon /> Zeit
+            </Link>
+          )}
+          <a href="#fotos" className={SCHNELL}><ImageIcon /> Fotos</a>
+          <a href="#notizen" className={SCHNELL}><StickyNoteIcon /> Notizen</a>
+        </nav>
+      )}
 
       {(kunde || bueroKontakt) && (
         <section className="flex flex-col gap-2">
@@ -94,24 +151,21 @@ export default async function BaustelleSeite({ params }: { params: Promise<{ id:
         </section>
       )}
 
-      {istMitglied && !p.archiviert_am && (
-        <Link href={`/zeiten/neu?projekt=${p.id}`} className={buttonVariants({ variant: "outline", size: "touch", className: "w-full" })}>
-          <ClockIcon /> Zeit eintragen
-        </Link>
-      )}
-
       <Team
         projektId={p.id}
         ichId={nutzer.id}
         darfHinzufuegen={istMitglied && !p.archiviert_am}
-        darfEntfernen={istBueroRolle(nutzer.rolle)}
+        darfEntfernen={istBuero}
         team={team}
         kollegen={[...kollegen.values()].filter((k) => k.id !== nutzer.id)}
       />
 
+      <Fotos projektId={p.id} ichId={nutzer.id} darfHochladen={darfInhalte} fotos={fotos} />
+      <Notizen projektId={p.id} ichId={nutzer.id} darfSchreiben={darfInhalte} notizen={notizen} />
+
       <div className="flex items-start gap-3 rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
         <ConstructionIcon className="mt-0.5 size-5 shrink-0" />
-        <p>Notizen, Fotos, Material und Aufmaß kommen in den nächsten Schritten (1.5 und 1.6).</p>
+        <p>Material und Aufmaß kommen im nächsten Schritt (1.6).</p>
       </div>
     </div>
   );

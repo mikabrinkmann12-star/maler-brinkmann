@@ -9,7 +9,7 @@ import { formatDatumLang, formatStunden } from "@/lib/format";
 import { kollegenLaden, meineEinsaetze } from "@/lib/mitarbeiter-daten";
 import { adresseText, kontaktName, mapsLink } from "@/lib/projekt";
 import { createClient } from "@/lib/supabase/server";
-import { Warteschlange } from "../zeiten/warteschlange";
+import { Warteschlange } from "../warteschlange";
 
 export const metadata: Metadata = { title: "Heute" };
 

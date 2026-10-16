@@ -8,7 +8,7 @@ import { kollegenLaden } from "@/lib/mitarbeiter-daten";
 import { createClient } from "@/lib/supabase/server";
 import { ZEIT_ART_NAMEN, uhrzeitKurz, zeitNochAenderbar } from "@/lib/zeiten";
 import { zeitFormularDaten } from "@/lib/zeiten-daten";
-import { Warteschlange } from "../warteschlange";
+import { Warteschlange } from "../../warteschlange";
 import { ZeitFormular } from "../zeit-formular";
 
 export const metadata: Metadata = { title: "Zeit" };

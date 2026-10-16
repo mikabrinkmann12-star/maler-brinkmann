@@ -26,7 +26,7 @@ import {
 } from "@/lib/zeiten";
 import type { ZeitFormularDaten } from "@/lib/zeiten-daten";
 import { neueId } from "@/lib/warteschlange";
-import { auftragSenden } from "./senden";
+import { auftragSenden } from "../senden";
 
 const PAUSEN = [0, 15, 30, 45, 60];
 
