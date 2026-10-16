@@ -4,8 +4,9 @@ import { ChevronLeftIcon, ChevronRightIcon, DownloadIcon, PlusIcon, XIcon } from
 import { buttonVariants } from "@/components/ui/button";
 import { requireRole } from "@/lib/auth";
 import { heuteIso, istMonat, monatVerschieben } from "@/lib/datum";
-import { formatMonat, formatStunden, formatTagKurz } from "@/lib/format";
+import { formatDatum, formatMonat, formatStunden, formatStundenSaldo, formatTagKurz } from "@/lib/format";
 import { BUERO_ROLLEN } from "@/lib/rollen";
+import { kontenLaden } from "@/lib/ueberstunden-daten";
 import { ZEIT_ARTEN, ZEIT_ART_NAMEN, uhrzeitKurz } from "@/lib/zeiten";
 import {
   eintraegeFiltern,
@@ -27,12 +28,19 @@ export default async function BueroZeitenSeite({ searchParams }: PageProps<"/bue
   const monat = istMonat(params.monat) ? params.monat : dieserMonat;
   const filter = filterLesen(params);
 
-  const [personen, alle] = await Promise.all([bueroPersonen(), monatsEintraege(monat)]);
+  const [personen, alle, konten] = await Promise.all([
+    bueroPersonen(),
+    monatsEintraege(monat),
+    kontenLaden({ monat, ...(filter.personId ? { userIds: [filter.personId] } : {}) }),
+  ]);
   const namen = personenNamen(personen);
   const eintraege = eintraegeSortieren(eintraegeFiltern(alle, filter), namen);
   const summen = summenJePerson(eintraege, namen);
   const arten = vorkommendeArten(summen);
   const gesamt = gesamtSumme(summen);
+  const kontoZeilen = [...konten.entries()]
+    .map(([userId, k]) => ({ userId, name: namen.get(userId) ?? "Unbekannt", ...k }))
+    .sort((a, b) => a.name.localeCompare(b.name, "de"));
 
   // Auswahllisten: Mitarbeiter (aktive + alle mit Zeiten in diesem Monat), Baustellen dieses Monats
   const mitZeiten = new Set(alle.map((e) => e.userId));
@@ -153,7 +161,49 @@ export default async function BueroZeitenSeite({ searchParams }: PageProps<"/bue
           </div>
         )}
         <p className="text-xs text-muted-foreground">
-          „Summe“ zählt alle Arten zusammen. Soll-Stunden und Überstunden folgen im nächsten Schritt.
+          „Summe“ zählt alle Arten zusammen. Soll und Überstunden stehen im Überstundenkonto weiter unten.
+        </p>
+      </section>
+
+      {/* Überstundenkonto */}
+      <section className="flex flex-col gap-2" aria-labelledby="konto-titel">
+        <h2 id="konto-titel" className="text-lg font-semibold">Überstundenkonto</h2>
+        {kontoZeilen.length === 0 ? (
+          <p className="rounded-xl border border-dashed p-6 text-muted-foreground">
+            Noch kein Konto eingerichtet. Unter Einstellungen → Benutzer & Rollen → Person → „Arbeitszeit & Überstunden“ das Datum bei „Überstundenkonto ab“ eintragen.
+          </p>
+        ) : (
+          <div className="overflow-x-auto rounded-xl border">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-muted/50 text-muted-foreground">
+                <tr>
+                  <th scope="col" className="px-4 py-2 font-medium">Mitarbeiter</th>
+                  <th scope="col" className="px-3 py-2 text-right font-medium">Soll {formatMonat(monat)}</th>
+                  <th scope="col" className="px-3 py-2 text-right font-medium">Ist {formatMonat(monat)}</th>
+                  <th scope="col" className="px-3 py-2 text-right font-medium">Differenz</th>
+                  <th scope="col" className="px-4 py-2 text-right font-medium">Konto-Stand</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {kontoZeilen.map((k) => (
+                  <tr key={k.userId}>
+                    <th scope="row" className="px-4 py-2 font-medium">
+                      {k.name}
+                      <span className="block text-xs font-normal text-muted-foreground">ab {formatDatum(k.kontoAb)}</span>
+                    </th>
+                    <td className="px-3 py-2 text-right tabular-nums">{formatStunden(k.monat.soll)}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{formatStunden(k.monat.ist)}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{formatStundenSaldo(k.monat.differenz)}</td>
+                    <td className="px-4 py-2 text-right font-semibold tabular-nums">{formatStundenSaldo(k.stand)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <p className="text-xs text-muted-foreground">
+          Gerechnet bis gestern, ohne Wochenenden und Feiertage (Niedersachsen). Urlaub und Krank erfüllen das Soll, unbezahlter Urlaub und Kurzarbeit nehmen es weg,
+          ein Tag ohne Eintrag zählt als Minus. Soll und Anfangssaldo stellt der Admin beim Benutzer ein.
         </p>
       </section>
 

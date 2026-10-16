@@ -7,6 +7,7 @@ import {
   formatDatumZeit,
   formatMonat,
   formatStunden,
+  formatStundenSaldo,
   formatTagKurz,
   formatUhrzeit,
   formatZahl,
@@ -86,6 +87,16 @@ describe("formatZahl", () => {
     expect(formatZahl(12.5)).toBe("12,5");
     expect(formatZahl(1234.5, { min: 2, max: 2 })).toBe("1.234,50");
     expect(formatZahl(3)).toBe("3");
+  });
+});
+
+describe("formatStundenSaldo", () => {
+  it("Plus mit +, Minus mit -, Null ohne Vorzeichen", () => {
+    expect(formatStundenSaldo(1.5)).toBe("+1:30 Std");
+    expect(formatStundenSaldo(-2)).toBe("-2:00 Std");
+    expect(formatStundenSaldo(0)).toBe("0:00 Std");
+    expect(formatStundenSaldo(0.001)).toBe("0:00 Std");
+    expect(formatStundenSaldo(null)).toBe(LEER);
   });
 });
 

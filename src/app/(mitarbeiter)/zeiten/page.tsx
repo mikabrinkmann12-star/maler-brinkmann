@@ -5,10 +5,11 @@ import { cn } from "cn";
 import { buttonVariants } from "@/components/ui/button";
 import { requireUser } from "@/lib/auth";
 import { heuteIso, istMonat, monatVerschieben, monatsGrenzen } from "@/lib/datum";
-import { formatDatum, formatMonat, formatStunden, formatTagKurz } from "@/lib/format";
+import { formatDatum, formatMonat, formatStunden, formatStundenSaldo, formatTagKurz } from "@/lib/format";
 import { kollegenLaden } from "@/lib/mitarbeiter-daten";
 import { istBueroRolle } from "@/lib/rollen";
 import { createClient } from "@/lib/supabase/server";
+import { kontenLaden } from "@/lib/ueberstunden-daten";
 import { ZEIT_ARTEN, ZEIT_ART_NAMEN, fruehesterAenderbarerTag, uhrzeitKurz, zeitNochAenderbar } from "@/lib/zeiten";
 import { zeiterfassungEinstellungen } from "@/lib/zeiten-daten";
 import { Warteschlange } from "../warteschlange";
@@ -24,9 +25,10 @@ export default async function ZeitenSeite({ searchParams }: PageProps<"/zeiten">
   const { erster, letzter } = monatsGrenzen(monat);
 
   const supabase = await createClient();
-  const [einstellungen, kollegen, { data, error }] = await Promise.all([
+  const [einstellungen, kollegen, konten, { data, error }] = await Promise.all([
     zeiterfassungEinstellungen(),
     kollegenLaden(),
+    kontenLaden({ monat, userIds: [nutzer.id] }), // immer nur das eigene Konto
     supabase
       .from("time_entries")
       .select("id, datum, von, bis, stunden, art, beschreibung, user_id, erstellt_von, projects(name)")
@@ -50,6 +52,7 @@ export default async function ZeitenSeite({ searchParams }: PageProps<"/zeiten">
     stunden: meine.filter((t) => t.art === art).reduce((s, t) => s + Number(t.stunden), 0),
   })).filter((x) => x.stunden > 0);
   const offenAb = fruehesterAenderbarerTag(heute, einstellungen.kulanzTage);
+  const konto = konten.get(nutzer.id);
 
   return (
     <div className="flex flex-col gap-5">
@@ -99,6 +102,19 @@ export default async function ZeitenSeite({ searchParams }: PageProps<"/zeiten">
           </p>
         )}
       </div>
+
+      {konto && (
+        <div className="flex flex-col gap-1 rounded-xl border p-4">
+          <p className="flex items-baseline justify-between gap-2">
+            <span>Überstundenkonto</span>
+            <span className="text-xl font-semibold">{formatStundenSaldo(konto.stand)}</span>
+          </p>
+          <p className="text-sm text-muted-foreground">
+            {formatMonat(monat)}: Soll {formatStunden(konto.monat.soll)}, gearbeitet {formatStunden(konto.monat.ist)}, Differenz {formatStundenSaldo(konto.monat.differenz)}
+          </p>
+          <p className="text-xs text-muted-foreground">Stand bis gestern, seit dem {formatDatum(konto.kontoAb)}. Feiertage und Wochenenden zählen nicht.</p>
+        </div>
+      )}
 
       {tage.length === 0 && (
         <p className="rounded-xl border border-dashed p-5 text-muted-foreground">Noch keine Zeiten in diesem Monat.</p>

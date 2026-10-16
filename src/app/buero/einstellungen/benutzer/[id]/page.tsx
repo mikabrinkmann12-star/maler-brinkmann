@@ -4,10 +4,13 @@ import { notFound } from "next/navigation";
 import { ArrowLeftIcon } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { requireRole } from "@/lib/auth";
-import { formatDatum, formatDatumZeit } from "@/lib/format";
+import { formatDatum, formatDatumZeit, formatZahl } from "@/lib/format";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { standardSoll } from "@/lib/ueberstunden";
+import { zeiterfassungEinstellungen } from "@/lib/zeiten-daten";
 import { RollenBadge, StatusBadges } from "../rollen-badge";
+import { ArbeitszeitFormular } from "./arbeitszeit-formular";
 import { PasswortZuruecksetzen } from "./passwort-zuruecksetzen";
 import { StammdatenFormular } from "./stammdaten-formular";
 import { ZugangSperren } from "./zugang-sperren";
@@ -35,10 +38,12 @@ export default async function BenutzerDetailSeite({
   const supabase = await createClient();
   const { data: p } = await supabase
     .from("profiles")
-    .select("id, benutzername, vorname, nachname, rolle, telefon, email, urlaubstage_jahr, aktiv, muss_passwort_aendern, created_at")
+    .select("id, benutzername, vorname, nachname, rolle, telefon, email, urlaubstage_jahr, aktiv, muss_passwort_aendern, created_at, soll_mo, soll_di, soll_mi, soll_do, soll_fr, konto_ab, konto_anfangssaldo")
     .eq("id", id)
     .maybeSingle();
   if (!p) notFound();
+  const standard = standardSoll(await zeiterfassungEinstellungen());
+  const sollText = (w: number | null) => (w == null ? "" : formatZahl(w));
 
   const { data: auth } = await createAdminClient().auth.admin.getUserById(id);
   const istSelbst = p.id === admin.id;
@@ -86,6 +91,18 @@ export default async function BenutzerDetailSeite({
         <p className="text-sm text-muted-foreground">
           Der Benutzername kann nicht geändert werden.
         </p>
+      </Abschnitt>
+
+      <Abschnitt titel="Arbeitszeit & Überstunden">
+        <ArbeitszeitFormular
+          id={p.id}
+          standard={standard}
+          start={{
+            soll: [sollText(p.soll_mo), sollText(p.soll_di), sollText(p.soll_mi), sollText(p.soll_do), sollText(p.soll_fr)],
+            kontoAb: p.konto_ab ?? "",
+            anfangssaldo: p.konto_anfangssaldo ? formatZahl(p.konto_anfangssaldo) : "",
+          }}
+        />
       </Abschnitt>
 
       <Abschnitt titel="Passwort">

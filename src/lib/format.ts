@@ -118,6 +118,13 @@ export function formatStunden(stunden: number | null | undefined): string {
   return `${vorzeichen}${Math.floor(minuten / 60)}:${String(minuten % 60).padStart(2, "0")} Std`;
 }
 
+/** Wie formatStunden, aber mit Vorzeichen: „+1:30 Std“, „-2:00 Std“, „0:00 Std“ (für Überstunden). */
+export function formatStundenSaldo(stunden: number | null | undefined): string {
+  if (stunden == null || Number.isNaN(stunden)) return LEER;
+  const text = formatStunden(stunden);
+  return Math.round(Math.abs(stunden) * 60) > 0 && stunden > 0 ? `+${text}` : text;
+}
+
 const tagKurzFormat = new Intl.DateTimeFormat("de-DE", {
   timeZone: ZEITZONE,
   weekday: "short",

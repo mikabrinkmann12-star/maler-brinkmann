@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { arbeitszeitSchema } from "@/lib/arbeitszeit-schema";
 import { requireRole } from "@/lib/auth";
 import { loginEmailDomain } from "@/lib/env";
 import { NutzerFehler, nutzerAnlegen } from "@/lib/nutzer";
@@ -106,6 +107,44 @@ export async function nutzerSpeichern(
   if (!data?.length) return { fehler: "Benutzer nicht gefunden." };
 
   aktualisieren(id);
+  return { gespeichert: Date.now() };
+}
+
+// ---------------------------------------------------------------------------
+// Soll-Stunden und Überstundenkonto (Arbeitszeit)
+// ---------------------------------------------------------------------------
+export async function arbeitszeitSpeichern(
+  id: string,
+  _vorher: SpeichernZustand,
+  formData: FormData,
+): Promise<SpeichernZustand> {
+  await requireRole(["admin"]);
+
+  const pruefung = arbeitszeitSchema.safeParse(Object.fromEntries(formData));
+  if (!pruefung.success) return { fehler: ersteMeldung(pruefung.error) };
+  const d = pruefung.data;
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("profiles")
+    .update({
+      soll_mo: d.soll[0],
+      soll_di: d.soll[1],
+      soll_mi: d.soll[2],
+      soll_do: d.soll[3],
+      soll_fr: d.soll[4],
+      konto_ab: d.kontoAb,
+      konto_anfangssaldo: d.anfangssaldo,
+    })
+    .eq("id", id)
+    .select("id");
+
+  if (error) return { fehler: dbMeldung(error) };
+  if (!data?.length) return { fehler: "Benutzer nicht gefunden." };
+
+  aktualisieren(id);
+  revalidatePath("/buero/zeiten", "layout");
+  revalidatePath("/zeiten", "layout");
   return { gespeichert: Date.now() };
 }
 

@@ -664,9 +664,16 @@ export type Database = {
           created_at: string
           email: string | null
           id: string
+          konto_ab: string | null
+          konto_anfangssaldo: number
           muss_passwort_aendern: boolean
           nachname: string
           rolle: Database["public"]["Enums"]["app_rolle"]
+          soll_di: number | null
+          soll_do: number | null
+          soll_fr: number | null
+          soll_mi: number | null
+          soll_mo: number | null
           telefon: string | null
           updated_at: string
           urlaubstage_jahr: number | null
@@ -679,9 +686,16 @@ export type Database = {
           created_at?: string
           email?: string | null
           id: string
+          konto_ab?: string | null
+          konto_anfangssaldo?: number
           muss_passwort_aendern?: boolean
           nachname?: string
           rolle?: Database["public"]["Enums"]["app_rolle"]
+          soll_di?: number | null
+          soll_do?: number | null
+          soll_fr?: number | null
+          soll_mi?: number | null
+          soll_mo?: number | null
           telefon?: string | null
           updated_at?: string
           urlaubstage_jahr?: number | null
@@ -694,9 +708,16 @@ export type Database = {
           created_at?: string
           email?: string | null
           id?: string
+          konto_ab?: string | null
+          konto_anfangssaldo?: number
           muss_passwort_aendern?: boolean
           nachname?: string
           rolle?: Database["public"]["Enums"]["app_rolle"]
+          soll_di?: number | null
+          soll_do?: number | null
+          soll_fr?: number | null
+          soll_mi?: number | null
+          soll_mo?: number | null
           telefon?: string | null
           updated_at?: string
           urlaubstage_jahr?: number | null
@@ -1097,13 +1118,25 @@ export type Database = {
         Args: { p_measurement_id: string }
         Returns: boolean
       }
+      aufmass_im_archiv: {
+        Args: { p_measurement_id: string }
+        Returns: boolean
+      }
       aufmass_sichtbar: { Args: { p_measurement_id: string }; Returns: boolean }
       ist_admin: { Args: never; Returns: boolean }
       ist_aktiv: { Args: never; Returns: boolean }
       ist_aktiver_nutzer: { Args: { p_user_id: string }; Returns: boolean }
+      ist_archiviertes_projekt: {
+        Args: { p_projekt_id: string }
+        Returns: boolean
+      }
       ist_buero_oder_admin: { Args: never; Returns: boolean }
       ist_im_einsatz: { Args: { p_assignment_id: string }; Returns: boolean }
       ist_im_termin: { Args: { p_termin_id: string }; Returns: boolean }
+      ist_kontakt_im_archiv: {
+        Args: { p_kontakt_id: string }
+        Returns: boolean
+      }
       ist_mitglied_von: {
         Args: { p_projekt_id: string; p_user_id: string }
         Returns: boolean

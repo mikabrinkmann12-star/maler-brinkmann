@@ -688,6 +688,41 @@ describe("Fahrzeuge anlegen", () => {
 });
 
 // ---------------------------------------------------------------------------
+describe("Soll und Überstundenkonto (Felder im Profil)", () => {
+  const werte = { soll_mo: 4.67, soll_fr: 0, konto_ab: "2026-10-01", konto_anfangssaldo: 12.5 };
+
+  it("nur der Admin ändert Soll, Konto-Start und Anfangssaldo; Mitarbeiter und Büro nicht", async () => {
+    const maler = await aC.from("profiles").update(werte).eq("id", malerA.id).select("id");
+    expect(maler.data ?? []).toEqual([]); // RLS: keine Zeile änderbar
+    const fremd = await aC.from("profiles").update(werte).eq("id", malerB.id).select("id");
+    expect(fremd.data ?? []).toEqual([]);
+    const bueroVersuch = await bueroC.from("profiles").update(werte).eq("id", malerA.id).select("id");
+    expect(bueroVersuch.data ?? []).toEqual([]);
+
+    const ok = await adminC.from("profiles").update(werte).eq("id", malerA.id).select("id");
+    expect(ok.error).toBeNull();
+    expect(ok.data).toEqual([{ id: malerA.id }]);
+  });
+
+  it("jeder sieht sein eigenes Konto, das Büro alle, Fremde nicht", async () => {
+    const spalten = "soll_mo, soll_fr, soll_di, konto_ab, konto_anfangssaldo";
+    const eigen = await aC.from("profiles").select(spalten).eq("id", malerA.id).single();
+    expect(eigen.data).toMatchObject({ soll_mo: 4.67, soll_fr: 0, soll_di: null, konto_ab: "2026-10-01", konto_anfangssaldo: 12.5 });
+    const buero1 = await bueroC.from("profiles").select(spalten).eq("id", malerA.id).single();
+    expect(buero1.data?.konto_anfangssaldo).toBe(12.5);
+    const fremd = await bC.from("profiles").select(spalten).eq("id", malerA.id);
+    expect(fremd.data ?? []).toEqual([]);
+  });
+
+  it("die Datenbank lehnt unsinnige Werte ab", async () => {
+    expect((await adminC.from("profiles").update({ soll_mi: 13 }).eq("id", malerA.id)).error).not.toBeNull();
+    expect((await adminC.from("profiles").update({ soll_mi: -1 }).eq("id", malerA.id)).error).not.toBeNull();
+    expect((await adminC.from("profiles").update({ konto_anfangssaldo: 1000 }).eq("id", malerA.id)).error).not.toBeNull();
+    expect((await adminC.from("profiles").update({ konto_anfangssaldo: null }).eq("id", malerA.id)).error).not.toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
 describe("Archivierte Projekte sind für alle lesbar", () => {
   it("aktiv: Fremde sehen nichts; archiviert: Projekt, Kunde, Team, Notizen, Material, Aufmaß, Fotos lesbar, aber nichts änderbar", async () => {
     const db = adminClient();
