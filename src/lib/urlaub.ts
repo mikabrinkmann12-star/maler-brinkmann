@@ -42,3 +42,36 @@ export function werktage(von: string, bis: string): number {
   }
   return tage;
 }
+
+/** Werktage eines Zeitraums, die in einem Kalenderjahr liegen. */
+export function werktageImJahr(von: string, bis: string, jahr: number): number {
+  const anfang = `${jahr}-01-01`;
+  const ende = `${jahr}-12-31`;
+  return werktage(von > anfang ? von : anfang, bis < ende ? bis : ende);
+}
+
+export type Urlaubskonto = {
+  jahr: number;
+  /** null = Anspruch noch nicht eingetragen */
+  anspruch: number | null;
+  genehmigt: number;
+  beantragt: number;
+  rest: number | null;
+};
+
+/**
+ * Urlaubskonto für ein Kalenderjahr (ohne Übertrag). Zählt nur bezahlten
+ * Urlaub; unbezahlter Urlaub verbraucht keinen Anspruch.
+ */
+export function urlaubskonto(
+  anspruch: number | null,
+  antraege: { von: string; bis: string; art: string; status: UrlaubStatus }[],
+  jahr: number,
+): Urlaubskonto {
+  const summe = (status: UrlaubStatus) =>
+    antraege
+      .filter((a) => a.art === "urlaub" && a.status === status)
+      .reduce((s, a) => s + werktageImJahr(a.von, a.bis, jahr), 0);
+  const genehmigt = summe("genehmigt");
+  return { jahr, anspruch, genehmigt, beantragt: summe("offen"), rest: anspruch == null ? null : anspruch - genehmigt };
+}

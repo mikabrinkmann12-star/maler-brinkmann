@@ -21,6 +21,8 @@ export async function einstellungenSpeichern(
     standardBeginn: formData.get("standard_beginn"),
     standardEnde: formData.get("standard_ende"),
     standardPauseMin: formData.get("standard_pause_min"),
+    freitagEnde: formData.get("freitag_ende"),
+    freitagPauseMin: formData.get("freitag_pause_min"),
     kulanzTage: formData.get("kulanz_tage"),
   });
   if (!pruefung.success) return { fehler: ersteMeldung(pruefung.error) };

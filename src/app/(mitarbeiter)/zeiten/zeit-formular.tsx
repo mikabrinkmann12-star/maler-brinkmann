@@ -20,6 +20,7 @@ import {
   arbeitsMinuten,
   brauchtProjekt,
   projektVorschlag,
+  tagesStandard,
   ueberschneidetSich,
   vorschlagFuerTag,
   type ZeitArt,
@@ -80,7 +81,10 @@ export function ZeitFormular({
 
   const andereEintraege = (tag: string) => daten.eintraege.filter((t) => t.datum === tag && t.id !== bestehend?.id);
   const zeitVorschlag = (tag: string) =>
-    vorschlagFuerTag(andereEintraege(tag).map((t) => ({ von: t.von || null, bis: t.bis || null, pause_min: t.pauseMin })), e);
+    vorschlagFuerTag(
+      andereEintraege(tag).map((t) => ({ von: t.von || null, bis: t.bis || null, pause_min: t.pauseMin })),
+      tagesStandard(tag, e),
+    );
   const baustelleVorschlag = (tag: string) =>
     startProjektId && projektIds.includes(startProjektId)
       ? startProjektId

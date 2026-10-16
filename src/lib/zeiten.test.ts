@@ -5,6 +5,7 @@ import {
   einstellungenAlsJson,
   einstellungenLesen,
   fruehesterAenderbarerTag,
+  tagesStandard,
   projektVorschlag,
   stundenAusMinuten,
   ueberschneidetSich,
@@ -70,6 +71,19 @@ describe("vorschlagFuerTag", () => {
   });
 });
 
+describe("tagesStandard", () => {
+  it("Mo–Do 6:30–15:45 mit 45 Min, freitags 6:30–12:45 mit 15 Min (= 6 Std)", () => {
+    expect(tagesStandard("2026-10-15", STANDARD_EINSTELLUNGEN)).toEqual({ standardBeginn: "06:30", standardEnde: "15:45", standardPauseMin: 45 });
+    const freitag = tagesStandard("2026-10-16", STANDARD_EINSTELLUNGEN);
+    expect(freitag).toEqual({ standardBeginn: "06:30", standardEnde: "12:45", standardPauseMin: 15 });
+    expect(arbeitsMinuten(freitag.standardBeginn, freitag.standardEnde, freitag.standardPauseMin)).toEqual({ minuten: 360 });
+  });
+
+  it("der Vorschlag am Freitag nutzt die Freitagszeiten", () => {
+    expect(vorschlagFuerTag([], tagesStandard("2026-10-16", STANDARD_EINSTELLUNGEN))).toEqual({ von: "06:30", bis: "12:45", pauseMin: 15 });
+  });
+});
+
 describe("Sperrfrist (wie zeit_noch_aenderbar in der Datenbank)", () => {
   it("frühester Tag: Monatserster, bis zum Kulanztag der Erste des Vormonats", () => {
     expect(fruehesterAenderbarerTag("2026-10-16", 3)).toBe("2026-10-01");
@@ -95,6 +109,8 @@ describe("einstellungenLesen", () => {
       standard_beginn: "07:00",
       standard_ende: "16:00",
       standard_pause_min: 30,
+      freitag_ende: "13:00",
+      freitag_pause_min: 20,
       kulanz_tage: 5,
     };
     expect(einstellungenLesen(wert)).toEqual({
@@ -102,6 +118,8 @@ describe("einstellungenLesen", () => {
       standardBeginn: "07:00",
       standardEnde: "16:00",
       standardPauseMin: 30,
+      freitagEnde: "13:00",
+      freitagPauseMin: 20,
       kulanzTage: 5,
     });
   });

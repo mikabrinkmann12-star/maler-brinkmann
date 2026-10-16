@@ -27,6 +27,13 @@ export const stammdatenSchema = z.object({
         z.email("Bitte eine gültige E-Mail-Adresse eingeben (oder leer lassen)."),
       ]),
     ),
+  /** Urlaubsanspruch pro Kalenderjahr in Werktagen, leer = nicht eingetragen */
+  urlaubstage: z
+    .string()
+    .trim()
+    .default("")
+    .refine((t) => t === "" || (/^\d{1,2}$/.test(t) && Number(t) <= 60), "Urlaubstage: bitte eine Zahl von 0 bis 60 (oder leer lassen).")
+    .transform((t) => (t === "" ? null : Number(t))),
 });
 
 export const neuerNutzerSchema = stammdatenSchema.extend({

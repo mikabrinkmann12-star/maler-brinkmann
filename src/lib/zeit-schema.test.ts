@@ -65,6 +65,8 @@ describe("einstellungenSchema", () => {
     standardBeginn: "06:30",
     standardEnde: "15:45",
     standardPauseMin: "45",
+    freitagEnde: "12:45",
+    freitagPauseMin: "15",
     kulanzTage: "3",
   };
 
@@ -74,6 +76,8 @@ describe("einstellungenSchema", () => {
       standardBeginn: "06:30",
       standardEnde: "15:45",
       standardPauseMin: 45,
+      freitagEnde: "12:45",
+      freitagPauseMin: 15,
       kulanzTage: 3,
     });
   });
@@ -83,6 +87,7 @@ describe("einstellungenSchema", () => {
     expect(einstellungenSchema.safeParse({ ...gueltig, standardEnde: "06:00" }).success).toBe(false);
     expect(einstellungenSchema.safeParse({ ...gueltig, kulanzTage: "40" }).success).toBe(false);
     expect(einstellungenSchema.safeParse({ ...gueltig, standardPauseMin: "-5" }).success).toBe(false);
+    expect(einstellungenSchema.safeParse({ ...gueltig, freitagEnde: "06:00" }).success).toBe(false);
   });
 });
 

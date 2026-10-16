@@ -1,4 +1,4 @@
-# Übergabe an einen neuen Chat (Stand 16.10.2026, Commit 62e92bf)
+# Übergabe an einen neuen Chat (Stand 16.10.2026, nach Phase 1.7 + Nachtrag)
 
 **Text zum Einfügen in den neuen Chat:**
 
@@ -18,8 +18,8 @@
 - **Phase 1.5** Fotos (Kamera/Galerie, im Browser verkleinert, privater Speicher, IndexedDB bei Funkloch) + Notizen auf der Baustellen-Seite.
 - **Phase 1.6** Material melden (Büro hakt ab, Kasten auf `/buero`) + Aufmaß (`/baustellen/[id]/aufmass`, VOB: Öffnungen ≤ 2,5 m² übermessen).
 - **Phase 1.7** Urlaub: `/urlaub` (beantragen, zurückziehen), `/buero/urlaub` (nur Admin entscheidet).
-- Tests: 97 Unit-Tests (`npm test`), 73 DB-/Rechte-Tests (`npm run test:rls`). Alles im Browser durchgespielt (mit Wegwerf-Zugängen, danach gelöscht).
-- **Keine neuen Migrationen** seit 1.1 – live und dev haben denselben Stand.
+- Tests: 103 Unit-Tests (`npm test`), 77 DB-/Rechte-Tests (`npm run test:rls`). Alles im Browser durchgespielt (mit Wegwerf-Zugängen, danach gelöscht).
+- **Nachtrag 16.10. (Migration `20261016140000`, in dev UND live eingespielt):** Freitag 6:30–12:45 mit 15 Min Pause · Zeiten derselben Person dürfen sich nie überlappen (DB-Regel) · Urlaubsanspruch pro Mitarbeiter in der Nutzerverwaltung (Christian 30, Sebastian/Carmen/Manuel 28 noch einzutragen, sobald es sie gibt) · genehmigter Urlaub bucht automatisch Zeiten (Mo–Do 8:30, Fr 6:00) · Resturlaub-Anzeige.
 
 ## Testen (für Mika)
 - **Auf dem Handy mit Demo-Daten:** Zweig `vorschau` auf GitHub → Vercel baut eine Preview-Version, die mit **dev** arbeitet. Adresse: vercel.com → Projekt → Deployments → oberste „Preview“-Zeile (oder `npx.cmd vercel@latest ls`). Für neue Stände: `git push origin main:vorschau`.
@@ -27,7 +27,7 @@
 - Einsätze gibt es für den 16.10.2026. An einem anderen Tag als `demo-buero` unter **Einteilung → „Wie gestern“** übernehmen (holt den letzten Tag mit Einsätzen, max. 7 Tage zurück).
 
 ## Nächste Schritte
-- **1.8** Test auf iPhone/Android (Kamera-Upload, Zeit eintragen, Funkloch = Flugmodus), offene Fragen aus CLAUDE.md mit Mika klären (Abzüge im Aufmaß, Urlaub → Zeiteinträge, Resturlaub, doppelte Zeiten).
+- **1.8** Test auf iPhone/Android (Kamera-Upload, Zeit eintragen, Funkloch = Flugmodus), Feiertage Niedersachsen (Urlaub, Werktage) einplanen.
 - Danach Phase 2 (Plantafel Drag & Drop, Wochen-/Monatsansicht mit Urlaub/Krank), 3 (Büro + Import, vorher nach Plancraft-Exportformat fragen), 4 (Angebote), 5 (Lexware), 6 (später, inkl. Idee „Jarvis“).
 
 ## Entscheidungen (Kurzliste, Details in CLAUDE.md)

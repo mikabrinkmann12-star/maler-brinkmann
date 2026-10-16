@@ -30,6 +30,10 @@ function aktualisieren() {
 
 function dbMeldung(fehler: { code?: string; message: string }): string {
   if (fehler.code === "P0001") return fehler.message; // Meldungen der Trigger sind schon deutsch
+  if (fehler.code === "23P01") {
+    // Regel in der Datenbank: Zeiten derselben Person dürfen sich nie überlappen
+    return "Die Zeit überschneidet sich mit einem schon gespeicherten Eintrag (z. B. hat sich der Kollege selbst eingetragen). Zeiten dürfen sich nicht überlappen, direkt anschließen geht.";
+  }
   if (fehler.code === "42501") {
     return "Das darfst du nicht speichern. Prüfe Datum (Sperrfrist), Art und Baustelle.";
   }

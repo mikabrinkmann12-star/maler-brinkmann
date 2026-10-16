@@ -304,6 +304,26 @@ describe("Zeiten", () => {
     expect(sicht.data ?? []).toEqual([]);
   });
 
+  it("Zeiten derselben Person dürfen sich nie überlappen – egal wer einträgt; direkt anschließen geht", async () => {
+    // B hat heute schon 06:30–15:45 (von A eingetragen) und 16:00–17:00
+    const ueberlappt = await bC.from("time_entries")
+      .insert({ user_id: malerB.id, project_id: p2, datum: tag(), von: "15:00", bis: "16:00", stunden: 0 });
+    expect(ueberlappt.error?.code).toBe("23P01");
+    const anschluss = await bC.from("time_entries")
+      .insert({ user_id: malerB.id, project_id: p2, datum: tag(), von: "15:45", bis: "16:00", stunden: 0 });
+    expect(anschluss.error).toBeNull();
+    // Archivierte Einträge zählen nicht (A's 16:00–17:00 wurde oben archiviert)
+    const nachArchiv = await aC.from("time_entries")
+      .insert({ user_id: malerA.id, project_id: p2, datum: tag(), von: "16:00", bis: "17:00", stunden: 0 });
+    expect(nachArchiv.error).toBeNull();
+    // Mitarbeiter dürfen Zeiten nicht selbst mit einem Urlaubsantrag verknüpfen
+    const { data: fremderAntrag } = await adminClient().from("leave_requests")
+      .insert({ user_id: malerC.id, von: tag(90), bis: tag(90) }).select("id").single();
+    const verknuepft = await aC.from("time_entries")
+      .insert({ user_id: malerA.id, datum: tag(), art: "sonstiges", stunden: 1, leave_request_id: fremderAntrag!.id });
+    expect(verknuepft.error?.code).toBe("P0001");
+  });
+
   it("Zeiten kann niemand löschen (archivieren statt löschen)", async () => {
     for (const client of [aC, bueroC, adminC]) {
       const { data } = await client.from("time_entries").delete().eq("id", eintragA).select("id");
@@ -381,6 +401,25 @@ describe("Urlaubsanträge", () => {
     expect(error).toBeNull();
     expect(data).toMatchObject({ status: "genehmigt", entschieden_von: admin.id });
     expect(data!.entschieden_am).toBeTruthy();
+  });
+
+  it("genehmigter Urlaub wird je Werktag als Zeit gebucht (Mo–Do 8,5 Std, Fr 6 Std)", async () => {
+    const { data } = await aC.from("time_entries")
+      .select("datum, art, stunden, leave_request_id").eq("leave_request_id", antrag).is("archiviert_am", null).order("datum");
+    const erwartet: { datum: string; stunden: number }[] = [];
+    for (let i = 30; i <= 34; i++) {
+      const wochentag = new Date(`${tag(i)}T12:00:00Z`).getUTCDay();
+      if (wochentag !== 0 && wochentag !== 6) erwartet.push({ datum: tag(i), stunden: wochentag === 5 ? 6 : 8.5 });
+    }
+    expect((data ?? []).map((t) => ({ datum: t.datum, stunden: Number(t.stunden) }))).toEqual(erwartet);
+    expect(data?.every((t) => t.art === "urlaub")).toBe(true);
+  });
+
+  it("nimmt der Admin die Genehmigung zurück, werden die gebuchten Tage archiviert", async () => {
+    const { error } = await adminC.from("leave_requests").update({ status: "abgelehnt" }).eq("id", antrag);
+    expect(error).toBeNull();
+    const { data } = await aC.from("time_entries").select("id").eq("leave_request_id", antrag).is("archiviert_am", null);
+    expect(data ?? []).toEqual([]);
   });
 
   it("nach der Entscheidung kann der Mitarbeiter den Antrag nicht mehr ändern", async () => {

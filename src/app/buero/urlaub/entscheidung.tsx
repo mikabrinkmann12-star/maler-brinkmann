@@ -18,7 +18,7 @@ export function Entscheidung({ antragId, name }: { antragId: string; name: strin
       try {
         const r = await urlaubEntscheiden({ id: antragId, entscheidung, antwort });
         if (r.fehler) toast.error(r.fehler);
-        else toast.success(entscheidung === "genehmigt" ? `Urlaub von ${name} genehmigt.` : `Antrag von ${name} abgelehnt.`);
+        else toast.success(entscheidung === "genehmigt" ? `Urlaub von ${name} genehmigt. Die Tage stehen jetzt in den Zeiten.` : `Antrag von ${name} abgelehnt.`);
       } catch {
         toast.error("Keine Verbindung. Bitte nochmal versuchen.");
       }

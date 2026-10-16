@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import { cn } from "cn";
+import { UrlaubskontoAnzeige } from "@/components/urlaubskonto-anzeige";
 import { requireRole } from "@/lib/auth";
 import { heuteIso, tageVerschieben } from "@/lib/datum";
 import { formatDatum, formatDatumZeit } from "@/lib/format";
 import { BUERO_ROLLEN } from "@/lib/rollen";
 import { createClient } from "@/lib/supabase/server";
-import { URLAUB_ART_NAMEN, URLAUB_STATUS_FARBE, URLAUB_STATUS_NAMEN, werktage, type UrlaubArt } from "@/lib/urlaub";
+import { URLAUB_ART_NAMEN, URLAUB_STATUS_FARBE, URLAUB_STATUS_NAMEN, urlaubskonto, werktage, type UrlaubArt } from "@/lib/urlaub";
 import { Entscheidung } from "./entscheidung";
 
 export const metadata: Metadata = { title: "Urlaub" };
@@ -14,14 +15,18 @@ export default async function BueroUrlaubSeite() {
   const nutzer = await requireRole(BUERO_ROLLEN);
   const istAdmin = nutzer.rolle === "admin";
   const supabase = await createClient();
-  const [{ data: antraege, error }, { data: profile }] = await Promise.all([
+  const jahr = Number(heuteIso().slice(0, 4));
+  const [{ data: antraege, error }, { data: profile }, { data: fuerKonto }] = await Promise.all([
     supabase
       .from("leave_requests")
       .select("id, user_id, von, bis, art, bemerkung, status, antwort, entschieden_von, entschieden_am, created_at")
       // offene immer, sonst die der letzten 60 Tage und alles Künftige
       .or(`status.eq.offen,bis.gte.${tageVerschieben(heuteIso(), -60)}`)
       .order("von"),
-    supabase.from("profiles").select("id, vorname, nachname"),
+    supabase.from("profiles").select("id, vorname, nachname, urlaubstage_jahr"),
+    // Für den Resturlaub: alle offenen und genehmigten Anträge ab diesem Jahr
+    supabase.from("leave_requests").select("user_id, von, bis, art, status")
+      .in("status", ["offen", "genehmigt"]).gte("bis", `${jahr}-01-01`),
   ]);
   if (error) throw new Error("Die Urlaubsanträge konnten nicht geladen werden.");
 
@@ -29,6 +34,12 @@ export default async function BueroUrlaubSeite() {
     const p = profile?.find((x) => x.id === id);
     return p ? `${p.vorname} ${p.nachname}`.trim() : "–";
   };
+  const konto = (userId: string, j: number) =>
+    urlaubskonto(
+      profile?.find((x) => x.id === userId)?.urlaubstage_jahr ?? null,
+      (fuerKonto ?? []).filter((a) => a.user_id === userId),
+      j,
+    );
   const offen = antraege.filter((a) => a.status === "offen");
   const erledigt = antraege.filter((a) => a.status !== "offen").reverse();
 
@@ -46,6 +57,10 @@ export default async function BueroUrlaubSeite() {
             {a.entschieden_am && ` · ${URLAUB_STATUS_NAMEN[a.status]} von ${name(a.entschieden_von)} am ${formatDatumZeit(a.entschieden_am)}`}
           </p>
           {a.antwort && <p className="mt-1 text-sm">Antwort: {a.antwort}</p>}
+          {a.status === "offen" &&
+            [...new Set([Number(a.von.slice(0, 4)), Number(a.bis.slice(0, 4))])].map((j) => (
+              <UrlaubskontoAnzeige key={j} konto={konto(a.user_id, j)} kompakt />
+            ))}
         </div>
         <span className={cn("rounded-full px-3 py-1 text-sm font-medium", URLAUB_STATUS_FARBE[a.status])}>
           {URLAUB_STATUS_NAMEN[a.status]}

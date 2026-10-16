@@ -31,6 +31,8 @@ export const einstellungenSchema = z
     standardBeginn: uhrzeit("Bitte einen Standard-Beginn eingeben (z. B. 06:30)."),
     standardEnde: uhrzeit("Bitte ein Standard-Ende eingeben (z. B. 15:45)."),
     standardPauseMin: ganzeMinuten,
+    freitagEnde: uhrzeit("Bitte das Ende am Freitag eingeben (z. B. 12:45)."),
+    freitagPauseMin: ganzeMinuten,
     kulanzTage: z.coerce
       .number({ error: "Bitte die Kulanztage angeben." })
       .int("Bitte ganze Tage angeben.")
@@ -40,6 +42,8 @@ export const einstellungenSchema = z
   .superRefine((d, ctx) => {
     const r = arbeitsMinuten(d.standardBeginn, d.standardEnde, d.standardPauseMin);
     if ("fehler" in r) ctx.addIssue({ code: "custom", message: `Standardzeiten: ${r.fehler}` });
+    const f = arbeitsMinuten(d.standardBeginn, d.freitagEnde, d.freitagPauseMin);
+    if ("fehler" in f) ctx.addIssue({ code: "custom", message: `Freitag: ${f.fehler}` });
   })
   .transform((d) => ({ ...d, erlaubteArten: ZEIT_ARTEN.filter((a) => d.erlaubteArten.includes(a)) }));
 

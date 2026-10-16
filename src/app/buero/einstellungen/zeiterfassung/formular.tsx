@@ -36,9 +36,12 @@ export function ZeiterfassungFormular({ werte }: { werte: ZeiterfassungEinstellu
   const [beginn, setBeginn] = useState(werte.standardBeginn);
   const [ende, setEnde] = useState(werte.standardEnde);
   const [pause, setPause] = useState(String(werte.standardPauseMin));
+  const [freitagEnde, setFreitagEnde] = useState(werte.freitagEnde);
+  const [freitagPause, setFreitagPause] = useState(String(werte.freitagPauseMin));
   const [kulanz, setKulanz] = useState(String(werte.kulanzTage));
 
   const rechnung = arbeitsMinuten(beginn, ende, Number(pause) || 0);
+  const freitag = arbeitsMinuten(beginn, freitagEnde, Number(freitagPause) || 0);
   const kulanzZahl = Number(kulanz);
 
   function umschalten(art: ZeitArt, an: boolean) {
@@ -90,8 +93,26 @@ export function ZeiterfassungFormular({ werte }: { werte: ZeiterfassungEinstellu
         </div>
         <p className="text-sm" role="status">
           {"minuten" in rechnung
-            ? <>Ergibt <strong>{formatStunden(rechnung.minuten / 60)}</strong> pro Tag.</>
+            ? <>Montag bis Donnerstag: <strong>{formatStunden(rechnung.minuten / 60)}</strong> pro Tag.</>
             : <span className="text-destructive">{rechnung.fehler}</span>}
+        </p>
+
+        <p className="font-medium">Freitag (Beginn wie oben)</p>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Feld label="Ende am Freitag" htmlFor="freitag_ende">
+            <Input id="freitag_ende" name="freitag_ende" type="time" required value={freitagEnde}
+              onChange={(e) => setFreitagEnde(e.target.value)} className="h-12 text-base" />
+          </Feld>
+          <Feld label="Pause am Freitag (Minuten)" htmlFor="freitag_pause_min">
+            <Input id="freitag_pause_min" name="freitag_pause_min" type="number" inputMode="numeric"
+              min={0} max={MAX_PAUSE_MIN} step={5} required value={freitagPause}
+              onChange={(e) => setFreitagPause(e.target.value)} className="h-12 text-base" />
+          </Feld>
+        </div>
+        <p className="text-sm" role="status">
+          {"minuten" in freitag
+            ? <>Freitag: <strong>{formatStunden(freitag.minuten / 60)}</strong>. Auch genehmigter Urlaub wird mit diesen Stunden gebucht.</>
+            : <span className="text-destructive">{freitag.fehler}</span>}
         </p>
       </Abschnitt>
 

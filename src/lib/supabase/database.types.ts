@@ -523,6 +523,7 @@ export type Database = {
           rolle: Database["public"]["Enums"]["app_rolle"]
           telefon: string | null
           updated_at: string
+          urlaubstage_jahr: number | null
           vorname: string
         }
         Insert: {
@@ -537,6 +538,7 @@ export type Database = {
           rolle?: Database["public"]["Enums"]["app_rolle"]
           telefon?: string | null
           updated_at?: string
+          urlaubstage_jahr?: number | null
           vorname: string
         }
         Update: {
@@ -551,6 +553,7 @@ export type Database = {
           rolle?: Database["public"]["Enums"]["app_rolle"]
           telefon?: string | null
           updated_at?: string
+          urlaubstage_jahr?: number | null
           vorname?: string
         }
         Relationships: []
@@ -830,6 +833,7 @@ export type Database = {
           datum: string
           erstellt_von: string | null
           id: string
+          leave_request_id: string | null
           pause_min: number
           project_id: string | null
           stunden: number
@@ -847,6 +851,7 @@ export type Database = {
           datum: string
           erstellt_von?: string | null
           id?: string
+          leave_request_id?: string | null
           pause_min?: number
           project_id?: string | null
           stunden: number
@@ -864,6 +869,7 @@ export type Database = {
           datum?: string
           erstellt_von?: string | null
           id?: string
+          leave_request_id?: string | null
           pause_min?: number
           project_id?: string | null
           stunden?: number
@@ -884,6 +890,13 @@ export type Database = {
             columns: ["erstellt_von"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_entries_leave_request_id_fkey"
+            columns: ["leave_request_id"]
+            isOneToOne: false
+            referencedRelation: "leave_requests"
             referencedColumns: ["id"]
           },
           {

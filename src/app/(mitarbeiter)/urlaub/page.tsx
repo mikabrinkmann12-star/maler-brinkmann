@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import { cn } from "cn";
+import { UrlaubskontoAnzeige } from "@/components/urlaubskonto-anzeige";
 import { requireUser } from "@/lib/auth";
 import { heuteIso } from "@/lib/datum";
 import { formatDatum, formatDatumZeit } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
-import { URLAUB_ART_NAMEN, URLAUB_STATUS_FARBE, URLAUB_STATUS_NAMEN, werktage, type UrlaubArt } from "@/lib/urlaub";
+import { URLAUB_ART_NAMEN, URLAUB_STATUS_FARBE, URLAUB_STATUS_NAMEN, urlaubskonto, werktage, type UrlaubArt } from "@/lib/urlaub";
 import { Warteschlange } from "../warteschlange";
 import { UrlaubFormular } from "./urlaub-formular";
 import { Zurueckziehen } from "./zurueckziehen";
@@ -14,18 +15,26 @@ export const metadata: Metadata = { title: "Urlaub" };
 export default async function UrlaubSeite() {
   const nutzer = await requireUser();
   const heute = heuteIso();
+  const jahr = Number(heute.slice(0, 4));
   const supabase = await createClient();
-  const { data: antraege } = await supabase
-    .from("leave_requests")
-    .select("id, von, bis, art, bemerkung, status, antwort, entschieden_am, created_at")
-    .eq("user_id", nutzer.id) // auch Büro/Admin sehen hier nur ihre eigenen
-    .order("von", { ascending: false })
-    .limit(50);
+  const [{ data: antraege }, { data: profil }] = await Promise.all([
+    supabase
+      .from("leave_requests")
+      .select("id, von, bis, art, bemerkung, status, antwort, entschieden_am, created_at")
+      .eq("user_id", nutzer.id) // auch Büro/Admin sehen hier nur ihre eigenen
+      .order("von", { ascending: false })
+      .limit(100),
+    supabase.from("profiles").select("urlaubstage_jahr").eq("id", nutzer.id).maybeSingle(),
+  ]);
+  // Dieses Jahr, dazu das nächste, sobald es dort Anträge gibt
+  const jahre = (antraege ?? []).some((a) => a.bis >= `${jahr + 1}-01-01`) ? [jahr, jahr + 1] : [jahr];
+  const konten = jahre.map((j) => urlaubskonto(profil?.urlaubstage_jahr ?? null, antraege ?? [], j));
 
   return (
     <div className="flex flex-col gap-5">
       <h1 className="text-2xl font-semibold">Urlaub</h1>
       <Warteschlange userId={nutzer.id} />
+      {konten.map((k) => <UrlaubskontoAnzeige key={k.jahr} konto={k} />)}
       <UrlaubFormular ichId={nutzer.id} heute={heute} />
 
       <section className="flex flex-col gap-3">

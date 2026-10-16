@@ -19,7 +19,7 @@ export function StammdatenFormular({
 }: {
   id: string;
   istSelbst: boolean;
-  werte: { vorname: string; nachname: string; rolle: Rolle; telefon: string; email: string };
+  werte: { vorname: string; nachname: string; rolle: Rolle; telefon: string; email: string; urlaubstage: string };
 }) {
   const [zustand, aktion, laeuft] = useActionState(nutzerSpeichern.bind(null, id), START);
   // Kontrollierte Felder: Eingaben bleiben bei einer Fehlermeldung erhalten.
@@ -28,6 +28,7 @@ export function StammdatenFormular({
   const [rolle, setRolle] = useState<string>(werte.rolle);
   const [telefon, setTelefon] = useState(werte.telefon);
   const [email, setEmail] = useState(werte.email);
+  const [urlaubstage, setUrlaubstage] = useState(werte.urlaubstage);
 
   return (
     // onSubmit statt action={…}: siehe abschicken() in src/lib/formular.ts
@@ -74,6 +75,12 @@ export function StammdatenFormular({
             onChange={(e) => setEmail(e.target.value)} className="h-12 text-base" />
         </Feld>
       </div>
+
+      <Feld label="Urlaubstage pro Jahr" htmlFor="urlaubstage"
+        hinweis="Anspruch in Werktagen (Mo–Fr) pro Kalenderjahr, ohne Übertrag. Leer lassen, wenn noch nicht bekannt.">
+        <Input id="urlaubstage" name="urlaubstage" type="number" inputMode="numeric" min={0} max={60} step={1}
+          value={urlaubstage} onChange={(e) => setUrlaubstage(e.target.value)} className="h-12 w-32 text-base" />
+      </Feld>
 
       <div className="flex items-center gap-3">
         <Button type="submit" size="touch" disabled={laeuft}>

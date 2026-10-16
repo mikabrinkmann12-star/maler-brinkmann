@@ -109,7 +109,7 @@ Entwickler ist **Mika** (Anfänger): kurz erklären, was gemacht wird und warum,
 ## Datenmodell
 Legende: ✅ angelegt · ⏳ kommt in der genannten Phase
 
-- ✅ **profiles**: id (= auth.users.id), benutzername (unique, `^[a-z0-9][a-z0-9._-]{1,30}$`), vorname, nachname, rolle (`app_rolle`), email (optional, Kontakt), telefon, aktiv, muss_passwort_aendern, arbeitszeitmodell (Text, Details in Phase 3)
+- ✅ **profiles**: id (= auth.users.id), benutzername (unique, `^[a-z0-9][a-z0-9._-]{1,30}$`), vorname, nachname, rolle (`app_rolle`), email (optional, Kontakt), telefon, aktiv, muss_passwort_aendern, arbeitszeitmodell (Text, Details in Phase 3), urlaubstage_jahr (Anspruch pro Jahr, 0–60, null = unbekannt)
 - ✅ **contacts**: kundennummer, typ (`firma`/`privat`), firmenname, anrede, vorname, nachname, strasse, plz, ort, ansprechpartner, telefon, mobil, email, notizen, lexware_contact_id, archiviert_am, created_by
 - ✅ **projects**: projektnummer, name, contact_id, baustelle_strasse/plz/ort, status_id, start_datum, end_datum, beschreibung, buero_ansprechpartner_id, archiviert_am, created_by
 - ✅ **project_statuses**: name, farbe (#RRGGBB), sortierung, aktiv. Start: Entwurf, Angebot, Auftrag erteilt, In Arbeit, Rechnung angelegt, Rechnung geschrieben, Abgeschlossen, Anders vergeben, Abgelehnt von uns
@@ -192,6 +192,7 @@ Legende: ✅ angelegt · ⏳ kommt in der genannten Phase
   - `/zeiten` („Meine Zeiten“): Monatsliste (`?monat=JJJJ-MM`) mit Tages- und Monatssumme (je Art), eigene Zeiten + „Für Kollege …“ (selbst für andere eingetragen, nur lesen), Schloss = nicht mehr änderbar.
   - `/zeiten/neu` (`?projekt=<id>` von „Heute“/Baustelle): Tag (Heute/Gestern/Datum, Mitarbeiter nur innerhalb der Sperrfrist), Art (nur erlaubte), Baustelle (Einsatz des Tages vorausgewählt, bei zwei Einsätzen die noch offene), Von–bis + Pause-Knöpfe oder „Nur Stunden“, Kollegen derselben Baustelle ankreuzen (jeder bekommt einen eigenen Eintrag). Zweiter Eintrag am Tag: Beginn = letztes Ende, keine zweite Pause. Überschneidungen werden vorher angezeigt und vom Server abgelehnt (geprüft gegen alle Zeiten, die der Nutzer sehen darf).
   - `/zeiten/[id]`: eigene Zeit ändern oder löschen (= archivieren), sonst nur Ansicht mit Grund.
+  - Freitag (6:30–12:45, 15 Min) hat eigene Standardzeiten (`tagesStandard()` in `src/lib/zeiten.ts`, Einstellungen „Zeiterfassung“). Die Überlappungs-Regel steht auch in der DB (siehe Entscheidungen).
   - Server-Aktionen `zeitenAnlegen`, `zeitAendern`, `zeitArchivieren` in `src/app/(mitarbeiter)/zeiten/actions.ts`. Sie sind **idempotent**: Die App erzeugt die IDs neuer Einträge selbst, ein zweites Senden speichert nichts doppelt.
   - **Warteschlange gegen Datenverlust** (`src/lib/warteschlange.ts`, `zeiten/senden.ts`, `zeiten/warteschlange.tsx`): Jede Eingabe wird VOR dem Senden im localStorage (pro Nutzer) abgelegt und erst nach Erfolg entfernt. Bei Funkloch erscheint „Noch nicht gespeichert“ (auf Heute, Zeiten, Formular), Neuversuch beim Öffnen, bei „online“ und jede Minute. Lehnt der Server ab, bleibt die Meldung stehen, bis man verwirft. Im Browser getestet (Senden blockiert → gemerkt → nachgesendet).
   - Admin-Seite `/buero/einstellungen/zeiterfassung`: erlaubte Arten, Standardzeiten, Kulanztage (0–15). Speichert per upsert mit `updated_by`.
@@ -211,7 +212,7 @@ Legende: ✅ angelegt · ⏳ kommt in der genannten Phase
 - [x] 1.7 Urlaubsantrag + Genehmigung
   - Mitarbeiter: `/urlaub` (unter „Mehr“ → „Urlaub beantragen“): Urlaub/Unbezahlter Urlaub, von–bis, Bemerkung, Anzeige der Werktage (Mo–Fr, **Feiertage noch nicht abgezogen**). Eigene Anträge mit Status, Antwort, „Zurückziehen“ solange offen. Überschneidung mit eigenen offenen/genehmigten Anträgen wird abgelehnt. Über die Warteschlange.
   - Büro-Menü „Urlaub“ (`/buero/urlaub`): offene und entschiedene Anträge (letzte 60 Tage + Zukunft). **Nur der Admin** sieht „Genehmigen/Ablehnen“ (+ Antwort), das Büro nur lesen. Entscheider und Zeitpunkt setzt der DB-Trigger. Der Hinweis „… beantragt Urlaub“ auf `/buero` verlinkt dorthin.
-  - Genehmigter Urlaub erzeugt (noch) keine Zeiteinträge – siehe Offene Fragen.
+  - Genehmigter Urlaub bucht automatisch Zeiten (siehe Entscheidungen), `time_entries.leave_request_id` verknüpft sie mit dem Antrag (nur der Admin/Trigger darf das setzen). Die Anzeige „Anspruch / genehmigt / Rest“ steht auf `/urlaub` und beim offenen Antrag im Büro (`src/lib/urlaub.ts`: `urlaubskonto`).
   - Aktionen: `urlaubBeantragen`, `urlaubZurueckziehen` (`(mitarbeiter)/urlaub/actions.ts`), `urlaubEntscheiden` (`buero/urlaub/actions.ts`, `requireRole(["admin"])`). Hilfen in `src/lib/urlaub.ts` (getestet).
 - [ ] 1.8 Migrationen nach live, Test auf iPhone/Android (für 1.4–1.7 waren **keine** neuen Migrationen nötig, live ist auf dem Stand)
 
@@ -223,7 +224,9 @@ Legende: ✅ angelegt · ⏳ kommt in der genannten Phase
 **Entscheidungen zu Phase 1 (mit Mika geklärt am 15.10.2026):**
 - **Einteilung schon in Phase 1:** eine schlichte Büro-Seite pro Tag (Auto → Baustelle → Mitarbeiter, Knopf „wie gestern“), wird in Phase 2 durch die Plantafel ersetzt. Wer eingeteilt wird, wird automatisch Projektmitglied.
 - **Spracheingabe auf der Einteilungs-Seite:** Spracherkennung des Browsers (Web Speech API, Audio geht an Google/Apple). Danach erkennt eine **Namen-Erkennung ohne externe KI** Mitarbeiter, Autos und Baustellen aus den bekannten Listen (unscharfer Abgleich, Füllwörter wie „ähm“ werden ignoriert) und füllt einen **Vorschlag** aus. Ralf/Büro prüft und speichert. Ohne Bestätigung wird nie etwas gespeichert. Diesen Teil austauschbar bauen (später echte KI, z. B. Claude, siehe Jarvis). Ollama geht auf Vercel nicht; Gratis-KIs mit Trainingsnutzung wegen Mitarbeiterdaten nicht verwenden.
-- **Zeiterfassung:** Standard **6:30–15:45, 45 Min Pause** (= 8:30 Std). Eingetragen wird nur die Pausendauer, nicht die Uhrzeit der Pause.
+- **Zeiterfassung:** Standard **6:30–15:45, 45 Min Pause** (= 8:30 Std). **Freitag: 6:30–12:45, 15 Min Pause** (= 6:00 Std), beides in den Einstellungen änderbar. Eingetragen wird nur die Pausendauer, nicht die Uhrzeit der Pause.
+- **Zeiten dürfen sich nie überlappen** (Entscheidung 16.10.2026): Mehrere Einträge pro Tag sind erlaubt, aber 6:30–8:00 und 7:45–15:45 geht nicht; 6:30–7:45 und 7:45–15:45 geht. Gilt pro Person, egal wer einträgt – durchgesetzt von einer Exclusion-Constraint in der Datenbank (`time_entries_keine_ueberschneidung`, Fehlercode 23P01).
+- **Urlaub:** Anspruch pro Mitarbeiter in Werktagen pro Kalenderjahr, **ohne Übertrag** (`profiles.urlaubstage_jahr`, pflegt der Admin in der Nutzerverwaltung; Christian 30, Sebastian/Carmen/Manuel 28). Genehmigter Urlaub wird **automatisch als Zeit gebucht** (Art Urlaub, Mo–Do 8:30 Std, Fr 6:00 Std laut Einstellungen; DB-Trigger `urlaub_zeiten_buchen`). Wird die Genehmigung zurückgenommen, werden die Einträge archiviert. Resturlaub = Anspruch − genehmigte Werktage des Jahres (unbezahlter Urlaub zählt nicht).
 - **Sperrfrist:** Mitarbeiter dürfen eigene Zeiten bis **Monatsende** ändern, plus **Kulanz bis zum 3. des Folgemonats**. Danach nur noch das Büro. Serverseitig (RLS) durchsetzen.
 - **Zeiten für Kollegen mit eintragen:** erlaubt für Kollegen **derselben Baustelle**. Jeder bekommt einen eigenen Eintrag (`erstellt_von` = wer eingetragen hat) und kann seinen danach selbst ändern.
 - **Erlaubte Zeit-Arten für Mitarbeiter** stellt der Admin in den Einstellungen ein. Start: Arbeitszeit, Fahrtzeit, Schlechtwetter, Sonstiges. Das Büro darf immer alle Arten.
@@ -310,7 +313,7 @@ Firmendaten, Logo/Briefpapier, Nummernkreise (nur Angebote/Projekte, Rechnungen 
 - `src/lib/pwa.ts`: Versionsvergleich, Speicher für das Installations-Angebot. `src/components/pwa-helfer.tsx`, `src/components/app-installieren.tsx`. `src/app/api/version/route.ts`
 - `src/lib/passwort.ts`: `startpasswortErzeugen()`. `src/lib/nutzer-schema.ts`: zod-Schemas für die Nutzerverwaltung
 - `scripts/admin-anlegen.ts`: ersten Admin anlegen. `scripts/seed.ts` + `seed-daten.ts`: Testdaten
-- `tests/rls/`: `00` Login-Adresse, `01` Funktionsrechte, `02` Rollen & Sperren, `03` Projekte/Kunden/Mitglieder/Fahrzeuge/Status/Löschen/ohne Login, `04` Phase 1 (Kollegen hinzufügen, Einteilung, Zeiten + Sperrfrist + mehrere auf einmal/erneut senden, Einstellungen, Urlaub, Notizen/Material/Aufmaß inkl. Freischalten + Abhaken, Fotos-Storage). Insgesamt 73 Tests. Einzelne Datei: `npx vitest run --config vitest.rls.config.mts tests/rls/04-…` (spart Logins)
+- `tests/rls/`: `00` Login-Adresse, `01` Funktionsrechte, `02` Rollen & Sperren, `03` Projekte/Kunden/Mitglieder/Fahrzeuge/Status/Löschen/ohne Login, `04` Phase 1 (Kollegen hinzufügen, Einteilung, Zeiten + Sperrfrist + mehrere auf einmal/erneut senden, Einstellungen, Urlaub, Notizen/Material/Aufmaß inkl. Freischalten + Abhaken, Fotos-Storage). Insgesamt 77 Tests. Einzelne Datei: `npx vitest run --config vitest.rls.config.mts tests/rls/04-…` (spart Logins)
 - Supabase-Regel: Wer per `insert(...).select()` einen Datensatz zurückliest, braucht auch das **Leserecht** darauf, sonst kommt „violates row-level security policy“, obwohl das Anlegen selbst erlaubt wäre.
 - `src/components/ui/`: shadcn/ui-Komponenten
 - `src/lib/format.ts`: deutsche Formatierung (`formatDatum`, `formatDatumZeit`, `formatUhrzeit`, `formatBetrag`, `formatZahl`; leere Werte → „–“)
@@ -330,9 +333,8 @@ Firmendaten, Logo/Briefpapier, Nummernkreise (nur Angebote/Projekte, Rechnungen 
 - Admin-Zugänge für Ralf und Mika in live
 
 ## Offene Fragen
-- **Aufmaß:** Gelten Abzüge (Fenster/Türen) für die ganze Zeile oder je Stück der Zeile (bei Anzahl > 1)? Gebaut ist „ganze Zeile“ (`src/lib/aufmass.ts`). Leibungen werden noch nicht extra erfasst.
-- **Urlaub:** Soll ein genehmigter Urlaub automatisch Zeiteinträge (Art „Urlaub“, z. B. 8,5 Std je Werktag) anlegen? Wie viele Urlaubstage hat jeder (Resturlaub)? Feiertage Niedersachsen abziehen (kommt mit den Einstellungen „Feiertage“).
-- **Zeiten:** Doppelte Einträge durch Kollegen (A trägt für B ein, B trägt selbst ein) werden nur erkannt, wenn der Eintragende den anderen Eintrag sehen darf. Eine vollständige Prüfung bräuchte eine DB-Funktion (Migration).
+- **Aufmaß:** Abzüge (Fenster/Türen) gelten für die ganze Zeile (Mika: „lass so“, `src/lib/aufmass.ts`). Leibungen werden noch nicht extra erfasst.
+- **Urlaub:** Feiertage Niedersachsen werden noch nicht von den Werktagen abgezogen und nicht gebucht (kommt mit den Einstellungen „Feiertage“). Die übrigen Mitarbeiter (außer Christian 30, Sebastian/Carmen/Manuel 28) haben noch keinen Anspruch eingetragen – Mika/Ralf tragen ihn in der Nutzerverwaltung ein, sobald die echten Nutzer angelegt sind.
 - Format der Projekt- und Kundennummern sowie Exportformat aus Plancraft (Phase 3)
 - Arbeitszeitmodelle und Überstundenregeln (Phase 3)
 - Firmenlogo und Farben

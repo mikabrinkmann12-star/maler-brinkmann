@@ -97,6 +97,7 @@ export async function nutzerSpeichern(
       rolle: d.rolle,
       telefon: d.telefon || null,
       email: d.email || null,
+      urlaubstage_jahr: d.urlaubstage,
     })
     .eq("id", id)
     .select("id");

@@ -35,7 +35,7 @@ export default async function BenutzerDetailSeite({
   const supabase = await createClient();
   const { data: p } = await supabase
     .from("profiles")
-    .select("id, benutzername, vorname, nachname, rolle, telefon, email, aktiv, muss_passwort_aendern, created_at")
+    .select("id, benutzername, vorname, nachname, rolle, telefon, email, urlaubstage_jahr, aktiv, muss_passwort_aendern, created_at")
     .eq("id", id)
     .maybeSingle();
   if (!p) notFound();
@@ -80,6 +80,7 @@ export default async function BenutzerDetailSeite({
             rolle: p.rolle,
             telefon: p.telefon ?? "",
             email: p.email ?? "",
+            urlaubstage: p.urlaubstage_jahr == null ? "" : String(p.urlaubstage_jahr),
           }}
         />
         <p className="text-sm text-muted-foreground">

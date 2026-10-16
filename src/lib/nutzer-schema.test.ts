@@ -64,3 +64,13 @@ describe("startpasswortErzeugen", () => {
     expect(menge.size).toBeGreaterThan(15);
   });
 });
+
+describe("Urlaubstage", () => {
+  const basis = { vorname: "Jan", rolle: "mitarbeiter" };
+  it("leer = nicht eingetragen, sonst 0 bis 60", () => {
+    expect(stammdatenSchema.parse(basis).urlaubstage).toBeNull();
+    expect(stammdatenSchema.parse({ ...basis, urlaubstage: "28" }).urlaubstage).toBe(28);
+    expect(stammdatenSchema.safeParse({ ...basis, urlaubstage: "61" }).success).toBe(false);
+    expect(stammdatenSchema.safeParse({ ...basis, urlaubstage: "2,5" }).success).toBe(false);
+  });
+});

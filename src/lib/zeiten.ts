@@ -46,6 +46,9 @@ export type ZeiterfassungEinstellungen = {
   standardBeginn: string;
   standardEnde: string;
   standardPauseMin: number;
+  /** Freitag: früher Feierabend, kürzere Pause (Beginn wie Mo–Do) */
+  freitagEnde: string;
+  freitagPauseMin: number;
   kulanzTage: number;
 };
 
@@ -58,6 +61,8 @@ export const STANDARD_EINSTELLUNGEN: ZeiterfassungEinstellungen = {
   standardBeginn: "06:30",
   standardEnde: "15:45",
   standardPauseMin: 45,
+  freitagEnde: "12:45",
+  freitagPauseMin: 15,
   kulanzTage: 3,
 };
 
@@ -73,6 +78,8 @@ export function einstellungenLesen(wert: unknown): ZeiterfassungEinstellungen {
     standardBeginn: istUhrzeit(w.standard_beginn) ? w.standard_beginn : s.standardBeginn,
     standardEnde: istUhrzeit(w.standard_ende) ? w.standard_ende : s.standardEnde,
     standardPauseMin: ganzzahl(w.standard_pause_min, s.standardPauseMin, MAX_PAUSE_MIN),
+    freitagEnde: istUhrzeit(w.freitag_ende) ? w.freitag_ende : s.freitagEnde,
+    freitagPauseMin: ganzzahl(w.freitag_pause_min, s.freitagPauseMin, MAX_PAUSE_MIN),
     kulanzTage: ganzzahl(w.kulanz_tage, s.kulanzTage, MAX_KULANZ_TAGE),
   };
 }
@@ -84,6 +91,8 @@ export function einstellungenAlsJson(e: ZeiterfassungEinstellungen) {
     standard_beginn: e.standardBeginn,
     standard_ende: e.standardEnde,
     standard_pause_min: e.standardPauseMin,
+    freitag_ende: e.freitagEnde,
+    freitag_pause_min: e.freitagPauseMin,
     kulanz_tage: e.kulanzTage,
   };
 }
@@ -138,13 +147,25 @@ export function ueberschneidetSich(
   return minutenAusUhrzeit(a.von) < minutenAusUhrzeit(b.bis) && minutenAusUhrzeit(b.von) < minutenAusUhrzeit(a.bis);
 }
 
+export type TagesStandard = Pick<ZeiterfassungEinstellungen, "standardBeginn" | "standardEnde" | "standardPauseMin">;
+
+/** Standardzeiten für einen bestimmten Tag: freitags eigenes Ende und eigene Pause. */
+export function tagesStandard(datum: string, e: ZeiterfassungEinstellungen): TagesStandard {
+  const freitag = new Date(`${datum}T12:00:00Z`).getUTCDay() === 5;
+  return {
+    standardBeginn: e.standardBeginn,
+    standardEnde: freitag ? e.freitagEnde : e.standardEnde,
+    standardPauseMin: freitag ? e.freitagPauseMin : e.standardPauseMin,
+  };
+}
+
 /**
  * Vorschlag für den nächsten Eintrag eines Tages: Standardzeiten, oder – wenn
  * es schon Einträge gibt – Beginn = Ende des letzten Eintrags, ohne zweite Pause.
  */
 export function vorschlagFuerTag(
   vorhandene: { von: string | null; bis: string | null; pause_min: number }[],
-  e: Pick<ZeiterfassungEinstellungen, "standardBeginn" | "standardEnde" | "standardPauseMin">,
+  e: TagesStandard,
 ): { von: string; bis: string; pauseMin: number } {
   const enden = vorhandene.map((v) => uhrzeitKurz(v.bis)).filter(istUhrzeit).sort();
   const letztesEnde = enden.at(-1);
