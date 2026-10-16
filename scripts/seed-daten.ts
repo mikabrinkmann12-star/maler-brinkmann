@@ -113,12 +113,15 @@ export const EINSAETZE_HEUTE: {
   projekt: string;
   mitarbeiter: string[];
   notiz?: string;
+  /** Weitere Baustellen am selben Tag (Zeit optional: um = muss da sein, ab = kann ab) */
+  weitereStopps?: { projekt: string; zeit?: string; zeitArt?: "um" | "ab"; notiz?: string }[];
 }[] = [
   { kennzeichen: "CLP-DE 101", projekt: "D-2026-001", mitarbeiter: ["demo-sebastian", "demo-christian"],
     notiz: "Schlüssel liegt beim Nachbarn (Hausnr. 9)." },
   { kennzeichen: "CLP-DE 102", projekt: "D-2026-002", mitarbeiter: ["demo-jan", "demo-tobias", "demo-marco"],
     notiz: "Gerüst ist freigegeben. Farbe RAL 9001 steht im Container." },
-  { kennzeichen: "CLP-DE 301", projekt: "D-2026-005", mitarbeiter: ["demo-lukas", "demo-kevin"] },
+  { kennzeichen: "CLP-DE 301", projekt: "D-2026-005", mitarbeiter: ["demo-lukas", "demo-kevin"],
+    weitereStopps: [{ projekt: "D-2026-003", zeit: "13:00", zeitArt: "ab", notiz: "Treppenhaus ausmessen" }] },
 ];
 
 export const PROJEKTE: Projekt[] = [

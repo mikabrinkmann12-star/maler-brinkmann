@@ -100,7 +100,8 @@ async function main() {
   // Löscht alle Zeilen einer Tabelle, deren Spalte auf alte Demo-Daten zeigt.
   const entferne = async (
     tabelle: "assignments" | "assignment_members" | "time_entries" | "leave_requests" | "notifications"
-      | "project_notes" | "project_photos" | "material_usage" | "measurements" | "project_members",
+      | "project_notes" | "project_photos" | "material_usage" | "measurements" | "project_members" | "appointments"
+      | "appointment_members",
     spalte: string,
     ids: string[],
   ) => {
@@ -116,10 +117,14 @@ async function main() {
     }
   }
   // Alles, was an Demo-Projekten, -Fahrzeugen oder -Nutzern hängt (Phase 1)
-  await entferne("assignments", "project_id", alteProjektIds);
+  // Stopps der Einsätze (zeigen auf Demo-Projekte); die Einsätze selbst gehen über Auto bzw. Ersteller weg
+  pruefe("assignment_stops entfernen", await db.from("assignment_stops").delete().in("project_id", alteProjektIds.length ? alteProjektIds : ["00000000-0000-0000-0000-000000000000"]));
+  await entferne("appointments", "project_id", alteProjektIds);
+  await entferne("appointments", "erstellt_von", alteNutzerIds);
   await entferne("assignments", "vehicle_id", alteFahrzeugIds);
   await entferne("assignments", "created_by", alteNutzerIds);
   await entferne("assignment_members", "user_id", alteNutzerIds);
+  await entferne("appointment_members", "user_id", alteNutzerIds);
   for (const spalte of ["project_id", "user_id", "erstellt_von", "bearbeitet_von"]) {
     await entferne("time_entries", spalte, spalte === "project_id" ? alteProjektIds : alteNutzerIds);
   }
@@ -252,12 +257,25 @@ async function main() {
         .insert({
           datum: heute,
           vehicle_id: fahrzeugNach.get(e.kennzeichen)!,
-          project_id: projektNach.get(e.projekt)!,
           notiz: e.notiz ?? null,
           created_by: bueroId,
         })
         .select("id")
         .single(),
+    );
+    const stopps = [{ projekt: e.projekt }, ...(e.weitereStopps ?? [])];
+    pruefe(
+      `Stopps ${e.kennzeichen}`,
+      await db.from("assignment_stops").insert(
+        stopps.map((s, i) => ({
+          assignment_id: einsatz.id,
+          project_id: projektNach.get(s.projekt)!,
+          sortierung: i,
+          zeit: "zeit" in s && s.zeit ? s.zeit : null,
+          zeit_art: "zeitArt" in s && s.zeitArt ? s.zeitArt : null,
+          notiz: "notiz" in s && s.notiz ? s.notiz : null,
+        })),
+      ),
     );
     pruefe(
       `Team ${e.kennzeichen}`,

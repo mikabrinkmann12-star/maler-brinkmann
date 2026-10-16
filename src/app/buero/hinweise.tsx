@@ -13,6 +13,7 @@ type Hinweis = { id: number; typ: string; text: string; project_id: string | nul
 function ziel(h: Hinweis): string | null {
   if (h.project_id) return `/baustellen/${h.project_id}`;
   if (h.typ === "urlaubsantrag") return "/buero/urlaub";
+  if (h.typ === "termin") return "/buero/plantafel/termine";
   return null;
 }
 

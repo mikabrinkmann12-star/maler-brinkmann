@@ -43,6 +43,93 @@ export type Database = {
           },
         ]
       }
+      appointment_members: {
+        Row: {
+          appointment_id: string
+          user_id: string
+        }
+        Insert: {
+          appointment_id: string
+          user_id: string
+        }
+        Update: {
+          appointment_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointment_members_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointment_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      appointments: {
+        Row: {
+          archiviert_am: string | null
+          created_at: string
+          datum: string
+          erstellt_von: string | null
+          id: string
+          notiz: string | null
+          ort: string | null
+          project_id: string | null
+          titel: string
+          updated_at: string
+          zeit: string | null
+        }
+        Insert: {
+          archiviert_am?: string | null
+          created_at?: string
+          datum: string
+          erstellt_von?: string | null
+          id?: string
+          notiz?: string | null
+          ort?: string | null
+          project_id?: string | null
+          titel: string
+          updated_at?: string
+          zeit?: string | null
+        }
+        Update: {
+          archiviert_am?: string | null
+          created_at?: string
+          datum?: string
+          erstellt_von?: string | null
+          id?: string
+          notiz?: string | null
+          ort?: string | null
+          project_id?: string | null
+          titel?: string
+          updated_at?: string
+          zeit?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointments_erstellt_von_fkey"
+            columns: ["erstellt_von"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       assignment_members: {
         Row: {
           assignment_id: string
@@ -73,6 +160,57 @@ export type Database = {
           },
         ]
       }
+      assignment_stops: {
+        Row: {
+          assignment_id: string
+          created_at: string
+          id: string
+          notiz: string | null
+          project_id: string
+          sortierung: number
+          updated_at: string
+          zeit: string | null
+          zeit_art: Database["public"]["Enums"]["stopp_zeit_art"] | null
+        }
+        Insert: {
+          assignment_id: string
+          created_at?: string
+          id?: string
+          notiz?: string | null
+          project_id: string
+          sortierung?: number
+          updated_at?: string
+          zeit?: string | null
+          zeit_art?: Database["public"]["Enums"]["stopp_zeit_art"] | null
+        }
+        Update: {
+          assignment_id?: string
+          created_at?: string
+          id?: string
+          notiz?: string | null
+          project_id?: string
+          sortierung?: number
+          updated_at?: string
+          zeit?: string | null
+          zeit_art?: Database["public"]["Enums"]["stopp_zeit_art"] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assignment_stops_assignment_id_fkey"
+            columns: ["assignment_id"]
+            isOneToOne: false
+            referencedRelation: "assignments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assignment_stops_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       assignments: {
         Row: {
           created_at: string
@@ -80,7 +218,6 @@ export type Database = {
           datum: string
           id: string
           notiz: string | null
-          project_id: string | null
           updated_at: string
           vehicle_id: string | null
         }
@@ -90,7 +227,6 @@ export type Database = {
           datum: string
           id?: string
           notiz?: string | null
-          project_id?: string | null
           updated_at?: string
           vehicle_id?: string | null
         }
@@ -100,7 +236,6 @@ export type Database = {
           datum?: string
           id?: string
           notiz?: string | null
-          project_id?: string | null
           updated_at?: string
           vehicle_id?: string | null
         }
@@ -110,13 +245,6 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "assignments_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
           {
@@ -957,11 +1085,13 @@ export type Database = {
       ist_aktiver_nutzer: { Args: { p_user_id: string }; Returns: boolean }
       ist_buero_oder_admin: { Args: never; Returns: boolean }
       ist_im_einsatz: { Args: { p_assignment_id: string }; Returns: boolean }
+      ist_im_termin: { Args: { p_termin_id: string }; Returns: boolean }
       ist_mitglied_von: {
         Args: { p_projekt_id: string; p_user_id: string }
         Returns: boolean
       }
       ist_projektmitglied: { Args: { p_projekt_id: string }; Returns: boolean }
+      ist_termin_ersteller: { Args: { p_termin_id: string }; Returns: boolean }
       kollegen: {
         Args: never
         Returns: {
@@ -990,6 +1120,7 @@ export type Database = {
       aufmass_einheit: "m2" | "m" | "stk"
       foto_kategorie: "vorher" | "nachher" | "mangel" | "sonstiges"
       kontakt_typ: "firma" | "privat"
+      stopp_zeit_art: "um" | "ab"
       urlaub_status: "offen" | "genehmigt" | "abgelehnt" | "zurueckgezogen"
       zeit_art:
         | "arbeitszeit"
@@ -1131,6 +1262,7 @@ export const Constants = {
       aufmass_einheit: ["m2", "m", "stk"],
       foto_kategorie: ["vorher", "nachher", "mangel", "sonstiges"],
       kontakt_typ: ["firma", "privat"],
+      stopp_zeit_art: ["um", "ab"],
       urlaub_status: ["offen", "genehmigt", "abgelehnt", "zurueckgezogen"],
       zeit_art: [
         "arbeitszeit",

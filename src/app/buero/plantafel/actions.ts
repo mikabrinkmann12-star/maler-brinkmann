@@ -5,19 +5,31 @@ import { z } from "zod";
 import { requireRole } from "@/lib/auth";
 import { istIsoDatum, tageVerschieben } from "@/lib/datum";
 import { formatDatum } from "@/lib/format";
+import { istUhrzeit } from "@/lib/zeiten";
 import { BUERO_ROLLEN } from "@/lib/rollen";
 import { createClient } from "@/lib/supabase/server";
 
 const SEITE = "/buero/plantafel";
 
+const stoppSchema = z
+  .object({
+    projectId: z.uuid(),
+    zeit: z.string().refine(istUhrzeit).nullable(),
+    zeitArt: z.enum(["um", "ab"]).nullable(),
+    notiz: z.string().trim().max(200),
+  })
+  .refine((s) => (s.zeit === null) === (s.zeitArt === null), "Zeit und Art gehören zusammen.");
+
 const kartenSchema = z.array(
-  z.object({
-    assignmentId: z.uuid().nullable(),
-    vehicleId: z.uuid().nullable(),
-    projectId: z.uuid().nullable(),
-    mitarbeiterIds: z.array(z.uuid()),
-    notiz: z.string().trim().max(500),
-  }),
+  z
+    .object({
+      assignmentId: z.uuid().nullable(),
+      vehicleId: z.uuid().nullable(),
+      stopps: z.array(stoppSchema).max(8),
+      mitarbeiterIds: z.array(z.uuid()),
+      notiz: z.string().trim().max(500),
+    })
+    .refine((k) => new Set(k.stopps.map((s) => s.projectId)).size === k.stopps.length, "Eine Baustelle nur einmal pro Auto."),
 );
 export type EinsatzKarte = z.infer<typeof kartenSchema>[number];
 
@@ -34,13 +46,13 @@ export async function einsaetzeSpeichern(
   await requireRole(BUERO_ROLLEN);
   if (!istIsoDatum(datum)) return { fehler: "Ungültiges Datum." };
   const pruefung = kartenSchema.safeParse(eingabe);
-  if (!pruefung.success) return { fehler: "Ungültige Eingabe." };
+  if (!pruefung.success) return { fehler: pruefung.error.issues[0]?.message ?? "Ungültige Eingabe." };
 
   const supabase = await createClient();
   let gespeichert = 0;
 
   for (const karte of pruefung.data) {
-    const leer = !karte.projectId && !karte.mitarbeiterIds.length && !karte.notiz;
+    const leer = !karte.stopps.length && !karte.mitarbeiterIds.length && !karte.notiz;
 
     if (leer) {
       if (karte.assignmentId) {
@@ -52,14 +64,13 @@ export async function einsaetzeSpeichern(
     }
 
     let id = karte.assignmentId;
-    const felder = { project_id: karte.projectId, notiz: karte.notiz || null };
     if (id) {
-      const { error } = await supabase.from("assignments").update(felder).eq("id", id);
+      const { error } = await supabase.from("assignments").update({ notiz: karte.notiz || null }).eq("id", id);
       if (error) return { fehler: "Ein Einsatz konnte nicht gespeichert werden.", gespeichert };
     } else {
       const { data, error } = await supabase
         .from("assignments")
-        .insert({ ...felder, datum, vehicle_id: karte.vehicleId })
+        .insert({ datum, vehicle_id: karte.vehicleId, notiz: karte.notiz || null })
         .select("id")
         .single();
       if (error) {
@@ -72,6 +83,29 @@ export async function einsaetzeSpeichern(
         };
       }
       id = data.id;
+    }
+
+    // Baustellen (Stopps) abgleichen: Weggefallene entfernen, Übrige anlegen bzw. aktualisieren
+    const neueProjekte = karte.stopps.map((s) => s.projectId);
+    const { data: bisherStopps } = await supabase.from("assignment_stops").select("project_id").eq("assignment_id", id);
+    const wegStopps = (bisherStopps ?? []).map((s) => s.project_id).filter((p) => !neueProjekte.includes(p));
+    if (wegStopps.length) {
+      const { error } = await supabase.from("assignment_stops").delete().eq("assignment_id", id).in("project_id", wegStopps);
+      if (error) return { fehler: "Baustellen konnten nicht entfernt werden.", gespeichert };
+    }
+    if (karte.stopps.length) {
+      const { error } = await supabase.from("assignment_stops").upsert(
+        karte.stopps.map((s, i) => ({
+          assignment_id: id!,
+          project_id: s.projectId,
+          sortierung: i,
+          zeit: s.zeit,
+          zeit_art: s.zeitArt,
+          notiz: s.notiz || null,
+        })),
+        { onConflict: "assignment_id,project_id" },
+      );
+      if (error) return { fehler: "Baustellen konnten nicht gespeichert werden.", gespeichert };
     }
 
     // Mitarbeiter abgleichen: Weggefallene entfernen, Neue hinzufügen
@@ -102,6 +136,7 @@ export async function einsaetzeSpeichern(
   }
 
   revalidatePath(SEITE);
+  revalidatePath("/heute");
   return { gespeichert };
 }
 
@@ -109,7 +144,8 @@ export type WieGesternErgebnis = { fehler?: string; hinweis?: string };
 
 /**
  * Übernimmt die Einteilung des letzten Tages mit Einsätzen (max. 7 Tage zurück),
- * aber nur für Autos, die am Ziel-Tag noch frei sind. Notizen werden nicht kopiert.
+ * aber nur für Autos, die am Ziel-Tag noch frei sind. Baustellen und Teams werden
+ * kopiert, Notizen und Zeiten nicht (die gelten nur für den jeweiligen Tag).
  */
 export async function wieGestern(datum: string): Promise<WieGesternErgebnis> {
   await requireRole(BUERO_ROLLEN);
@@ -129,7 +165,7 @@ export async function wieGestern(datum: string): Promise<WieGesternErgebnis> {
   const [{ data: vorlagen }, { data: vorhanden }] = await Promise.all([
     supabase
       .from("assignments")
-      .select("vehicle_id, project_id, assignment_members(user_id)")
+      .select("vehicle_id, assignment_stops(project_id, sortierung), assignment_members(user_id)")
       .eq("datum", quellDatum),
     supabase.from("assignments").select("vehicle_id").eq("datum", datum),
   ]);
@@ -142,10 +178,14 @@ export async function wieGestern(datum: string): Promise<WieGesternErgebnis> {
     if (v.vehicle_id ? belegt.has(v.vehicle_id) : hatOhneAuto) continue;
     const { data: neu, error } = await supabase
       .from("assignments")
-      .insert({ datum, vehicle_id: v.vehicle_id, project_id: v.project_id })
+      .insert({ datum, vehicle_id: v.vehicle_id })
       .select("id")
       .single();
     if (error || !neu) continue;
+    const stopps = [...v.assignment_stops]
+      .sort((a, b) => a.sortierung - b.sortierung)
+      .map((s, i) => ({ assignment_id: neu.id, project_id: s.project_id, sortierung: i }));
+    if (stopps.length) await supabase.from("assignment_stops").insert(stopps);
     const leute = v.assignment_members.map((m) => ({ assignment_id: neu.id, user_id: m.user_id }));
     if (leute.length) await supabase.from("assignment_members").insert(leute);
     kopiert++;

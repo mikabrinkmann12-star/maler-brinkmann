@@ -38,8 +38,9 @@ export async function meineEinsaetze(userId: string, datum: string) {
     .select(
       `id, notiz,
        vehicles(name, kennzeichen),
-       projects(id, name, baustelle_strasse, baustelle_plz, baustelle_ort, buero_ansprechpartner_id,
-         contacts(firmenname, anrede, vorname, nachname, ansprechpartner, telefon, mobil)),
+       assignment_stops(id, sortierung, zeit, zeit_art, notiz,
+         projects(id, name, baustelle_strasse, baustelle_plz, baustelle_ort, buero_ansprechpartner_id,
+           contacts(firmenname, anrede, vorname, nachname, ansprechpartner, telefon, mobil))),
        assignment_members(user_id)`,
     )
     .in("id", ids);

@@ -81,7 +81,7 @@ export async function zeitFormularDaten(nutzer: AktuellerNutzer): Promise<ZeitFo
       : Promise.resolve({ data: [] }),
     supabase
       .from("assignment_members")
-      .select("assignments!inner(datum, project_id, assignment_members(user_id))")
+      .select("assignments!inner(datum, assignment_stops(project_id), assignment_members(user_id))")
       .eq("user_id", nutzer.id)
       .gte("assignments.datum", ladenAb)
       .lte("assignments.datum", heute),
@@ -113,14 +113,16 @@ export async function zeitFormularDaten(nutzer: AktuellerNutzer): Promise<ZeitFo
     personen: [...kollegen.values()]
       .filter((k) => k.id !== nutzer.id)
       .map((k) => ({ id: k.id, vorname: k.vorname, name: `${k.vorname} ${k.nachname}`.trim() })),
+    // Ein Einsatz kann mehrere Baustellen (Stopps) haben: je Stopp ein Eintrag
     einsaetze: (einsaetze.data ?? [])
       .map((e) => e.assignments)
-      .filter((a) => a.project_id)
-      .map((a) => ({
-        datum: a.datum,
-        projektId: a.project_id as string,
-        team: a.assignment_members.map((m) => m.user_id).filter((id) => id !== nutzer.id),
-      })),
+      .flatMap((a) =>
+        a.assignment_stops.map((s) => ({
+          datum: a.datum,
+          projektId: s.project_id,
+          team: a.assignment_members.map((m) => m.user_id).filter((id) => id !== nutzer.id),
+        })),
+      ),
     eintraege: (eintraege.data ?? []).map((t) => ({
       id: t.id,
       datum: t.datum,

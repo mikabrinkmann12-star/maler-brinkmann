@@ -9,7 +9,7 @@ const EINTRAEGE = [
   { href: "/heute", name: "Heute", icon: SunIcon, auch: [] },
   { href: "/baustellen", name: "Baustellen", icon: HardHatIcon, auch: [] },
   { href: "/zeiten", name: "Zeiten", icon: ClockIcon, auch: [] },
-  { href: "/mehr", name: "Mehr", icon: MenuIcon, auch: ["/urlaub"] },
+  { href: "/mehr", name: "Mehr", icon: MenuIcon, auch: ["/urlaub", "/termine"] },
 ] as const;
 
 /** Untere Navigation der Mitarbeiter-App: 4 große Felder, kein Untermenü. */

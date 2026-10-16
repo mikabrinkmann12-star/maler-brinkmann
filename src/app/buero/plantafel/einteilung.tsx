@@ -2,26 +2,124 @@
 
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { ChevronLeftIcon, ChevronRightIcon, CopyIcon, SaveIcon, TruckIcon, UserIcon } from "lucide-react";
+import {
+  DndContext,
+  DragOverlay,
+  KeyboardSensor,
+  PointerSensor,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent,
+} from "@dnd-kit/core";
+import {
+  CalendarClockIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  CopyIcon,
+  ArrowDownIcon,
+  ArrowUpIcon,
+  GripVerticalIcon,
+  SaveIcon,
+  TruckIcon,
+  UserIcon,
+  XIcon,
+} from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "cn";
 import { Auswahl } from "@/components/feld";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { tageVerschieben } from "@/lib/datum";
+import { ZEIT_ART_TEXT, stoppVerschieben, type StoppZeitArt } from "@/lib/einsatz";
 import type { EinteilungsGruppe } from "@/lib/einteilung-erkennung";
 import { formatDatumLang } from "@/lib/format";
-import { einsaetzeSpeichern, wieGestern, type EinsatzKarte } from "./actions";
+import {
+  OHNE_AUTO,
+  kartenSchluessel,
+  kartenVonPerson,
+  leererStopp,
+  personVerschieben,
+  stoppHinzufuegen,
+  terminUebernehmen,
+  type Karte,
+  type Karten,
+  type TerminFuerPlan,
+} from "@/lib/plantafel";
+import { einsaetzeSpeichern, wieGestern } from "./actions";
 import { Spracheingabe } from "./spracheingabe";
 
 export type Fahrzeug = { id: string; name: string; kennzeichen: string | null };
 export type ProjektOption = { id: string; name: string; ort: string; aktuell: boolean; stichworte: string[] };
 export type Person = { id: string; vorname: string; nachname: string };
-export type EinsatzDaten = EinsatzKarte;
+export type TerminAnzeige = TerminFuerPlan & { ort: string; zeit: string | null };
 
-const OHNE = "ohne";
-const schluesselVon = (vehicleId: string | null) => vehicleId ?? OHNE;
+// ---------------------------------------------------------------------------
+// Mitarbeiter-Chip (ziehbar)
+// ---------------------------------------------------------------------------
+function PersonChip({
+  person,
+  von,
+  hinweis,
+  warnung,
+  gedimmt,
+  onEntfernen,
+}: {
+  person: Person;
+  /** Karte, aus der gezogen wird, null = Mitarbeiter-Leiste */
+  von: string | null;
+  hinweis?: string;
+  warnung?: boolean;
+  gedimmt?: boolean;
+  onEntfernen?: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: `person:${von ?? "leiste"}:${person.id}`,
+    data: { personId: person.id, von },
+  });
+  return (
+    <span
+      className={cn(
+        "inline-flex min-h-10 items-center gap-1 rounded-full border bg-background pl-1 pr-1 text-sm",
+        warnung && "border-amber-500 bg-amber-50",
+        gedimmt && "opacity-60",
+        isDragging && "opacity-30",
+      )}
+      title={hinweis}
+    >
+      <span
+        ref={setNodeRef}
+        {...listeners}
+        {...attributes}
+        aria-label={`${person.vorname} verschieben`}
+        className="flex min-h-9 cursor-grab touch-none items-center gap-1 rounded-full px-2 active:cursor-grabbing"
+      >
+        <GripVerticalIcon className="size-3.5 text-muted-foreground" />
+        {person.vorname}
+        {hinweis && <span className="text-xs text-muted-foreground">({hinweis})</span>}
+      </span>
+      {onEntfernen && (
+        <button type="button" onClick={onEntfernen} aria-label={`${person.vorname} entfernen`}
+          className="flex size-8 items-center justify-center rounded-full hover:bg-muted">
+          <XIcon className="size-4" />
+        </button>
+      )}
+    </span>
+  );
+}
 
+function Ablage({ id, className, children }: { id: string; className?: (ueber: boolean) => string; children: React.ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({ id });
+  return (
+    <div ref={setNodeRef} className={className?.(isOver)}>
+      {children}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 export function Einteilung({
   datum,
   heute,
@@ -29,23 +127,27 @@ export function Einteilung({
   projekte,
   mitarbeiter,
   einsaetze,
+  termine,
+  abwesend,
 }: {
   datum: string;
   heute: string;
   fahrzeuge: Fahrzeug[];
   projekte: ProjektOption[];
   mitarbeiter: Person[];
-  einsaetze: EinsatzDaten[];
+  einsaetze: Karte[];
+  termine: TerminAnzeige[];
+  /** Person → Grund der Abwesenheit (Urlaub, Krank) */
+  abwesend: Record<string, string>;
 }) {
   // Eine Karte pro Auto + eine für "Ohne Firmenwagen"
   const startKarten = useMemo(() => {
-    const karten: Record<string, EinsatzKarte> = {};
+    const karten: Karten = {};
     for (const f of [...fahrzeuge.map((f) => f.id), null]) {
-      const vorhanden = einsaetze.find((e) => e.vehicleId === f);
-      karten[schluesselVon(f)] = vorhanden ?? {
+      karten[kartenSchluessel(f)] = einsaetze.find((e) => e.vehicleId === f) ?? {
         assignmentId: null,
         vehicleId: f,
-        projectId: null,
+        stopps: [],
         mitarbeiterIds: [],
         notiz: "",
       };
@@ -55,35 +157,62 @@ export function Einteilung({
 
   const [karten, setKarten] = useState(startKarten);
   const [laeuft, starte] = useTransition();
+  const [ziehe, setZiehe] = useState<Person | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor),
+  );
 
   const geaendert = Object.keys(karten).filter(
     (s) => JSON.stringify(karten[s]) !== JSON.stringify(startKarten[s]),
   );
 
   const kartenName = (s: string) =>
-    s === OHNE ? "Ohne Firmenwagen" : (fahrzeuge.find((f) => f.id === s)?.name ?? "Auto");
+    s === OHNE_AUTO ? "Ohne Firmenwagen" : (fahrzeuge.find((f) => f.id === s)?.name ?? "Auto");
+  const person = (id: string) => mitarbeiter.find((m) => m.id === id);
+  const projektName = (id: string) => projekte.find((p) => p.id === id)?.name ?? "Baustelle";
 
-  // Wer ist wo eingeteilt? (für den Doppelt-Hinweis)
-  const einteilungen = new Map<string, string[]>();
-  for (const [s, k] of Object.entries(karten)) {
-    for (const id of k.mitarbeiterIds) einteilungen.set(id, [...(einteilungen.get(id) ?? []), s]);
-  }
+  const einteilungen = kartenVonPerson(karten);
+  const termineVonPerson = new Map<string, string[]>();
+  for (const t of termine) for (const id of t.personIds) termineVonPerson.set(id, [...(termineVonPerson.get(id) ?? []), t.titel]);
 
-  function aendern(s: string, teil: Partial<EinsatzKarte>) {
+  function aendern(s: string, teil: Partial<Karte>) {
     setKarten((alt) => ({ ...alt, [s]: { ...alt[s], ...teil } }));
   }
 
-  function umschalten(s: string, personId: string) {
-    const ids = karten[s].mitarbeiterIds;
-    aendern(s, { mitarbeiterIds: ids.includes(personId) ? ids.filter((i) => i !== personId) : [...ids, personId] });
+  function stoppAendern(s: string, index: number, teil: Partial<Karte["stopps"][number]>) {
+    aendern(s, { stopps: karten[s].stopps.map((st, i) => (i === index ? { ...st, ...teil } : st)) });
+  }
+
+  function zeitSetzen(s: string, index: number, zeit: string) {
+    const st = karten[s].stopps[index];
+    stoppAendern(s, index, zeit ? { zeit, zeitArt: st.zeitArt ?? "um" } : { zeit: null, zeitArt: null });
+  }
+
+  function dragStart(e: DragStartEvent) {
+    setZiehe(person(String(e.active.data.current?.personId)) ?? null);
+  }
+
+  function dragEnd(e: DragEndEvent) {
+    setZiehe(null);
+    const daten = e.active.data.current as { personId: string; von: string | null } | undefined;
+    if (!daten || !e.over) return;
+    const ziel = String(e.over.id);
+    if (ziel === "leiste") {
+      if (daten.von) setKarten((alt) => personVerschieben(alt, daten.personId, daten.von, null));
+    } else if (ziel.startsWith("karte:")) {
+      const nach = ziel.slice("karte:".length);
+      if (nach !== daten.von) setKarten((alt) => personVerschieben(alt, daten.personId, daten.von, nach));
+    }
   }
 
   /** Vorschlag aus der Spracheingabe übernehmen (noch nicht speichern). */
   function vorschlagUebernehmen(gruppen: EinteilungsGruppe[]) {
     setKarten((alt) => {
-      const neu = structuredClone(alt);
+      let neu = structuredClone(alt);
       for (const g of gruppen) {
-        const s = schluesselVon(g.fahrzeugId);
+        const s = kartenSchluessel(g.fahrzeugId);
         if (!neu[s]) continue;
         // Genannte Leute aus anderen Karten herausnehmen (sie "wechseln" das Auto)
         if (g.mitarbeiterIds.length) {
@@ -94,11 +223,17 @@ export function Einteilung({
           }
           neu[s].mitarbeiterIds = g.mitarbeiterIds;
         }
-        if (g.projektId) neu[s].projectId = g.projektId;
+        if (g.projektId) neu = stoppHinzufuegen(neu, s, g.projektId);
       }
       return neu;
     });
     toast.info("Vorschlag übernommen – bitte prüfen und „Alle speichern“ tippen.");
+  }
+
+  function termineUebernehmen(t: TerminAnzeige, s: string) {
+    if (!s) return;
+    setKarten((alt) => terminUebernehmen(alt, s, t));
+    toast.info(`„${t.titel}“ ist in ${kartenName(s)} übernommen – bitte prüfen und speichern.`);
   }
 
   function speichern() {
@@ -120,151 +255,250 @@ export function Einteilung({
 
   const aktuelleProjekte = projekte.filter((p) => p.aktuell);
   const weitereProjekte = projekte.filter((p) => !p.aktuell);
+  const projektOptionen = (ausser: string[], aktuell?: string) => (
+    <>
+      <optgroup label="In Arbeit / Auftrag erteilt">
+        {aktuelleProjekte.filter((p) => p.id === aktuell || !ausser.includes(p.id)).map((p) => (
+          <option key={p.id} value={p.id}>{p.name}{p.ort && ` (${p.ort})`}</option>
+        ))}
+      </optgroup>
+      <optgroup label="Weitere Projekte">
+        {weitereProjekte.filter((p) => p.id === aktuell || !ausser.includes(p.id)).map((p) => (
+          <option key={p.id} value={p.id}>{p.name}{p.ort && ` (${p.ort})`}</option>
+        ))}
+      </optgroup>
+    </>
+  );
 
   return (
-    <div className="flex max-w-5xl flex-col gap-5 pb-24">
-      {/* Kopf: Datum + Aktionen */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold">Einteilung</h1>
-          <p className="text-muted-foreground">
-            {formatDatumLang(datum)}
-            {datum === heute && " · heute"}
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Link href={`?datum=${tageVerschieben(datum, -1)}`} aria-label="Vortag"
-            className={buttonVariants({ variant: "outline", size: "icon-lg" })}>
-            <ChevronLeftIcon />
-          </Link>
-          {datum !== heute && (
-            <Link href={`?datum=${heute}`} className={buttonVariants({ variant: "outline", size: "lg" })}>
-              Heute
+    <DndContext sensors={sensors} onDragStart={dragStart} onDragEnd={dragEnd} onDragCancel={() => setZiehe(null)}>
+      <div className="flex flex-col gap-5 pb-24">
+        {/* Kopf: Datum + Aktionen */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-semibold">Einteilung</h1>
+            <p className="text-muted-foreground">
+              {formatDatumLang(datum)}
+              {datum === heute && " · heute"}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link href={`?datum=${tageVerschieben(datum, -1)}`} aria-label="Vortag"
+              className={buttonVariants({ variant: "outline", size: "icon-lg" })}>
+              <ChevronLeftIcon />
             </Link>
-          )}
-          <Link href={`?datum=${tageVerschieben(datum, 1)}`} aria-label="Folgetag"
-            className={buttonVariants({ variant: "outline", size: "icon-lg" })}>
-            <ChevronRightIcon />
-          </Link>
-          <Button type="button" variant="outline" size="lg" onClick={gesternUebernehmen} disabled={laeuft}>
-            <CopyIcon />
-            Wie gestern
-          </Button>
-        </div>
-      </div>
-
-      <Spracheingabe
-        daten={{
-          mitarbeiter,
-          fahrzeuge,
-          projekte: projekte.map((p) => ({ id: p.id, name: p.name, stichworte: p.stichworte })),
-        }}
-        namen={{
-          fahrzeug: (id) => fahrzeuge.find((f) => f.id === id)?.name ?? "Ohne Firmenwagen",
-          projekt: (id) => projekte.find((p) => p.id === id)?.name ?? "–",
-          person: (id) => {
-            const p = mitarbeiter.find((m) => m.id === id);
-            return p ? `${p.vorname} ${p.nachname}` : "?";
-          },
-        }}
-        onUebernehmen={vorschlagUebernehmen}
-      />
-
-      {/* Karten */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        {Object.keys(karten).map((s) => {
-          const karte = karten[s];
-          const fahrzeug = fahrzeuge.find((f) => f.id === s);
-          const istGeaendert = geaendert.includes(s);
-          return (
-            <section key={s} className={cn("flex min-w-0 flex-col gap-3 rounded-xl border p-4", istGeaendert && "border-amber-400 bg-amber-50/40")}>
-              <div className="flex items-center justify-between gap-2">
-                <h2 className="flex items-center gap-2 font-semibold">
-                  {fahrzeug ? <TruckIcon className="size-5" /> : <UserIcon className="size-5" />}
-                  {kartenName(s)}
-                  {fahrzeug?.kennzeichen && (
-                    <span className="text-sm font-normal text-muted-foreground">{fahrzeug.kennzeichen}</span>
-                  )}
-                </h2>
-                {istGeaendert && <span className="text-xs font-medium text-amber-700">nicht gespeichert</span>}
-              </div>
-
-              <Auswahl
-                aria-label={`Baustelle für ${kartenName(s)}`}
-                value={karte.projectId ?? ""}
-                onChange={(e) => aendern(s, { projectId: e.target.value || null })}
-              >
-                <option value="">– keine Baustelle –</option>
-                <optgroup label="In Arbeit / Auftrag erteilt">
-                  {aktuelleProjekte.map((p) => (
-                    <option key={p.id} value={p.id}>{p.name}{p.ort && ` (${p.ort})`}</option>
-                  ))}
-                </optgroup>
-                <optgroup label="Weitere Projekte">
-                  {weitereProjekte.map((p) => (
-                    <option key={p.id} value={p.id}>{p.name}{p.ort && ` (${p.ort})`}</option>
-                  ))}
-                </optgroup>
-              </Auswahl>
-
-              <div className="flex flex-wrap gap-2" role="group" aria-label={`Mitarbeiter für ${kartenName(s)}`}>
-                {mitarbeiter.map((m) => {
-                  const gewaehlt = karte.mitarbeiterIds.includes(m.id);
-                  const auchIn = (einteilungen.get(m.id) ?? []).filter((x) => x !== s);
-                  return (
-                    <button
-                      key={m.id}
-                      type="button"
-                      aria-pressed={gewaehlt}
-                      onClick={() => umschalten(s, m.id)}
-                      className={cn(
-                        "min-h-10 rounded-full border px-3 text-sm transition-colors",
-                        gewaehlt ? "border-primary bg-primary text-primary-foreground" : "hover:bg-muted",
-                        gewaehlt && auchIn.length && "border-amber-500 bg-amber-500",
-                      )}
-                      title={auchIn.length ? `Auch eingeteilt: ${auchIn.map(kartenName).join(", ")}` : undefined}
-                    >
-                      {m.vorname}
-                      {!gewaehlt && auchIn.length > 0 && (
-                        <span className="ml-1 text-xs text-muted-foreground">({kartenName(auchIn[0])})</span>
-                      )}
-                      {gewaehlt && auchIn.length > 0 && <span className="ml-1 text-xs">· doppelt!</span>}
-                    </button>
-                  );
-                })}
-              </div>
-
-              <Input
-                aria-label={`Notiz fürs Team ${kartenName(s)}`}
-                placeholder="Notiz fürs Team (z. B. Leiter mitnehmen)"
-                value={karte.notiz}
-                onChange={(e) => aendern(s, { notiz: e.target.value })}
-                className="h-11 text-base"
-              />
-            </section>
-          );
-        })}
-      </div>
-
-      {/* Speichern-Leiste, sobald es Änderungen gibt */}
-      {geaendert.length > 0 && (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 p-3 backdrop-blur md:left-64">
-          <div className="mx-auto flex max-w-5xl items-center justify-between gap-3">
-            <span className="text-sm">
-              {geaendert.length} {geaendert.length === 1 ? "Karte geändert" : "Karten geändert"}
-            </span>
-            <div className="flex gap-2">
-              <Button type="button" variant="ghost" size="lg" onClick={() => setKarten(startKarten)} disabled={laeuft}>
-                Verwerfen
-              </Button>
-              <Button type="button" size="lg" onClick={speichern} disabled={laeuft}>
-                <SaveIcon />
-                {laeuft ? "Speichern …" : "Alle speichern"}
-              </Button>
-            </div>
+            {datum !== heute && (
+              <Link href={`?datum=${heute}`} className={buttonVariants({ variant: "outline", size: "lg" })}>
+                Heute
+              </Link>
+            )}
+            <Link href={`?datum=${tageVerschieben(datum, 1)}`} aria-label="Folgetag"
+              className={buttonVariants({ variant: "outline", size: "icon-lg" })}>
+              <ChevronRightIcon />
+            </Link>
+            <Button type="button" variant="outline" size="lg" onClick={gesternUebernehmen} disabled={laeuft}>
+              <CopyIcon />
+              Wie gestern
+            </Button>
           </div>
         </div>
-      )}
-    </div>
+
+        <Spracheingabe
+          daten={{
+            mitarbeiter,
+            fahrzeuge,
+            projekte: projekte.map((p) => ({ id: p.id, name: p.name, stichworte: p.stichworte })),
+          }}
+          namen={{
+            fahrzeug: (id) => fahrzeuge.find((f) => f.id === id)?.name ?? "Ohne Firmenwagen",
+            projekt: (id) => projekte.find((p) => p.id === id)?.name ?? "–",
+            person: (id) => {
+              const p = person(id);
+              return p ? `${p.vorname} ${p.nachname}` : "?";
+            },
+          }}
+          onUebernehmen={vorschlagUebernehmen}
+        />
+
+        {/* Termine des Tages */}
+        {termine.length > 0 && (
+          <section className="flex flex-col gap-2 rounded-xl border border-sky-300 bg-sky-50/60 p-4">
+            <h2 className="flex items-center gap-2 font-semibold"><CalendarClockIcon className="size-5" /> Termine an diesem Tag</h2>
+            <ul className="flex flex-col divide-y divide-sky-200">
+              {termine.map((t) => (
+                <li key={t.id} className="flex flex-wrap items-center justify-between gap-3 py-2">
+                  <div className="min-w-0">
+                    <p className="font-medium">
+                      {t.zeit && `${t.zeit} Uhr · `}{t.titel}
+                      {t.projectId && <span className="font-normal text-muted-foreground"> · {projektName(t.projectId)}</span>}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {t.personIds.map((id) => person(id)?.vorname).filter(Boolean).join(", ") || "niemand zugeordnet"}
+                      {t.ort && ` · ${t.ort}`}
+                    </p>
+                  </div>
+                  <Auswahl aria-label={`„${t.titel}“ in Auto übernehmen`} value="" className="w-52"
+                    onChange={(e) => termineUebernehmen(t, e.target.value)}>
+                    <option value="">In Auto übernehmen …</option>
+                    {Object.keys(karten).map((s) => <option key={s} value={s}>{kartenName(s)}</option>)}
+                  </Auswahl>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {/* Mitarbeiter-Leiste: von hier auf eine Karte ziehen */}
+        <Ablage id="leiste" className={(ueber) => cn("flex flex-col gap-2 rounded-xl border bg-muted/40 p-3", ueber && "border-primary bg-primary/5")}>
+          <p className="text-sm font-medium">Mitarbeiter <span className="font-normal text-muted-foreground">– auf eine Karte ziehen (hierher zurück = herausnehmen)</span></p>
+          <div className="flex flex-wrap gap-2">
+            {mitarbeiter.map((m) => {
+              const wo = (einteilungen.get(m.id) ?? []).map(kartenName);
+              const grund = abwesend[m.id];
+              const tn = termineVonPerson.get(m.id);
+              const text = [grund, tn?.length ? `Termin: ${tn.join(", ")}` : "", wo.length ? wo.join(" + ") : ""].filter(Boolean).join(" · ");
+              return (
+                <PersonChip key={m.id} person={m} von={null} hinweis={text || undefined}
+                  warnung={Boolean(grund)} gedimmt={wo.length > 0 && !grund} />
+              );
+            })}
+          </div>
+        </Ablage>
+
+        {/* Karten */}
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          {Object.keys(karten).map((s) => {
+            const karte = karten[s];
+            const fahrzeug = fahrzeuge.find((f) => f.id === s);
+            const istGeaendert = geaendert.includes(s);
+            const verwendet = karte.stopps.map((st) => st.projectId);
+            return (
+              <Ablage key={s} id={`karte:${s}`}
+                className={(ueber) => cn("flex min-w-0 flex-col gap-3 rounded-xl border p-4",
+                  istGeaendert && "border-amber-400 bg-amber-50/40", ueber && "ring-2 ring-primary")}>
+                <div className="flex items-center justify-between gap-2">
+                  <h2 className="flex items-center gap-2 font-semibold">
+                    {fahrzeug ? <TruckIcon className="size-5" /> : <UserIcon className="size-5" />}
+                    {kartenName(s)}
+                    {fahrzeug?.kennzeichen && (
+                      <span className="text-sm font-normal text-muted-foreground">{fahrzeug.kennzeichen}</span>
+                    )}
+                  </h2>
+                  {istGeaendert && <span className="text-xs font-medium text-amber-700">nicht gespeichert</span>}
+                </div>
+
+                {/* Team */}
+                <div className="flex min-h-11 flex-wrap items-center gap-2" role="group" aria-label={`Mitarbeiter für ${kartenName(s)}`}>
+                  {karte.mitarbeiterIds.map((id) => {
+                    const p = person(id);
+                    if (!p) return null;
+                    const auchIn = (einteilungen.get(id) ?? []).filter((x) => x !== s);
+                    const grund = abwesend[id];
+                    return (
+                      <PersonChip key={id} person={p} von={s}
+                        warnung={auchIn.length > 0 || Boolean(grund)}
+                        hinweis={grund ?? (auchIn.length ? `doppelt: ${auchIn.map(kartenName).join(", ")}` : undefined)}
+                        onEntfernen={() => setKarten((alt) => personVerschieben(alt, id, s, null))} />
+                    );
+                  })}
+                  {karte.mitarbeiterIds.length === 0 && <span className="text-sm text-muted-foreground">Niemand eingeteilt</span>}
+                  <Auswahl aria-label={`Mitarbeiter zu ${kartenName(s)} hinzufügen`} value="" className="h-10 w-44 text-sm"
+                    onChange={(e) => e.target.value && setKarten((alt) => personVerschieben(alt, e.target.value, null, s))}>
+                    <option value="">+ Mitarbeiter …</option>
+                    {mitarbeiter.filter((m) => !karte.mitarbeiterIds.includes(m.id)).map((m) => (
+                      <option key={m.id} value={m.id}>{m.vorname} {m.nachname}</option>
+                    ))}
+                  </Auswahl>
+                </div>
+
+                {/* Baustellen (Stopps) */}
+                <div className="flex flex-col gap-2">
+                  {karte.stopps.map((st, i) => (
+                    <div key={st.projectId} className="flex flex-col gap-2 rounded-lg border bg-background p-2">
+                      <div className="flex items-center gap-2">
+                        <Auswahl aria-label={`Baustelle ${i + 1} für ${kartenName(s)}`} value={st.projectId}
+                          onChange={(e) => stoppAendern(s, i, { projectId: e.target.value })}>
+                          {projektOptionen(verwendet, st.projectId)}
+                        </Auswahl>
+                        <Button type="button" variant="ghost" size="icon-lg" aria-label="Baustelle nach oben" disabled={i === 0}
+                          onClick={() => aendern(s, { stopps: stoppVerschieben(karte.stopps, i, -1) })}>
+                          <ArrowUpIcon />
+                        </Button>
+                        <Button type="button" variant="ghost" size="icon-lg" aria-label="Baustelle nach unten" disabled={i === karte.stopps.length - 1}
+                          onClick={() => aendern(s, { stopps: stoppVerschieben(karte.stopps, i, 1) })}>
+                          <ArrowDownIcon />
+                        </Button>
+                        <Button type="button" variant="ghost" size="icon-touch" aria-label="Baustelle entfernen"
+                          onClick={() => aendern(s, { stopps: karte.stopps.filter((_, n) => n !== i) })}>
+                          <XIcon />
+                        </Button>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Input type="time" aria-label="Uhrzeit (optional)" value={st.zeit ?? ""}
+                          onChange={(e) => zeitSetzen(s, i, e.target.value)} className="h-10 w-32 text-base" />
+                        {st.zeit ? (
+                          <Auswahl aria-label="Art der Zeit" value={st.zeitArt ?? "um"} className="h-10 w-44 text-sm"
+                            onChange={(e) => stoppAendern(s, i, { zeitArt: e.target.value as StoppZeitArt })}>
+                            {(Object.keys(ZEIT_ART_TEXT) as StoppZeitArt[]).map((a) => (
+                              <option key={a} value={a}>{ZEIT_ART_TEXT[a]}</option>
+                            ))}
+                          </Auswahl>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">ohne Zeit: Team entscheidet die Reihenfolge</span>
+                        )}
+                        <Input aria-label="Hinweis zur Baustelle (optional)" placeholder="Hinweis (optional)" maxLength={200}
+                          value={st.notiz} onChange={(e) => stoppAendern(s, i, { notiz: e.target.value })}
+                          className="h-10 min-w-40 flex-1 text-base" />
+                      </div>
+                    </div>
+                  ))}
+                  <Auswahl aria-label={`Baustelle zu ${kartenName(s)} hinzufügen`} value=""
+                    onChange={(e) => e.target.value && aendern(s, { stopps: [...karte.stopps, leererStopp(e.target.value)] })}>
+                    <option value="">{karte.stopps.length ? "+ Weitere Baustelle …" : "+ Baustelle wählen …"}</option>
+                    {projektOptionen(verwendet)}
+                  </Auswahl>
+                </div>
+
+                <Input
+                  aria-label={`Notiz fürs Team ${kartenName(s)}`}
+                  placeholder="Notiz fürs Team (z. B. Leiter mitnehmen)"
+                  value={karte.notiz}
+                  onChange={(e) => aendern(s, { notiz: e.target.value })}
+                  className="h-11 text-base"
+                />
+              </Ablage>
+            );
+          })}
+        </div>
+
+        {/* Speichern-Leiste, sobald es Änderungen gibt */}
+        {geaendert.length > 0 && (
+          <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 p-3 backdrop-blur md:left-64">
+            <div className="mx-auto flex max-w-5xl items-center justify-between gap-3">
+              <span className="text-sm">
+                {geaendert.length} {geaendert.length === 1 ? "Karte geändert" : "Karten geändert"}
+              </span>
+              <div className="flex gap-2">
+                <Button type="button" variant="ghost" size="lg" onClick={() => setKarten(startKarten)} disabled={laeuft}>
+                  Verwerfen
+                </Button>
+                <Button type="button" size="lg" onClick={speichern} disabled={laeuft}>
+                  <SaveIcon />
+                  {laeuft ? "Speichern …" : "Alle speichern"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <DragOverlay>
+        {ziehe && (
+          <span className="inline-flex min-h-10 items-center gap-1 rounded-full border bg-background px-3 text-sm shadow-lg">
+            <GripVerticalIcon className="size-3.5" /> {ziehe.vorname}
+          </span>
+        )}
+      </DragOverlay>
+    </DndContext>
   );
 }

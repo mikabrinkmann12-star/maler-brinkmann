@@ -77,7 +77,11 @@ afterAll(async () => {
   await db.from("leave_requests").delete().in("user_id", nutzer);
   await db.from("notifications").delete().in("ausgeloest_von", nutzer);
   await db.from("notifications").delete().in("project_id", projekte);
-  await db.from("assignments").delete().in("project_id", projekte);
+  await db.from("assignment_stops").delete().in("project_id", projekte);
+  if (fahrzeug) await db.from("assignments").delete().eq("vehicle_id", fahrzeug);
+  await db.from("assignments").delete().in("created_by", nutzer);
+  await db.from("appointments").delete().in("erstellt_von", nutzer);
+  await db.from("appointments").delete().in("project_id", projekte);
   await db.from("project_members").delete().in("project_id", projekte);
   await db.from("projects").delete().in("id", projekte);
   if (fahrzeug) await db.from("vehicles").delete().eq("id", fahrzeug);
@@ -151,11 +155,13 @@ describe("Einteilung (Tageseinsatz)", () => {
   it("das Büro teilt ein – der Mitarbeiter wird automatisch Projektmitglied", async () => {
     const { data, error } = await bueroC
       .from("assignments")
-      .insert({ datum: tag(), vehicle_id: fahrzeug, project_id: p2, notiz: "Leiter mitnehmen" })
+      .insert({ datum: tag(), vehicle_id: fahrzeug, notiz: "Leiter mitnehmen" })
       .select("id")
       .single();
     expect(error).toBeNull();
     einsatz = data!.id;
+    const stopp = await bueroC.from("assignment_stops").insert({ assignment_id: einsatz, project_id: p2 });
+    expect(stopp.error).toBeNull();
     const mitglied = await bueroC.from("assignment_members")
       .insert([{ assignment_id: einsatz, user_id: malerA.id }, { assignment_id: einsatz, user_id: malerB.id }]);
     expect(mitglied.error).toBeNull();
@@ -174,8 +180,112 @@ describe("Einteilung (Tageseinsatz)", () => {
   });
 
   it("Mitarbeiter können nicht einteilen", async () => {
-    const { error } = await aC.from("assignments").insert({ datum: tag(), project_id: p1 });
+    const { error } = await aC.from("assignments").insert({ datum: tag() });
     expect(error).not.toBeNull();
+    const stopp = await aC.from("assignment_stops").insert({ assignment_id: einsatz, project_id: p1 });
+    expect(stopp.error).not.toBeNull();
+  });
+
+  it("ein Auto fährt mehrere Baustellen an: alle im Team werden Mitglied aller Baustellen, mit Zeit", async () => {
+    // zweite Baustelle p1 mit „kann ab 13:00“ – malerB ist dort noch kein Mitglied
+    const vorher = await bC.from("projects").select("id").eq("id", p1);
+    expect(vorher.data ?? []).toEqual([]);
+    const stopp = await bueroC.from("assignment_stops")
+      .insert({ assignment_id: einsatz, project_id: p1, sortierung: 1, zeit: "13:00", zeit_art: "ab", notiz: "Ausmessen" });
+    expect(stopp.error).toBeNull();
+    const nachher = await bC.from("projects").select("id").eq("id", p1);
+    expect(nachher.data).toEqual([{ id: p1 }]);
+
+    // Mitarbeiter sehen beide Stopps ihres Einsatzes, Fremde keinen
+    const meine = await bC.from("assignment_stops").select("project_id, zeit, zeit_art").eq("assignment_id", einsatz).order("sortierung");
+    expect(meine.data).toEqual([
+      { project_id: p2, zeit: null, zeit_art: null },
+      { project_id: p1, zeit: "13:00:00", zeit_art: "ab" },
+    ]);
+    const fremd = await cC.from("assignment_stops").select("id").eq("assignment_id", einsatz);
+    expect(fremd.data ?? []).toEqual([]);
+  });
+
+  it("Zeit und Art gehören zusammen, dieselbe Baustelle nur einmal pro Auto", async () => {
+    const halb = await bueroC.from("assignment_stops").insert({ assignment_id: einsatz, project_id: p2, zeit: "09:00" });
+    expect(halb.error).not.toBeNull();
+    const doppelt = await bueroC.from("assignment_stops").insert({ assignment_id: einsatz, project_id: p1 });
+    expect(doppelt.error?.code).toBe("23505");
+  });
+
+  it("wer später ins Team kommt, wird ebenfalls Mitglied aller Stopps", async () => {
+    await bueroC.from("assignment_members").insert({ assignment_id: einsatz, user_id: malerC.id });
+    const c = await cC.from("projects").select("id").in("id", [p1, p2]);
+    expect(c.data?.map((p) => p.id).sort()).toEqual([p1, p2].sort());
+    // Aufräumen: C ist für die folgenden Tests wieder „fremd“
+    await bueroC.from("assignment_members").delete().eq("assignment_id", einsatz).eq("user_id", malerC.id);
+    await bueroC.from("project_members").delete().eq("user_id", malerC.id).in("project_id", [p1, p2]);
+    const danach = await cC.from("projects").select("id").in("id", [p1, p2]);
+    expect(danach.data ?? []).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+describe("Termine (Kalender)", () => {
+  const termin = randomUUID();
+  const buerotermin = randomUUID();
+
+  it("ein Mitarbeiter trägt einen eigenen Termin ein, das Büro bekommt einen Hinweis", async () => {
+    const neu = await aC.from("appointments")
+      .insert({ id: termin, datum: tag(3), titel: "Zu von Garrel", ort: "Garrel", erstellt_von: malerA.id });
+    expect(neu.error).toBeNull();
+    const ich = await aC.from("appointment_members").insert({ appointment_id: termin, user_id: malerA.id });
+    expect(ich.error).toBeNull();
+    const hinweis = await bueroC.from("notifications").select("typ, text").eq("typ", "termin").eq("ausgeloest_von", malerA.id);
+    expect(hinweis.data?.length).toBe(1);
+    expect(hinweis.data![0].text).toContain("Zu von Garrel");
+  });
+
+  it("Mitarbeiter tragen keine Kollegen ein und sehen fremde Termine nicht, das Büro sieht alle", async () => {
+    const kollege = await aC.from("appointment_members").insert({ appointment_id: termin, user_id: malerB.id });
+    expect(kollege.error).not.toBeNull();
+    const fremd = await bC.from("appointments").select("id").eq("id", termin);
+    expect(fremd.data ?? []).toEqual([]);
+    const buero = await bueroC.from("appointments").select("id").eq("id", termin);
+    expect(buero.data?.length).toBe(1);
+  });
+
+  it("das Büro trägt für einen Mitarbeiter ein – der sieht den Termin, kann ihn aber nicht ändern", async () => {
+    const neu = await bueroC.from("appointments").insert({ id: buerotermin, datum: tag(4), titel: "Lieferung Farbe", project_id: p1, erstellt_von: buero.id });
+    expect(neu.error).toBeNull();
+    const m = await bueroC.from("appointment_members").insert([{ appointment_id: buerotermin, user_id: malerB.id }]);
+    expect(m.error).toBeNull();
+    const sicht = await bC.from("appointments").select("id, titel").eq("id", buerotermin);
+    expect(sicht.data).toEqual([{ id: buerotermin, titel: "Lieferung Farbe" }]);
+    const aendern = await bC.from("appointments").update({ titel: "geändert" }).eq("id", buerotermin).select("id");
+    expect(aendern.data ?? []).toEqual([]);
+    // Büro legt keine Hinweise an (nur Mitarbeiter-Termine lösen aus)
+    const hinweise = await bueroC.from("notifications").select("id").eq("typ", "termin").eq("ausgeloest_von", buero.id);
+    expect(hinweise.data ?? []).toEqual([]);
+  });
+
+  it("eigene Termine ändern und archivieren geht, fremde nicht; löschen niemand", async () => {
+    const eigen = await aC.from("appointments").update({ titel: "Zu von Garrel (später)" }).eq("id", termin).select("id");
+    expect(eigen.data).toEqual([{ id: termin }]);
+    const fremd = await cC.from("appointments").update({ archiviert_am: new Date().toISOString() }).eq("id", termin).select("id");
+    expect(fremd.data ?? []).toEqual([]);
+    for (const client of [aC, bueroC, adminC]) {
+      const { data } = await client.from("appointments").delete().eq("id", termin).select("id");
+      expect(data ?? []).toEqual([]);
+    }
+    const archiv = await aC.from("appointments").update({ archiviert_am: new Date().toISOString() }).eq("id", termin).select("id");
+    expect(archiv.data).toEqual([{ id: termin }]);
+  });
+
+  it("auf fremde Baustellen kann ein Mitarbeiter keinen Termin legen", async () => {
+    const db = adminClient();
+    const { data: status } = await db.from("project_statuses").select("id").eq("name", "In Arbeit").single();
+    const { data: fremdProjekt } = await db.from("projects")
+      .insert({ projektnummer: `${kennung}-P3`, name: `${kennung} Fremde Baustelle`, status_id: status!.id }).select("id").single();
+    const { error } = await aC.from("appointments")
+      .insert({ id: randomUUID(), datum: tag(5), titel: "x", project_id: fremdProjekt!.id, erstellt_von: malerA.id });
+    expect(error).not.toBeNull();
+    await db.from("projects").delete().eq("id", fremdProjekt!.id);
   });
 });
 

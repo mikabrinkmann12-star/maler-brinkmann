@@ -13,7 +13,7 @@ export const metadata: Metadata = { title: "Baustellen" };
 export default async function BaustellenSeite() {
   const nutzer = await requireUser();
   const [ids, heute] = await Promise.all([meineProjektIds(nutzer.id), meineEinsaetze(nutzer.id, heuteIso())]);
-  const heuteIds = new Set(heute.map((e) => e.projects?.id).filter(Boolean));
+  const heuteIds = new Set(heute.flatMap((e) => e.assignment_stops.map((s) => s.projects?.id)).filter(Boolean));
 
   const supabase = await createClient();
   const { data } = ids.length

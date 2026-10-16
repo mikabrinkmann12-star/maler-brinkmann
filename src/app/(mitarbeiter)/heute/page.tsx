@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ClockIcon, HardHatIcon, MessageSquareTextIcon, NavigationIcon, TruckIcon, UserIcon, UsersIcon } from "lucide-react";
+import { CalendarClockIcon, ClockIcon, HardHatIcon, MapPinIcon, MessageSquareTextIcon, NavigationIcon, TruckIcon, UserIcon, UsersIcon } from "lucide-react";
 import { AnrufLink } from "@/components/anruf-link";
 import { buttonVariants } from "@/components/ui/button";
 import { requireUser } from "@/lib/auth";
 import { heuteIso } from "@/lib/datum";
+import { stoppZeitText, stoppsSortieren } from "@/lib/einsatz";
 import { formatDatumLang, formatStunden } from "@/lib/format";
 import { kollegenLaden, meineEinsaetze } from "@/lib/mitarbeiter-daten";
 import { adresseText, kontaktName, mapsLink } from "@/lib/projekt";
@@ -17,10 +18,18 @@ export default async function HeuteSeite() {
   const nutzer = await requireUser();
   const heute = heuteIso();
   const supabase = await createClient();
-  const [einsaetze, kollegen, { data: heuteZeiten }] = await Promise.all([
+  const [einsaetze, kollegen, { data: heuteZeiten }, { data: termine }] = await Promise.all([
     meineEinsaetze(nutzer.id, heute),
     kollegenLaden(),
     supabase.from("time_entries").select("stunden").eq("user_id", nutzer.id).eq("datum", heute).is("archiviert_am", null),
+    // Eigene Termine heute (Büro/Admin sehen per RLS alle, hier immer nur die eigenen)
+    supabase
+      .from("appointments")
+      .select("id, titel, ort, zeit, notiz, project_id, appointment_members!inner(user_id)")
+      .eq("datum", heute)
+      .eq("appointment_members.user_id", nutzer.id)
+      .is("archiviert_am", null)
+      .order("zeit", { nullsFirst: false }),
   ]);
   const heuteStunden = (heuteZeiten ?? []).reduce((s, t) => s + Number(t.stunden), 0);
 
@@ -38,6 +47,25 @@ export default async function HeuteSeite() {
 
       <Warteschlange userId={nutzer.id} />
 
+      {(termine?.length ?? 0) > 0 && (
+        <section className="flex flex-col gap-2 rounded-2xl border border-sky-300 bg-sky-50 p-4 text-sky-950">
+          <h2 className="flex items-center gap-2 font-semibold"><CalendarClockIcon className="size-5" /> Termine heute</h2>
+          <ul className="flex flex-col gap-2">
+            {termine?.map((t) => (
+              <li key={t.id}>
+                <p className="font-medium">{t.zeit ? `${t.zeit.slice(0, 5)} Uhr · ` : ""}{t.titel}</p>
+                {t.ort && <p className="flex items-center gap-1 text-sm"><MapPinIcon className="size-4" /> {t.ort}</p>}
+                {t.notiz && <p className="text-sm">{t.notiz}</p>}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <Link href="/termine/neu" className="flex w-fit items-center gap-1 text-sm text-muted-foreground underline-offset-4 hover:underline">
+        <CalendarClockIcon className="size-4" /> Termin eintragen
+      </Link>
+
       {einsaetze.length === 0 && (
         <div className="flex flex-col gap-3 rounded-xl border border-dashed p-5">
           <p className="text-lg font-medium">Für heute bist du nicht eingeteilt.</p>
@@ -50,14 +78,11 @@ export default async function HeuteSeite() {
       )}
 
       {einsaetze.map((e) => {
-        const p = e.projects;
-        const adresse = p ? adresseText({ strasse: p.baustelle_strasse, plz: p.baustelle_plz, ort: p.baustelle_ort }) : "";
-        const navi = p ? mapsLink({ strasse: p.baustelle_strasse, plz: p.baustelle_plz, ort: p.baustelle_ort }) : null;
-        const kunde = p?.contacts;
-        const bueroKontakt = p?.buero_ansprechpartner_id ? kollegen.get(p.buero_ansprechpartner_id) : undefined;
+        const stopps = stoppsSortieren(e.assignment_stops);
         const team = e.assignment_members
           .map((m) => kollegen.get(m.user_id))
           .filter((k): k is NonNullable<typeof k> => Boolean(k));
+        const mehrere = stopps.length > 1;
 
         return (
           <article key={e.id} className="flex flex-col gap-5 rounded-2xl border p-5 shadow-sm">
@@ -67,25 +92,6 @@ export default async function HeuteSeite() {
               <span className="font-semibold">{e.vehicles?.name ?? "Ohne Firmenwagen"}</span>
               {e.vehicles?.kennzeichen && <span className="text-muted-foreground">{e.vehicles.kennzeichen}</span>}
             </div>
-
-            {/* Baustelle */}
-            {p ? (
-              <div className="flex flex-col gap-3">
-                <Link href={`/baustellen/${p.id}`} className="text-2xl font-semibold leading-tight underline-offset-4 hover:underline">
-                  {p.name}
-                </Link>
-                {adresse && <p className="text-lg">{adresse}</p>}
-                {navi && (
-                  <a href={navi} target="_blank" rel="noopener noreferrer"
-                    className={buttonVariants({ size: "touch", className: "w-full" })}>
-                    <NavigationIcon />
-                    Navigation starten
-                  </a>
-                )}
-              </div>
-            ) : (
-              <p className="text-lg text-muted-foreground">Noch keine Baustelle eingetragen.</p>
-            )}
 
             {/* Notiz vom Büro */}
             {e.notiz && (
@@ -97,6 +103,80 @@ export default async function HeuteSeite() {
                 </div>
               </div>
             )}
+
+            {stopps.length === 0 && <p className="text-lg text-muted-foreground">Noch keine Baustelle eingetragen.</p>}
+            {mehrere && (
+              <p className="text-sm text-muted-foreground">
+                Heute {stopps.length} Baustellen. Die Reihenfolge entscheidet ihr, außer es steht eine Zeit dabei.
+              </p>
+            )}
+
+            {/* Baustellen (Stopps) */}
+            {stopps.map((s, i) => {
+              const p = s.projects;
+              if (!p) return null;
+              const anschrift = { strasse: p.baustelle_strasse, plz: p.baustelle_plz, ort: p.baustelle_ort };
+              const adresse = adresseText(anschrift);
+              const navi = mapsLink(anschrift);
+              const kunde = p.contacts;
+              const bueroKontakt = p.buero_ansprechpartner_id ? kollegen.get(p.buero_ansprechpartner_id) : undefined;
+              const zeit = stoppZeitText(s.zeit, s.zeit_art);
+              return (
+                <section key={s.id} className={mehrere ? "flex flex-col gap-4 rounded-xl border p-4" : "flex flex-col gap-4"}>
+                  {mehrere && <p className="text-sm font-medium text-muted-foreground">Baustelle {i + 1}</p>}
+                  <div className="flex flex-col gap-3">
+                    <Link href={`/baustellen/${p.id}`} className="text-2xl font-semibold leading-tight underline-offset-4 hover:underline">
+                      {p.name}
+                    </Link>
+                    {zeit && (
+                      <p className="flex w-fit items-center gap-2 rounded-lg bg-sky-100 px-3 py-1.5 text-base font-medium text-sky-950">
+                        <ClockIcon className="size-5" /> {zeit}
+                      </p>
+                    )}
+                    {adresse && <p className="text-lg">{adresse}</p>}
+                    {s.notiz && <p className="text-base text-muted-foreground">{s.notiz}</p>}
+                    {navi && (
+                      <a href={navi} target="_blank" rel="noopener noreferrer"
+                        className={buttonVariants({ size: "touch", className: "w-full" })}>
+                        <NavigationIcon />
+                        Navigation starten
+                      </a>
+                    )}
+                  </div>
+
+                  {(kunde || bueroKontakt) && (
+                    <div className="flex flex-col gap-2">
+                      <p className="flex items-center gap-2 font-medium"><UserIcon className="size-5" /> Ansprechpartner</p>
+                      <ul className="flex flex-col divide-y rounded-xl border">
+                        {kunde && (
+                          <li className="flex items-center justify-between gap-3 px-4 py-2">
+                            <span>
+                              <span className="block text-base">{kunde.ansprechpartner || kontaktName(kunde)}</span>
+                              <span className="text-sm text-muted-foreground">Kunde{kunde.ansprechpartner ? ` · ${kontaktName(kunde)}` : ""}</span>
+                            </span>
+                            <AnrufLink nummer={kunde.mobil || kunde.telefon} name={kontaktName(kunde)} />
+                          </li>
+                        )}
+                        {bueroKontakt && (
+                          <li className="flex items-center justify-between gap-3 px-4 py-2">
+                            <span>
+                              <span className="block text-base">{bueroKontakt.vorname} {bueroKontakt.nachname}</span>
+                              <span className="text-sm text-muted-foreground">Büro</span>
+                            </span>
+                            <AnrufLink nummer={bueroKontakt.telefon} name={bueroKontakt.vorname} />
+                          </li>
+                        )}
+                      </ul>
+                    </div>
+                  )}
+
+                  <Link href={`/zeiten/neu?projekt=${p.id}`} className={buttonVariants({ variant: "outline", size: "touch", className: "w-full" })}>
+                    <ClockIcon />
+                    Zeit eintragen
+                  </Link>
+                </section>
+              );
+            })}
 
             {/* Team */}
             <div className="flex flex-col gap-2">
@@ -113,38 +193,6 @@ export default async function HeuteSeite() {
                 ))}
               </ul>
             </div>
-
-            {/* Ansprechpartner */}
-            {(kunde || bueroKontakt) && (
-              <div className="flex flex-col gap-2">
-                <p className="flex items-center gap-2 font-medium"><UserIcon className="size-5" /> Ansprechpartner</p>
-                <ul className="flex flex-col divide-y rounded-xl border">
-                  {kunde && (
-                    <li className="flex items-center justify-between gap-3 px-4 py-2">
-                      <span>
-                        <span className="block text-base">{kunde.ansprechpartner || kontaktName(kunde)}</span>
-                        <span className="text-sm text-muted-foreground">Kunde{kunde.ansprechpartner ? ` · ${kontaktName(kunde)}` : ""}</span>
-                      </span>
-                      <AnrufLink nummer={kunde.mobil || kunde.telefon} name={kontaktName(kunde)} />
-                    </li>
-                  )}
-                  {bueroKontakt && (
-                    <li className="flex items-center justify-between gap-3 px-4 py-2">
-                      <span>
-                        <span className="block text-base">{bueroKontakt.vorname} {bueroKontakt.nachname}</span>
-                        <span className="text-sm text-muted-foreground">Büro</span>
-                      </span>
-                      <AnrufLink nummer={bueroKontakt.telefon} name={bueroKontakt.vorname} />
-                    </li>
-                  )}
-                </ul>
-              </div>
-            )}
-
-            <Link href={p ? `/zeiten/neu?projekt=${p.id}` : "/zeiten/neu"} className={buttonVariants({ variant: "outline", size: "touch", className: "w-full" })}>
-              <ClockIcon />
-              Zeit eintragen
-            </Link>
           </article>
         );
       })}
