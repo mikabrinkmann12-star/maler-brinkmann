@@ -50,7 +50,7 @@ import {
   type Karten,
   type TerminFuerPlan,
 } from "@/lib/plantafel";
-import { einsaetzeSpeichern, wieGestern } from "./actions";
+import { einsaetzeSpeichern, fahrzeugHinzufuegen, wieGestern } from "./actions";
 import { Spracheingabe } from "./spracheingabe";
 
 export type Fahrzeug = { id: string; name: string; kennzeichen: string | null };
@@ -170,7 +170,10 @@ export function Einteilung({
     return karten;
   }, [fahrzeuge, einsaetze]);
 
+  const [autos, setAutos] = useState<Fahrzeug[]>(fahrzeuge);
   const [karten, setKarten] = useState(startKarten);
+  const [neuesAuto, setNeuesAuto] = useState<string | null>(null);
+  const [autoFehler, setAutoFehler] = useState<string | null>(null);
   const [laeuft, starte] = useTransition();
   const [ziehe, setZiehe] = useState<Person | null>(null);
 
@@ -179,12 +182,14 @@ export function Einteilung({
     useSensor(KeyboardSensor),
   );
 
-  const geaendert = Object.keys(karten).filter(
-    (s) => JSON.stringify(karten[s]) !== JSON.stringify(startKarten[s]),
+  const kartenReihenfolge = [...autos.map((a) => a.id), OHNE_AUTO];
+  const leereKarte = (s: string): Karte => ({ assignmentId: null, vehicleId: s === OHNE_AUTO ? null : s, stopps: [], mitarbeiterIds: [], notiz: "" });
+  const geaendert = kartenReihenfolge.filter(
+    (s) => JSON.stringify(karten[s]) !== JSON.stringify(startKarten[s] ?? leereKarte(s)),
   );
 
   const kartenName = (s: string) =>
-    s === OHNE_AUTO ? "Ohne Firmenwagen" : (fahrzeuge.find((f) => f.id === s)?.name ?? "Auto");
+    s === OHNE_AUTO ? "Ohne Firmenwagen" : (autos.find((f) => f.id === s)?.name ?? "Auto");
   const person = (id: string) => mitarbeiter.find((m) => m.id === id);
   const projektName = (id: string) => projekte.find((p) => p.id === id)?.name ?? "Baustelle";
 
@@ -249,6 +254,22 @@ export function Einteilung({
     if (!s) return;
     setKarten((alt) => terminUebernehmen(alt, s, t));
     toast.info(`„${t.titel}“ ist in ${kartenName(s)} übernommen – bitte prüfen und speichern.`);
+  }
+
+  function autoHinzufuegen(ereignis: React.FormEvent<HTMLFormElement>) {
+    ereignis.preventDefault();
+    if (neuesAuto === null) return;
+    starte(async () => {
+      const r = await fahrzeugHinzufuegen(neuesAuto);
+      if (r.fehler || !r.auto) return setAutoFehler(r.fehler ?? "Das hat nicht geklappt.");
+      const auto = r.auto;
+      // Neue Karte ergänzen, ohne ungespeicherte Änderungen an den anderen Karten zu verlieren
+      setAutos((alt) => (alt.some((a) => a.id === auto.id) ? alt : [...alt, auto]));
+      setKarten((alt) => (alt[auto.id] ? alt : { ...alt, [auto.id]: leereKarte(auto.id) }));
+      setNeuesAuto(null);
+      setAutoFehler(null);
+      toast.success(r.hinweis ?? `${auto.name} ist hinzugefügt.`);
+    });
   }
 
   function speichern() {
@@ -321,11 +342,11 @@ export function Einteilung({
         <Spracheingabe
           daten={{
             mitarbeiter,
-            fahrzeuge,
+            fahrzeuge: autos,
             projekte: projekte.map((p) => ({ id: p.id, name: p.name, stichworte: p.stichworte })),
           }}
           namen={{
-            fahrzeug: (id) => fahrzeuge.find((f) => f.id === id)?.name ?? "Ohne Firmenwagen",
+            fahrzeug: (id) => autos.find((f) => f.id === id)?.name ?? "Ohne Firmenwagen",
             projekt: (id) => projekte.find((p) => p.id === id)?.name ?? "–",
             person: (id) => {
               const p = person(id);
@@ -355,7 +376,7 @@ export function Einteilung({
                   <Auswahl aria-label={`„${t.titel}“ in Auto übernehmen`} value="" className="w-52"
                     onChange={(e) => termineUebernehmen(t, e.target.value)}>
                     <option value="">In Auto übernehmen …</option>
-                    {Object.keys(karten).map((s) => <option key={s} value={s}>{kartenName(s)}</option>)}
+                    {kartenReihenfolge.map((s) => <option key={s} value={s}>{kartenName(s)}</option>)}
                   </Auswahl>
                 </li>
               ))}
@@ -382,9 +403,9 @@ export function Einteilung({
 
         {/* Karten */}
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          {Object.keys(karten).map((s) => {
+          {kartenReihenfolge.map((s) => {
             const karte = karten[s];
-            const fahrzeug = fahrzeuge.find((f) => f.id === s);
+            const fahrzeug = autos.find((f) => f.id === s);
             const istGeaendert = geaendert.includes(s);
             const verwendet = karte.stopps.map((st) => st.projectId);
             return (
@@ -395,7 +416,7 @@ export function Einteilung({
                   <h2 className="flex items-center gap-2 font-semibold">
                     {fahrzeug ? <TruckIcon className="size-5" /> : <UserIcon className="size-5" />}
                     {kartenName(s)}
-                    {fahrzeug?.kennzeichen && (
+                    {fahrzeug?.kennzeichen && fahrzeug.kennzeichen !== fahrzeug.name && (
                       <span className="text-sm font-normal text-muted-foreground">{fahrzeug.kennzeichen}</span>
                     )}
                   </h2>
@@ -486,6 +507,24 @@ export function Einteilung({
             );
           })}
         </div>
+
+        {/* Neues Auto */}
+        {neuesAuto === null ? (
+          <Button type="button" variant="outline" size="touch" className="w-fit" onClick={() => setNeuesAuto("")}>
+            <TruckIcon /> Auto hinzufügen
+          </Button>
+        ) : (
+          <form onSubmit={autoHinzufuegen} className="flex max-w-md flex-col gap-2 rounded-xl border p-4">
+            <label htmlFor="neues-kennzeichen" className="font-medium">Kennzeichen des neuen Autos</label>
+            <div className="flex gap-2">
+              <Input id="neues-kennzeichen" value={neuesAuto} autoFocus placeholder="z. B. CLP-AB 123" autoCapitalize="characters"
+                onChange={(e) => { setNeuesAuto(e.target.value); setAutoFehler(null); }} className="h-12 flex-1 text-base uppercase" />
+              <Button type="submit" size="touch" disabled={laeuft || !neuesAuto.trim()}>Hinzufügen</Button>
+              <Button type="button" variant="ghost" size="touch" onClick={() => { setNeuesAuto(null); setAutoFehler(null); }}>Abbrechen</Button>
+            </div>
+            {autoFehler && <p role="alert" className="text-sm text-destructive">{autoFehler}</p>}
+          </form>
+        )}
 
         {/* Speichern-Leiste, sobald es Änderungen gibt */}
         {geaendert.length > 0 && (

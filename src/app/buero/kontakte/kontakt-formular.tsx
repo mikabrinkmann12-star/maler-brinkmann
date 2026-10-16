@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { briefanschrift } from "@/lib/kontakt-schema";
 import { zahlLesen } from "@/lib/aufmass";
-import { kontaktSpeichern } from "./actions";
+import { kontaktSpeichern, kundennummerVorschlagen } from "./actions";
 
 export type KontaktFormWerte = {
   typ: "privat" | "firma";
@@ -62,6 +62,15 @@ export function KontaktFormular({ id, start }: { id: string | null; start: Konta
   const zahl = (t: string) => (t.trim() === "" ? null : zahlLesen(t));
   const vorschau = briefanschrift({ ...w, typ: w.typ });
 
+  function neuVorschlagen() {
+    starte(async () => {
+      const r = await kundennummerVorschlagen();
+      if (r.fehler || !r.nummer) return setFehler(r.fehler ?? "Kein Vorschlag möglich.");
+      setW((alt) => ({ ...alt, kundennummer: r.nummer! }));
+      setFehler(null);
+    });
+  }
+
   function speichern(ereignis: React.FormEvent<HTMLFormElement>) {
     ereignis.preventDefault();
     const zz = zahl(w.zahlungsziel_tage), sp = zahl(w.skonto_prozent), st = zahl(w.skonto_tage);
@@ -93,8 +102,14 @@ export function KontaktFormular({ id, start }: { id: string | null; start: Konta
               <option value="firma">Firma</option>
             </Auswahl>
           </Feld>
-          <Feld label="Kundennummer" htmlFor="kundennummer" hinweis="Leer lassen, wenn es noch keine gibt.">
-            <Input id="kundennummer" {...f("kundennummer")} maxLength={40} className={kopf} />
+          <Feld label="Kundennummer" htmlFor="kundennummer"
+            hinweis="Der Vorschlag zählt weiter (nächste freie Nummer, nie doppelt). Du kannst ihn ändern.">
+            <div className="flex gap-2">
+              <Input id="kundennummer" {...f("kundennummer")} maxLength={40} className={`${kopf} flex-1`} />
+              <Button type="button" variant="outline" size="touch" onClick={neuVorschlagen} disabled={laeuft}>
+                Neu vorschlagen
+              </Button>
+            </div>
           </Feld>
         </div>
         {w.typ === "firma" ? (

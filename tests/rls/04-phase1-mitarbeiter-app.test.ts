@@ -668,3 +668,21 @@ describe("Kontakte (Zahlung, Steuer, Rechte)", () => {
     expect(archiv.data?.length).toBe(1);
   });
 });
+
+// ---------------------------------------------------------------------------
+describe("Fahrzeuge anlegen", () => {
+  it("Büro und Admin legen ein Auto an, Mitarbeiter nicht; Kennzeichen ist eindeutig", async () => {
+    const kz = `TST-${kennung.slice(-4).toUpperCase()}`;
+    const buero1 = await bueroC.from("vehicles").insert({ name: kz, kennzeichen: kz }).select("id").single();
+    expect(buero1.error).toBeNull();
+    const doppelt = await adminC.from("vehicles").insert({ name: `${kz} zwei`, kennzeichen: kz });
+    expect(doppelt.error?.code).toBe("23505");
+    expect((await aC.from("vehicles").insert({ name: "x", kennzeichen: `${kz}-M` })).error).not.toBeNull();
+    // Büro darf ändern (deaktivieren), Mitarbeiter nicht
+    const aus = await bueroC.from("vehicles").update({ aktiv: false }).eq("id", buero1.data!.id).select("id");
+    expect(aus.data).toEqual([{ id: buero1.data!.id }]);
+    const maler = await aC.from("vehicles").update({ aktiv: true }).eq("id", buero1.data!.id).select("id");
+    expect(maler.data ?? []).toEqual([]);
+    await adminClient().from("vehicles").delete().eq("id", buero1.data!.id);
+  });
+});

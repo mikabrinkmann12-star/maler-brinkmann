@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireRole } from "@/lib/auth";
 import { istIsoDatum, tageVerschieben } from "@/lib/datum";
+import { kennzeichenNormalisieren } from "@/lib/fahrzeug";
 import { formatDatum } from "@/lib/format";
 import { istUhrzeit } from "@/lib/zeiten";
 import { BUERO_ROLLEN } from "@/lib/rollen";
@@ -197,4 +198,47 @@ export async function wieGestern(datum: string): Promise<WieGesternErgebnis> {
       ? `${kopiert} ${kopiert === 1 ? "Einsatz" : "Einsätze"} vom ${formatDatum(quellDatum)} übernommen.`
       : `Alle Autos sind schon eingeteilt – vom ${formatDatum(quellDatum)} wurde nichts übernommen.`,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Neues Auto direkt in der Einteilung (Büro und Admin). Nur das Kennzeichen ist Pflicht,
+// das Auto heißt dann wie sein Kennzeichen.
+// ---------------------------------------------------------------------------
+export type AutoErgebnis = {
+  fehler?: string;
+  auto?: { id: string; name: string; kennzeichen: string | null };
+  hinweis?: string;
+};
+
+export async function fahrzeugHinzufuegen(eingabe: unknown): Promise<AutoErgebnis> {
+  await requireRole(BUERO_ROLLEN);
+  const kennzeichen = typeof eingabe === "string" ? kennzeichenNormalisieren(eingabe) : null;
+  if (!kennzeichen) return { fehler: "Bitte ein gültiges Kennzeichen eingeben (z. B. CLP-AB 123)." };
+
+  const supabase = await createClient();
+  const { data: vorhanden } = await supabase
+    .from("vehicles")
+    .select("id, name, kennzeichen, aktiv")
+    .eq("kennzeichen", kennzeichen)
+    .maybeSingle();
+
+  if (vorhanden) {
+    if (vorhanden.aktiv) return { fehler: `Das Auto ${kennzeichen} gibt es schon.` };
+    // Früher deaktiviert: wieder einschalten statt doppelt anzulegen
+    const { error } = await supabase.from("vehicles").update({ aktiv: true }).eq("id", vorhanden.id);
+    if (error) return { fehler: "Das Auto konnte nicht wieder aktiviert werden." };
+    revalidatePath(SEITE);
+    return { auto: { id: vorhanden.id, name: vorhanden.name, kennzeichen: vorhanden.kennzeichen }, hinweis: `${kennzeichen} war deaktiviert und ist wieder da.` };
+  }
+
+  const { data, error } = await supabase
+    .from("vehicles")
+    .insert({ name: kennzeichen, kennzeichen })
+    .select("id, name, kennzeichen")
+    .single();
+  if (error) {
+    return { fehler: error.code === "23505" ? `Das Auto ${kennzeichen} gibt es schon.` : "Das Auto konnte nicht angelegt werden." };
+  }
+  revalidatePath(SEITE);
+  return { auto: data };
 }

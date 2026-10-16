@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireRole } from "@/lib/auth";
+import { kundennummerVorschlag } from "@/lib/kundennummer-daten";
 import { dublettenSchluessel, importStatus, type KontaktEntwurf } from "@/lib/kontakt-import";
 import { importKontaktSchema, kontaktSchema } from "@/lib/kontakt-schema";
 import { ersteMeldung } from "@/lib/nutzer-schema";
@@ -57,11 +58,21 @@ export async function kontaktSpeichern(id: string | null, eingabe: unknown): Pro
     : supabase.from("contacts").insert(felder);
   const { data, error } = await abfrage.select("id");
   if (error) {
-    return { fehler: error.code === "23505" ? "Diese Kundennummer gibt es schon bei einem anderen Kontakt." : "Speichern hat nicht geklappt. Bitte nochmal versuchen." };
+    return { fehler: error.code === "23505" ? "Diese Kundennummer gibt es schon bei einem anderen Kontakt. Tippe auf „Neu vorschlagen“." : "Speichern hat nicht geklappt. Bitte nochmal versuchen." };
   }
   if (!data?.length) return { fehler: "Kontakt nicht gefunden." };
   aktualisieren(data[0].id);
   return { id: data[0].id };
+}
+
+/** Nächste freie Kundennummer (Vorschlag, wird erst beim Speichern vergeben). */
+export async function kundennummerVorschlagen(): Promise<{ nummer?: string; fehler?: string }> {
+  await requireRole(BUERO_ROLLEN);
+  try {
+    return { nummer: await kundennummerVorschlag() };
+  } catch {
+    return { fehler: "Der Vorschlag konnte nicht berechnet werden." };
+  }
 }
 
 /** Archivieren / Wiederherstellen (nichts wird gelöscht). */
