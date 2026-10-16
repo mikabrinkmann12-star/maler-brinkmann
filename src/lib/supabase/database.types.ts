@@ -289,6 +289,54 @@ export type Database = {
         }
         Relationships: []
       }
+      catalog_folders: {
+        Row: {
+          archiviert_am: string | null
+          art: Database["public"]["Enums"]["katalog_art"]
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          parent_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          archiviert_am?: string | null
+          art: Database["public"]["Enums"]["katalog_art"]
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+          parent_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          archiviert_am?: string | null
+          art?: Database["public"]["Enums"]["katalog_art"]
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          parent_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catalog_folders_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catalog_folders_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_folders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contacts: {
         Row: {
           anrede: string | null
@@ -500,6 +548,72 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      materials: {
+        Row: {
+          archiviert_am: string | null
+          artikelnr: string | null
+          beschreibung: string | null
+          created_at: string
+          created_by: string | null
+          einheit: string
+          ek: number
+          folder_id: string | null
+          id: string
+          lieferant: string | null
+          name: string
+          updated_at: string
+          vk: number | null
+          zuschlag_prozent: number
+        }
+        Insert: {
+          archiviert_am?: string | null
+          artikelnr?: string | null
+          beschreibung?: string | null
+          created_at?: string
+          created_by?: string | null
+          einheit: string
+          ek?: number
+          folder_id?: string | null
+          id?: string
+          lieferant?: string | null
+          name: string
+          updated_at?: string
+          vk?: number | null
+          zuschlag_prozent?: number
+        }
+        Update: {
+          archiviert_am?: string | null
+          artikelnr?: string | null
+          beschreibung?: string | null
+          created_at?: string
+          created_by?: string | null
+          einheit?: string
+          ek?: number
+          folder_id?: string | null
+          id?: string
+          lieferant?: string | null
+          name?: string
+          updated_at?: string
+          vk?: number | null
+          zuschlag_prozent?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "materials_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "materials_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_folders"
             referencedColumns: ["id"]
           },
         ]
@@ -989,6 +1103,69 @@ export type Database = {
           },
         ]
       }
+      services: {
+        Row: {
+          archiviert_am: string | null
+          created_at: string
+          created_by: string | null
+          einheit: string
+          folder_id: string | null
+          id: string
+          kosten: number
+          langtext: string | null
+          name: string
+          nummer: string | null
+          updated_at: string
+          vk: number | null
+          zuschlag_prozent: number
+        }
+        Insert: {
+          archiviert_am?: string | null
+          created_at?: string
+          created_by?: string | null
+          einheit: string
+          folder_id?: string | null
+          id?: string
+          kosten?: number
+          langtext?: string | null
+          name: string
+          nummer?: string | null
+          updated_at?: string
+          vk?: number | null
+          zuschlag_prozent?: number
+        }
+        Update: {
+          archiviert_am?: string | null
+          created_at?: string
+          created_by?: string | null
+          einheit?: string
+          folder_id?: string | null
+          id?: string
+          kosten?: number
+          langtext?: string | null
+          name?: string
+          nummer?: string | null
+          updated_at?: string
+          vk?: number | null
+          zuschlag_prozent?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "services_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "services_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_folders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       time_entries: {
         Row: {
           archiviert_am: string | null
@@ -1173,6 +1350,7 @@ export type Database = {
       app_rolle: "admin" | "buero" | "mitarbeiter"
       aufmass_einheit: "m2" | "m" | "stk"
       foto_kategorie: "vorher" | "nachher" | "mangel" | "sonstiges"
+      katalog_art: "material" | "leistung"
       kontakt_typ: "firma" | "privat"
       stopp_zeit_art: "um" | "ab"
       urlaub_status: "offen" | "genehmigt" | "abgelehnt" | "zurueckgezogen"
@@ -1316,6 +1494,7 @@ export const Constants = {
       app_rolle: ["admin", "buero", "mitarbeiter"],
       aufmass_einheit: ["m2", "m", "stk"],
       foto_kategorie: ["vorher", "nachher", "mangel", "sonstiges"],
+      katalog_art: ["material", "leistung"],
       kontakt_typ: ["firma", "privat"],
       stopp_zeit_art: ["um", "ab"],
       urlaub_status: ["offen", "genehmigt", "abgelehnt", "zurueckgezogen"],

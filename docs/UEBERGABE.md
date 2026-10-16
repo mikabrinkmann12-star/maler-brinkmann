@@ -1,4 +1,4 @@
-# Übergabe an einen neuen Chat (Stand 16.10.2026, nach Phase 3.4c)
+# Übergabe an einen neuen Chat (Stand 16.10.2026, nach Phase 3.5)
 
 **Text zum Einfügen in den neuen Chat:**
 
@@ -26,12 +26,13 @@
 - **Phase 3.4a** Zeiten-Übersicht fürs Büro (`/buero/zeiten`): Monat, Filter (Mitarbeiter/Baustelle/Art), Summen je Mitarbeiter und Art, Büro kann Zeiten nachtragen/ändern/löschen (archivieren), CSV-Export für den Lohn (Summen oder alle Einträge). Keine Migration.
 - **Phase 3.4b** Soll und Überstundenkonto: Soll je Wochentag pro Mitarbeiter (Teilzeit möglich, leer = Standard), „Konto ab“ + Anfangssaldo, Feiertage Niedersachsen, Konto im Büro (`/buero/zeiten`) und für Mitarbeiter unter „Meine Zeiten“. Eingabe: Benutzer & Rollen → Person → „Arbeitszeit & Überstunden". Migration `…210000_soll_ueberstundenkonto` (dev und live).
 - **Phase 3.4c** Abfeiern: Urlaubsantrag der Art „Überstunden abfeiern“ (nur ganze Tage, gesperrt wenn das Konto danach negativ würde, Admin genehmigt und sieht den Konto-Stand), Buchung mit persönlichem Soll, Feiertage Niedersachsen jetzt auch bei Urlaub abgezogen. Migrationen `…220000` + `…230000` (dev und live).
+- **Phase 3.5** Katalog (Büro-Menü „Katalog“): Materialien und Leistungen von Hand pflegen, Ordner mit Unterordnern, EK/Kosten + Zuschlag → Verkaufspreis (immer berechnet), Suche, Archiv. Nur Büro/Admin. Migration `…080000_katalog` (dev und live).
 - Tests: 216 Unit-Tests (`npm test`), 92 DB-/Rechte-Tests (`npm run test:rls`, max. ~2× pro 5 Min wegen Login-Limit). Alle Abläufe wurden lokal im Browser mit Wegwerf-Zugängen durchgespielt.
 
 ## Nächste Schritte
 1. **Mika prüft/erledigt** (offen): Import der echten Datei `kontakte_2026-10-16.csv` (333 Kontakte) selbst in der App (erst in der Vorschau/dev üben, dann live); **höchste Projektnummer aus Plancraft** unter Einstellungen → Nummernkreise eintragen (sonst startet der Vorschlag bei `P-(2600)001`); bestätigen, dass die Klammer `(JJ00)` in `P-(2400)447` „Jahr + 00“ bedeutet (sonst `src/lib/projektnummer.ts` anpassen).
 2. **1.8 Test auf iPhone/Android:** Kamera-Upload, Zeit eintragen, Flugmodus (Warteschlange), vor allem **Drag & Drop in der Einteilung** (nur am PC mit simulierter Maus getestet; am Handy gibt es Auswahlfelder als Ersatz).
-3. **Phase 3 Rest:** Leistungs-/Materialkatalog (EK + Zuschlag → VK, Ordner), Import der Plancraft-Arbeitszeiten (CSV/Excel, Zuordnung Name → Konto), GAEB-Leistungsverzeichnisse, DATANORM („Wilts 2025“). Alte Projekte werden **nicht** importiert (so entschieden).
+3. **Phase 3 Rest:** Katalog-Import (DATANORM „Wilts 2025“, GAEB, CSV; je eine Beispieldatei von Mika holen), Import der Plancraft-Arbeitszeiten (CSV/Excel, Zuordnung Name → Konto), GAEB-Leistungsverzeichnisse, DATANORM („Wilts 2025“). Alte Projekte werden **nicht** importiert (so entschieden).
 4. **Phase 4** Angebote (Editor, Rechner, PDF; Kundennummer-Vorschlag und Zahlungsziel/Steuer nutzen), danach **KI-Assistent für Angebote** (erst nach Ralfs Entscheidung wegen Kosten, Schnittstelle austauschbar vorbereiten). **Phase 5** Lexware (Rechnungen nur dort, nie selbst nummerieren; offen: Wer vergibt Kundennummern, wenn Lexware Kontakte anlegt?). Phase 6 später (Dashboard, Berichte, Push, „Jarvis“).
 5. Kleinere Wünsche/Lücken: Feiertage Niedersachsen (Werktage, Urlaub, Einstellungen „Feiertage“), Kontakte mit mehreren Telefonnummern/E-Mails mit Art und „Zugehörige Kontakte“ wie in Plancraft (Mika fragen, ob nötig), Büro-Benachrichtigung bei neuen Fotos (braucht Migration), Link zur Adresse auch in Wochen-/Monatsansicht.
 
