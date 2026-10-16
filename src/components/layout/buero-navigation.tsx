@@ -8,6 +8,7 @@ import {
   FolderKanbanIcon,
   LayoutDashboardIcon,
   SettingsIcon,
+  TreePalmIcon,
   UsersIcon,
 } from "lucide-react";
 import { cn } from "cn";
@@ -18,6 +19,7 @@ const EINTRAEGE = [
   { href: "/buero/projekte", name: "Projekte", icon: FolderKanbanIcon, nurAdmin: false },
   { href: "/buero/kontakte", name: "Kontakte", icon: UsersIcon, nurAdmin: false },
   { href: "/buero/zeiten", name: "Zeiten", icon: ClockIcon, nurAdmin: false },
+  { href: "/buero/urlaub", name: "Urlaub", icon: TreePalmIcon, nurAdmin: false },
   { href: "/buero/einstellungen", name: "Einstellungen", icon: SettingsIcon, nurAdmin: true },
 ] as const;
 

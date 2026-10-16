@@ -207,7 +207,11 @@ Legende: ✅ angelegt · ⏳ kommt in der genannten Phase
   - Rechnung nur in `src/lib/aufmass.ts` (getestet), der Server rechnet vor dem Speichern selbst nach. Öffnungen ≤ 2,5 m² Einzelgröße werden übermessen. **Annahme:** Abzüge gelten für die ganze Zeile (nicht × Anzahl) – siehe Offene Fragen.
   - `aufmassSpeichern` (`baustellen/aufmass-actions.ts`): Zeile erst unsichtbar (archiviert) anlegen, Abzüge dazu, dann freischalten – nie halbe Zeilen. Ändern = neue Fassung, alte wird archiviert (Verlauf bleibt). Idempotent.
   - Hilfen: `src/lib/baustellen-daten.ts` (`baustelleMitRechten`, `aufmassLaden`).
-- [ ] 1.7 Urlaubsantrag + Genehmigung
+- [x] 1.7 Urlaubsantrag + Genehmigung
+  - Mitarbeiter: `/urlaub` (unter „Mehr“ → „Urlaub beantragen“): Urlaub/Unbezahlter Urlaub, von–bis, Bemerkung, Anzeige der Werktage (Mo–Fr, **Feiertage noch nicht abgezogen**). Eigene Anträge mit Status, Antwort, „Zurückziehen“ solange offen. Überschneidung mit eigenen offenen/genehmigten Anträgen wird abgelehnt. Über die Warteschlange.
+  - Büro-Menü „Urlaub“ (`/buero/urlaub`): offene und entschiedene Anträge (letzte 60 Tage + Zukunft). **Nur der Admin** sieht „Genehmigen/Ablehnen“ (+ Antwort), das Büro nur lesen. Entscheider und Zeitpunkt setzt der DB-Trigger. Der Hinweis „… beantragt Urlaub“ auf `/buero` verlinkt dorthin.
+  - Genehmigter Urlaub erzeugt (noch) keine Zeiteinträge – siehe Offene Fragen.
+  - Aktionen: `urlaubBeantragen`, `urlaubZurueckziehen` (`(mitarbeiter)/urlaub/actions.ts`), `urlaubEntscheiden` (`buero/urlaub/actions.ts`, `requireRole(["admin"])`). Hilfen in `src/lib/urlaub.ts` (getestet).
 - [ ] 1.8 Migrationen nach live, Test auf iPhone/Android
 
 - Startseite „Heute“: Auto, Baustelle, wer ist dabei, Adresse (Link zu Google Maps), Ansprechpartner, Notizen vom Büro
@@ -291,9 +295,9 @@ Firmendaten, Logo/Briefpapier, Nummernkreise (nur Angebote/Projekte, Rechnungen 
 ## Projektstruktur (Kurzüberblick)
 - `src/app/`: Seiten (App Router)
   - `/login`, `/passwort-aendern`: ohne App-Layout. `/` leitet je nach Rolle weiter.
-  - `(mitarbeiter)/`: `/heute`, `/baustellen`, `/zeiten`, `/mehr`. Bottom-Navigation, für alle Rollen. Admin/Büro sehen oben das Band „Zurück ins Büro“.
-  - `buero/`: `/buero`, `/buero/plantafel`, `/projekte`, `/kontakte`, `/zeiten`. Sidebar (am Handy ausklappbares Menü), nur Admin/Büro.
-  - `buero/einstellungen/`: nur Admin (eigenes Layout mit `requireRole(["admin"])`), darunter `benutzer/` (Liste), `benutzer/neu`, `benutzer/[id]`.
+  - `(mitarbeiter)/`: `/heute`, `/baustellen` (+ `[id]`, `[id]/aufmass`, `…/neu`, `…/[mid]`), `/zeiten` (+ `neu`, `[id]`), `/urlaub`, `/mehr`. Bottom-Navigation, für alle Rollen. Admin/Büro sehen oben das Band „Zurück ins Büro“. Gemeinsam: `senden.ts` + `warteschlange.tsx` (Warteschlange).
+  - `buero/`: `/buero` (Hinweise, Material-Meldungen), `/buero/plantafel`, `/projekte`, `/kontakte`, `/zeiten`, `/urlaub`. Sidebar (am Handy ausklappbares Menü), nur Admin/Büro.
+  - `buero/einstellungen/`: nur Admin (eigenes Layout mit `requireRole(["admin"])`), darunter `benutzer/` (Liste), `benutzer/neu`, `benutzer/[id]`, `zeiterfassung/`.
 - `src/proxy.ts`: Session-Erneuerung + Login-Pflicht (in Next 16 statt `middleware.ts`)
 - `src/lib/auth.ts`: `ladeSitzung()`, `requireUser()`, `requireRole()` (server-only). `src/lib/auth-aktionen.ts`: `abmelden()`
 - `src/lib/rollen.ts`: Typ `Rolle`, `ROLLEN_NAMEN`, `BUERO_ROLLEN`, `startseiteFuer()` (auch im Browser nutzbar)
@@ -326,6 +330,7 @@ Firmendaten, Logo/Briefpapier, Nummernkreise (nur Angebote/Projekte, Rechnungen 
 
 ## Offene Fragen
 - **Aufmaß:** Gelten Abzüge (Fenster/Türen) für die ganze Zeile oder je Stück der Zeile (bei Anzahl > 1)? Gebaut ist „ganze Zeile“ (`src/lib/aufmass.ts`). Leibungen werden noch nicht extra erfasst.
+- **Urlaub:** Soll ein genehmigter Urlaub automatisch Zeiteinträge (Art „Urlaub“, z. B. 8,5 Std je Werktag) anlegen? Wie viele Urlaubstage hat jeder (Resturlaub)? Feiertage Niedersachsen abziehen (kommt mit den Einstellungen „Feiertage“).
 - **Zeiten:** Doppelte Einträge durch Kollegen (A trägt für B ein, B trägt selbst ein) werden nur erkannt, wenn der Eintragende den anderen Eintrag sehen darf. Eine vollständige Prüfung bräuchte eine DB-Funktion (Migration).
 - Format der Projekt- und Kundennummern sowie Exportformat aus Plancraft (Phase 3)
 - Arbeitszeitmodelle und Überstundenregeln (Phase 3)

@@ -16,7 +16,7 @@ export default async function BueroUebersicht() {
   const [{ data: hinweise }, { data: material }, kollegen] = await Promise.all([
     supabase
       .from("notifications")
-      .select("id, text, project_id, created_at")
+      .select("id, typ, text, project_id, created_at")
       .is("gelesen_am", null)
       .order("created_at", { ascending: false })
       .limit(20),

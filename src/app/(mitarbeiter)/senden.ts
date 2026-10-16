@@ -6,6 +6,7 @@ import {
 } from "@/lib/warteschlange";
 import { materialArchivieren, materialMelden, notizAnlegen, notizArchivieren } from "./baustellen/actions";
 import { aufmassArchivieren, aufmassSpeichern } from "./baustellen/aufmass-actions";
+import { urlaubBeantragen, urlaubZurueckziehen } from "./urlaub/actions";
 import { zeitAendern, zeitArchivieren, zeitenAnlegen } from "./zeiten/actions";
 
 // Verbindet die Warteschlange (src/lib/warteschlange.ts) mit den Server-Aktionen.
@@ -24,6 +25,8 @@ const AKTIONEN: Record<string, (n: Nutzlast) => Promise<Ergebnis>> = {
   material_archivieren: (n) => materialArchivieren(String(n.id)),
   aufmass_speichern: (n) => aufmassSpeichern(n.daten),
   aufmass_archivieren: (n) => aufmassArchivieren(String(n.id)),
+  urlaub_beantragen: (n) => urlaubBeantragen(n.daten),
+  urlaub_zurueckziehen: (n) => urlaubZurueckziehen(String(n.id)),
 };
 
 export type SendeErgebnis =

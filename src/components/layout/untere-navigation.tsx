@@ -6,10 +6,10 @@ import { ClockIcon, HardHatIcon, MenuIcon, SunIcon } from "lucide-react";
 import { cn } from "cn";
 
 const EINTRAEGE = [
-  { href: "/heute", name: "Heute", icon: SunIcon },
-  { href: "/baustellen", name: "Baustellen", icon: HardHatIcon },
-  { href: "/zeiten", name: "Zeiten", icon: ClockIcon },
-  { href: "/mehr", name: "Mehr", icon: MenuIcon },
+  { href: "/heute", name: "Heute", icon: SunIcon, auch: [] },
+  { href: "/baustellen", name: "Baustellen", icon: HardHatIcon, auch: [] },
+  { href: "/zeiten", name: "Zeiten", icon: ClockIcon, auch: [] },
+  { href: "/mehr", name: "Mehr", icon: MenuIcon, auch: ["/urlaub"] },
 ] as const;
 
 /** Untere Navigation der Mitarbeiter-App: 4 große Felder, kein Untermenü. */
@@ -22,8 +22,8 @@ export function UntereNavigation() {
       className="fixed inset-x-0 bottom-0 z-40 border-t bg-background pb-[env(safe-area-inset-bottom)]"
     >
       <ul className="mx-auto grid max-w-lg grid-cols-4">
-        {EINTRAEGE.map(({ href, name, icon: Icon }) => {
-          const aktiv = pfad === href || pfad.startsWith(`${href}/`);
+        {EINTRAEGE.map(({ href, name, icon: Icon, auch }) => {
+          const aktiv = [href, ...auch].some((p) => pfad === p || pfad.startsWith(`${p}/`));
           return (
             <li key={href}>
               <Link

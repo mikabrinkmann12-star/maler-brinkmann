@@ -1,0 +1,79 @@
+import type { Metadata } from "next";
+import { cn } from "cn";
+import { requireRole } from "@/lib/auth";
+import { heuteIso, tageVerschieben } from "@/lib/datum";
+import { formatDatum, formatDatumZeit } from "@/lib/format";
+import { BUERO_ROLLEN } from "@/lib/rollen";
+import { createClient } from "@/lib/supabase/server";
+import { URLAUB_ART_NAMEN, URLAUB_STATUS_FARBE, URLAUB_STATUS_NAMEN, werktage, type UrlaubArt } from "@/lib/urlaub";
+import { Entscheidung } from "./entscheidung";
+
+export const metadata: Metadata = { title: "Urlaub" };
+
+export default async function BueroUrlaubSeite() {
+  const nutzer = await requireRole(BUERO_ROLLEN);
+  const istAdmin = nutzer.rolle === "admin";
+  const supabase = await createClient();
+  const [{ data: antraege, error }, { data: profile }] = await Promise.all([
+    supabase
+      .from("leave_requests")
+      .select("id, user_id, von, bis, art, bemerkung, status, antwort, entschieden_von, entschieden_am, created_at")
+      // offene immer, sonst die der letzten 60 Tage und alles Künftige
+      .or(`status.eq.offen,bis.gte.${tageVerschieben(heuteIso(), -60)}`)
+      .order("von"),
+    supabase.from("profiles").select("id, vorname, nachname"),
+  ]);
+  if (error) throw new Error("Die Urlaubsanträge konnten nicht geladen werden.");
+
+  const name = (id: string | null) => {
+    const p = profile?.find((x) => x.id === id);
+    return p ? `${p.vorname} ${p.nachname}`.trim() : "–";
+  };
+  const offen = antraege.filter((a) => a.status === "offen");
+  const erledigt = antraege.filter((a) => a.status !== "offen").reverse();
+
+  const karte = (a: (typeof antraege)[number]) => (
+    <li key={a.id} className="flex flex-col gap-3 rounded-xl border p-4">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <p className="font-semibold">{name(a.user_id)}</p>
+          <p>
+            {formatDatum(a.von)}–{formatDatum(a.bis)} · {werktage(a.von, a.bis)} Werktage · {URLAUB_ART_NAMEN[a.art as UrlaubArt] ?? a.art}
+          </p>
+          {a.bemerkung && <p className="text-sm">„{a.bemerkung}“</p>}
+          <p className="text-xs text-muted-foreground">
+            Gestellt am {formatDatumZeit(a.created_at)}
+            {a.entschieden_am && ` · ${URLAUB_STATUS_NAMEN[a.status]} von ${name(a.entschieden_von)} am ${formatDatumZeit(a.entschieden_am)}`}
+          </p>
+          {a.antwort && <p className="mt-1 text-sm">Antwort: {a.antwort}</p>}
+        </div>
+        <span className={cn("rounded-full px-3 py-1 text-sm font-medium", URLAUB_STATUS_FARBE[a.status])}>
+          {URLAUB_STATUS_NAMEN[a.status]}
+        </span>
+      </div>
+      {a.status === "offen" && istAdmin && <Entscheidung antragId={a.id} name={name(a.user_id)} />}
+    </li>
+  );
+
+  return (
+    <div className="flex max-w-3xl flex-col gap-6">
+      <h1 className="text-2xl font-semibold">Urlaub</h1>
+      {!istAdmin && (
+        <p className="rounded-lg bg-muted p-3 text-sm">Urlaubsanträge genehmigt nur der Admin. Du siehst hier alle Anträge.</p>
+      )}
+
+      <section className="flex flex-col gap-3">
+        <h2 className="text-lg font-semibold">Offen ({offen.length})</h2>
+        {offen.length === 0 && <p className="text-muted-foreground">Keine offenen Anträge.</p>}
+        <ul className="flex flex-col gap-3">{offen.map(karte)}</ul>
+      </section>
+
+      {erledigt.length > 0 && (
+        <section className="flex flex-col gap-3">
+          <h2 className="text-lg font-semibold">Entschieden und zurückgezogen</h2>
+          <ul className="flex flex-col gap-3">{erledigt.map(karte)}</ul>
+        </section>
+      )}
+    </div>
+  );
+}

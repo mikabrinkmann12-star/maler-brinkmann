@@ -7,7 +7,14 @@ import { Button } from "@/components/ui/button";
 import { formatDatumZeit } from "@/lib/format";
 import { hinweiseGelesen } from "./actions";
 
-type Hinweis = { id: number; text: string; project_id: string | null; created_at: string };
+type Hinweis = { id: number; typ: string; text: string; project_id: string | null; created_at: string };
+
+/** Wohin führt ein Hinweis? Baustelle bzw. Urlaubsanträge. */
+function ziel(h: Hinweis): string | null {
+  if (h.project_id) return `/baustellen/${h.project_id}`;
+  if (h.typ === "urlaubsantrag") return "/buero/urlaub";
+  return null;
+}
 
 export function Hinweise({ hinweise }: { hinweise: Hinweis[] }) {
   const [laeuft, starte] = useTransition();
@@ -34,8 +41,8 @@ export function Hinweise({ hinweise }: { hinweise: Hinweis[] }) {
           <li key={h.id} className="flex items-start justify-between gap-3 py-2">
             <div className="min-w-0">
               <p>
-                {h.project_id ? (
-                  <Link href={`/baustellen/${h.project_id}`} className="underline-offset-4 hover:underline">{h.text}</Link>
+                {ziel(h) ? (
+                  <Link href={ziel(h)!} className="underline-offset-4 hover:underline">{h.text}</Link>
                 ) : h.text}
               </p>
               <p className="text-xs text-muted-foreground">{formatDatumZeit(h.created_at)}</p>

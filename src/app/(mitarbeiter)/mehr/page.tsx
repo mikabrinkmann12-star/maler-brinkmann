@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BriefcaseIcon, KeyRoundIcon, LogOutIcon } from "lucide-react";
+import { BriefcaseIcon, KeyRoundIcon, LogOutIcon, TreePalmIcon } from "lucide-react";
 import { AppInstallieren } from "@/components/app-installieren";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { requireUser } from "@/lib/auth";
@@ -26,6 +26,14 @@ export default async function MehrSeite() {
       </div>
 
       <div className="flex flex-col gap-3">
+        <Link
+          href="/urlaub"
+          className={buttonVariants({ variant: "outline", size: "touch", className: GROSSER_KNOPF })}
+        >
+          <TreePalmIcon />
+          Urlaub beantragen
+        </Link>
+
         <Link
           href="/passwort-aendern"
           className={buttonVariants({ variant: "outline", size: "touch", className: GROSSER_KNOPF })}
