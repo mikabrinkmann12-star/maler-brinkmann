@@ -221,6 +221,8 @@ Legende: ✅ angelegt · ⏳ kommt in der genannten Phase
 - Zeit eintragen: Baustelle vorausgewählt, von–bis, Pause, Art, optional Beschreibung. Mehrere Baustellen pro Tag möglich, max. 3–4 Taps im Normalfall. Eigene Zeiten der letzten Tage bearbeitbar (Sperrfrist vom Admin einstellbar)
 - Fotos & Notizen (Kamera direkt, Bilder vor dem Upload komprimieren), Material melden, Aufmaß, Urlaubsantrag
 
+**Entscheidung KI-Angebot (Mika, 16.10.2026):** Erst Angebotseditor und Rechner bauen, die KI-Schnittstelle austauschbar vorbereiten, echte KI erst nach Ralfs Entscheidung (Kosten pro Nutzung).
+
 **Entscheidungen zu Phase 1 (mit Mika geklärt am 15.10.2026):**
 - **Einteilung schon in Phase 1:** eine schlichte Büro-Seite pro Tag (Auto → Baustelle → Mitarbeiter, Knopf „wie gestern“), wird in Phase 2 durch die Plantafel ersetzt. Wer eingeteilt wird, wird automatisch Projektmitglied.
 - **Spracheingabe auf der Einteilungs-Seite:** Spracherkennung des Browsers (Web Speech API, Audio geht an Google/Apple). Danach erkennt eine **Namen-Erkennung ohne externe KI** Mitarbeiter, Autos und Baustellen aus den bekannten Listen (unscharfer Abgleich, Füllwörter wie „ähm“ werden ignoriert) und füllt einen **Vorschlag** aus. Ralf/Büro prüft und speichert. Ohne Bestätigung wird nie etwas gespeichert. Diesen Teil austauschbar bauen (später echte KI, z. B. Claude, siehe Jarvis). Ollama geht auf Vercel nicht; Gratis-KIs mit Trainingsnutzung wegen Mitarbeiterdaten nicht verwenden.
@@ -240,18 +242,27 @@ Legende: ✅ angelegt · ⏳ kommt in der genannten Phase
 - Wochen-/Monatsansicht: Zeilen pro Mitarbeiter und Projekt, Urlaub/Krank sichtbar
 - Einteilung erscheint sofort in „Heute“. Wer zugeteilt wird, wird automatisch project_member
 
+- **Wunsch (Mika, 16.10.2026) – Kalender/Termine:** Ein Planer, in den auch Mitarbeiter Termine eintragen können (z. B. wenn Ralf sagt „Dienstag musst du zu von Garrel“). Diese Termine fließen in den „Auto-Plan“ ein: Macht Ralf die Tageseinteilung, ist der Termin dort schon gesetzt.
+- **Wunsch – Auto-Plan:** Ein Auto kann an einem Tag **mehrere Baustellen** anfahren (Reihenfolge/Zeitfenster pro Stopp). Achtung: In der DB gilt heute „ein Einsatz pro (Datum, Auto)“ (Unique-Index `assignments_datum_fahrzeug_eindeutig`, Migration `…080000`). Das muss mit einer **neuen** Migration gelockert werden (z. B. Spalte `reihenfolge`), die Einteilungs-Seite, „Heute“ und `zeiten-daten.ts` (mehrere Einsätze pro Tag, steht schon teilweise drin) müssen mitziehen.
+- Diese Wünsche werden gebaut, **wenn Phase 2 freigegeben ist**, nicht vorher. Offene Rückfragen dazu vorher klären .
+  - **Entschieden (Mika, 16.10.2026):** Termine tragen **alle** ein (Mitarbeiter und Büro). Büro/Admin sehen alle Termine und planen sie in den Auto-Plan ein; Mitarbeiter sehen nur ihre eigenen.
+
 ### Phase 3 – Büro-Grundlagen + Import aus Plancraft
 - Kontakte, Projekte (Liste, Suche, Filter, Detailseite mit allem)
 - Zeiten-Übersicht (Filter, Summen, Überstunden, Urlaub/Krank, CSV/Excel-Export für den Lohn)
 - Stammdaten Materialien/Leistungen in Ordnern (EK + Zuschlag % → VK)
 - Import-Tool (nur Admin): CSV/Excel mit Spalten-Zuordnung, Vorschau und Dubletten-Erkennung (Kontakte ~330, Projekte ~160, Materialien, Leistungen). **Vorher Mika nach dem Exportformat fragen.**
 - DATANORM-Import (aktuell „Wilts 2025“, ca. 2.900 Artikel)
+- **Wunsch (Mika): Auf archivierte Projekte zurückgreifen.** Projektliste mit Filter „Archiv“, archivierte Projekte ansehen/durchsuchen; Archiviert wird weiterhin nur per `archiviert_am`, nie gelöscht.
+  - **Entschieden (Mika, 16.10.2026):** Archivierte Projekte sind **für alle Mitarbeiter lesbar**, nicht nur für die damals Eingetragenen (Beispiel: Sebastian war allein auf der Baustelle, Christian muss zum Nacharbeiten und sieht nach, welche Farbe „Fabton“ verwendet wurde, statt Sebastian anzurufen). Nur ansehen und suchen, **kein** Wiederaktivieren durch Mitarbeiter (das kann das Büro). Nicht gewählt: Vorlage für Angebote aus alten Projekten (kann später ergänzt werden).
+  - **Technisch:** Das ändert die Rechte (RLS): Heute sehen Mitarbeiter nur Projekte, auf denen sie Mitglied sind. Nötig ist eine **neue Migration**: Mitarbeiter dürfen archivierte Projekte samt Notizen, Fotos (inkl. Speicher), Material und Aufmaß **lesen**, aber nichts ändern. Offene Frage vor dem Bauen: Sollen die **Kundenkontaktdaten** (Telefon, Adresse) für alle sichtbar sein oder nur Projektname, Baustelle, Material, Fotos? Dazu Rechte-Tests ergänzen („Mitarbeiter darf archiviertes Projekt lesen, aber nicht ändern, aktives fremdes Projekt weiterhin nicht“).
 
 ### Phase 4 – Angebote
 - Editor mit Blöcken Titel/Position/Text/Bild, Positionsnummern wie 01.0010, Zwischensummen, Übertrag pro Seite
 - Positionen aus dem Katalog, Mengen aus dem Aufmaß. Netto, 19 % USt., Brutto, Rabatt
 - Anfangs-/Schlusstexte als Vorlagen. PDF mit Briefpapier (Firmendaten nur aus Einstellungen)
 - Status Entwurf/Versendet/Angenommen/Abgelehnt, Versand per E-Mail. Angebot → Auftrag → „Rechnung erstellen“ (Phase 5)
+- **Wunsch (Mika): Eigene KI für Angebote**, in die man hineinreden oder -schreiben kann (wie bei Plancraft). **Reihenfolge:** erst Angebotseditor und Rechner ordentlich bauen, dann den KI-Assistenten dazufügen, damit er auf fertigen Bausteinen aufsetzt (Katalog, Aufmaß, Positionsnummern). Die KI macht nur **Vorschläge** (Entwurf), Ralf/Büro prüft und speichert; ohne Bestätigung wird nie etwas gespeichert (wie bei der Einteilung). **Kosten:** Eine echte KI (z. B. Claude über die API) kostet pro Nutzung Geld und passt nicht zur Regel „nur kostenlose Dienste“. Erst nach Ralfs Entscheidung einbauen, vorher nur austauschbar vorbereiten (Schnittstelle wie bei der Namen-Erkennung in `src/lib/einteilung-erkennung.ts`). Mitarbeiter-/Kundendaten nur an Anbieter mit Vertrag zur Auftragsverarbeitung und ohne Training mit den Daten schicken.
 
 ### Phase 5 – Rechnungen über die Lexware Office API
 - **Zuerst die aktuelle Doku lesen** (developers.lexware.io) und Mika berichten. Rate-Limit beachten (Retry/Backoff)
