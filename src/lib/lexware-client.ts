@@ -107,12 +107,15 @@ export function erzeugeLexwareClient(opt: Optionen) {
   }
 
   return {
-    /** Verbindung prüfen: liefert den Firmennamen des Lexware-Kontos. */
-    async profil(): Promise<{ firma: string; organisationsId: string }> {
+    /** Verbindung prüfen: liefert Konto-ID, die E-Mail des Kontos und die freigeschalteten Funktionen (die Schnittstelle nennt keinen Firmennamen). */
+    async profil(): Promise<{ organisationsId: string; email: string; funktionen: string[]; kleinunternehmer: boolean | null }> {
       const j = (await (await anfrage("/v1/profile")).json()) as Record<string, unknown>;
+      const erstellt = typeof j.created === "object" && j.created !== null ? (j.created as Record<string, unknown>) : {};
       return {
-        firma: typeof j.companyName === "string" ? j.companyName : "",
         organisationsId: typeof j.organizationId === "string" ? j.organizationId : "",
+        email: typeof erstellt.userEmail === "string" ? erstellt.userEmail : "",
+        funktionen: Array.isArray(j.businessFeatures) ? j.businessFeatures.filter((f): f is string => typeof f === "string") : [],
+        kleinunternehmer: typeof j.smallBusiness === "boolean" ? j.smallBusiness : null,
       };
     },
 

@@ -14,8 +14,8 @@ const payload = { title: "x" } as unknown as LexwareRechnungPayload;
 
 describe("Lexware-Client", () => {
   it("sendet den Schlüssel als Bearer-Token und liest das Profil", async () => {
-    const { c, fetchFn } = client([json(200, { companyName: "Maler Brinkmann", organizationId: "o-1" })]);
-    expect(await c.profil()).toEqual({ firma: "Maler Brinkmann", organisationsId: "o-1" });
+    const { c, fetchFn } = client([json(200, { organizationId: "o-1", businessFeatures: ["INVOICING", "BOOKKEEPING"], smallBusiness: false, created: { userEmail: "info@example.de" } })]);
+    expect(await c.profil()).toEqual({ organisationsId: "o-1", email: "info@example.de", funktionen: ["INVOICING", "BOOKKEEPING"], kleinunternehmer: false });
     const [url, init] = fetchFn.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe("https://api.lexware.io/v1/profile");
     expect((init.headers as Record<string, string>).Authorization).toBe("Bearer geheim");
@@ -44,8 +44,8 @@ describe("Lexware-Client", () => {
   });
 
   it("wiederholt bei 429 mit Pause und gibt danach nach", async () => {
-    const { c, fetchFn } = client([json(429, {}), json(429, {}), json(200, { companyName: "X" })]);
-    expect((await c.profil()).firma).toBe("X");
+    const { c, fetchFn } = client([json(429, {}), json(429, {}), json(200, { organizationId: "X" })]);
+    expect((await c.profil()).organisationsId).toBe("X");
     expect(fetchFn).toHaveBeenCalledTimes(3);
   });
 
@@ -82,7 +82,7 @@ describe("Lexware-Client", () => {
 
   it("lässt zwischen zwei Anfragen eine Pause (Lexware erlaubt 2 pro Sekunde)", async () => {
     const warten: number[] = [];
-    const fetchFn = vi.fn(async () => json(200, { companyName: "X" }));
+    const fetchFn = vi.fn(async () => json(200, { organizationId: "X" }));
     const c = erzeugeLexwareClient({ apiKey: "k", fetchFn: fetchFn as unknown as typeof fetch, abstandMs: 500, warte: async (ms) => { warten.push(ms); } });
     await c.profil();
     await c.profil();
