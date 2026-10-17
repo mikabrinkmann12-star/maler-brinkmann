@@ -349,6 +349,7 @@ export type Database = {
           firmenname: string | null
           id: string
           kundennummer: string | null
+          leitweg_id: string | null
           lexware_contact_id: string | null
           mobil: string | null
           nachname: string | null
@@ -377,6 +378,7 @@ export type Database = {
           firmenname?: string | null
           id?: string
           kundennummer?: string | null
+          leitweg_id?: string | null
           lexware_contact_id?: string | null
           mobil?: string | null
           nachname?: string | null
@@ -405,6 +407,7 @@ export type Database = {
           firmenname?: string | null
           id?: string
           kundennummer?: string | null
+          leitweg_id?: string | null
           lexware_contact_id?: string | null
           mobil?: string | null
           nachname?: string | null
@@ -428,6 +431,181 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoice_items: {
+        Row: {
+          created_at: string
+          einheit: string | null
+          einzelpreis: number | null
+          id: string
+          invoice_id: string
+          kurztext: string | null
+          langtext: string | null
+          menge: number | null
+          sortierung: number
+          typ: Database["public"]["Enums"]["rechnung_baustein"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          einheit?: string | null
+          einzelpreis?: number | null
+          id?: string
+          invoice_id: string
+          kurztext?: string | null
+          langtext?: string | null
+          menge?: number | null
+          sortierung: number
+          typ: Database["public"]["Enums"]["rechnung_baustein"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          einheit?: string | null
+          einzelpreis?: number | null
+          id?: string
+          invoice_id?: string
+          kurztext?: string | null
+          langtext?: string | null
+          menge?: number | null
+          sortierung?: number
+          typ?: Database["public"]["Enums"]["rechnung_baustein"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_items_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoices: {
+        Row: {
+          abgeglichen_am: string | null
+          archiviert_am: string | null
+          betreff: string
+          brutto: number | null
+          contact_id: string
+          created_at: string
+          created_by: string | null
+          einleitung: string | null
+          id: string
+          leistung_bis: string
+          leistung_von: string
+          lexware_id: string | null
+          lexware_status: string | null
+          netto: number | null
+          pdf_pfad: string | null
+          project_id: string
+          quote_id: string | null
+          rabatt_prozent: number
+          rechnungsdatum: string
+          rechnungsnummer: string | null
+          reverse_charge: boolean
+          schlusstext: string | null
+          skonto_prozent: number | null
+          skonto_tage: number | null
+          status: Database["public"]["Enums"]["rechnung_status"]
+          steuersatz: number
+          uebertragen_am: string | null
+          updated_at: string
+          zahlungsziel_tage: number
+        }
+        Insert: {
+          abgeglichen_am?: string | null
+          archiviert_am?: string | null
+          betreff: string
+          brutto?: number | null
+          contact_id: string
+          created_at?: string
+          created_by?: string | null
+          einleitung?: string | null
+          id?: string
+          leistung_bis?: string
+          leistung_von?: string
+          lexware_id?: string | null
+          lexware_status?: string | null
+          netto?: number | null
+          pdf_pfad?: string | null
+          project_id: string
+          quote_id?: string | null
+          rabatt_prozent?: number
+          rechnungsdatum?: string
+          rechnungsnummer?: string | null
+          reverse_charge?: boolean
+          schlusstext?: string | null
+          skonto_prozent?: number | null
+          skonto_tage?: number | null
+          status?: Database["public"]["Enums"]["rechnung_status"]
+          steuersatz?: number
+          uebertragen_am?: string | null
+          updated_at?: string
+          zahlungsziel_tage?: number
+        }
+        Update: {
+          abgeglichen_am?: string | null
+          archiviert_am?: string | null
+          betreff?: string
+          brutto?: number | null
+          contact_id?: string
+          created_at?: string
+          created_by?: string | null
+          einleitung?: string | null
+          id?: string
+          leistung_bis?: string
+          leistung_von?: string
+          lexware_id?: string | null
+          lexware_status?: string | null
+          netto?: number | null
+          pdf_pfad?: string | null
+          project_id?: string
+          quote_id?: string | null
+          rabatt_prozent?: number
+          rechnungsdatum?: string
+          rechnungsnummer?: string | null
+          reverse_charge?: boolean
+          schlusstext?: string | null
+          skonto_prozent?: number | null
+          skonto_tage?: number | null
+          status?: Database["public"]["Enums"]["rechnung_status"]
+          steuersatz?: number
+          uebertragen_am?: string | null
+          updated_at?: string
+          zahlungsziel_tage?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
             referencedColumns: ["id"]
           },
         ]
@@ -1566,6 +1744,8 @@ export type Database = {
       foto_kategorie: "vorher" | "nachher" | "mangel" | "sonstiges"
       katalog_art: "material" | "leistung"
       kontakt_typ: "firma" | "privat"
+      rechnung_baustein: "position" | "text"
+      rechnung_status: "entwurf" | "wird_uebertragen" | "uebertragen"
       stopp_zeit_art: "um" | "ab"
       urlaub_status: "offen" | "genehmigt" | "abgelehnt" | "zurueckgezogen"
       zeit_art:
@@ -1712,6 +1892,8 @@ export const Constants = {
       foto_kategorie: ["vorher", "nachher", "mangel", "sonstiges"],
       katalog_art: ["material", "leistung"],
       kontakt_typ: ["firma", "privat"],
+      rechnung_baustein: ["position", "text"],
+      rechnung_status: ["entwurf", "wird_uebertragen", "uebertragen"],
       stopp_zeit_art: ["um", "ab"],
       urlaub_status: ["offen", "genehmigt", "abgelehnt", "zurueckgezogen"],
       zeit_art: [

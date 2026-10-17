@@ -36,7 +36,7 @@ export default async function KontaktBearbeitenSeite({ params }: PageProps<"/bue
           zahlungsziel_tage: k.zahlungsziel_tage === null ? "" : String(k.zahlungsziel_tage),
           skonto_prozent: k.skonto_prozent === null ? "" : String(k.skonto_prozent).replace(".", ","),
           skonto_tage: k.skonto_tage === null ? "" : String(k.skonto_tage),
-          steuersatz: String(Number(k.steuersatz)), notizen: s(k.notizen),
+          steuersatz: String(Number(k.steuersatz)), leitweg_id: s(k.leitweg_id), notizen: s(k.notizen),
         }}
       />
     </div>

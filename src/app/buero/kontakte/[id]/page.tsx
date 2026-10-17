@@ -117,7 +117,10 @@ export default async function KontaktSeite({ params }: PageProps<"/buero/kontakt
           </Abschnitt>
 
           <Abschnitt titel="Steuer">
-            <dl><Zeile label="Steuersatz">{formatZahl(Number(k.steuersatz))} %</Zeile></dl>
+            <dl>
+              <Zeile label="Steuersatz">{formatZahl(Number(k.steuersatz))} %</Zeile>
+              {k.leitweg_id && <Zeile label="Leitweg-ID">{k.leitweg_id}</Zeile>}
+            </dl>
           </Abschnitt>
         </div>
 

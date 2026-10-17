@@ -31,6 +31,8 @@ const basis = z.object({
   skonto_prozent: z.number().min(0).max(20, "Skonto höchstens 20 %.").nullish().transform((v) => v ?? null),
   skonto_tage: z.number().int("Bitte ganze Tage angeben.").min(0).max(365, "Höchstens 365 Tage.").nullish().transform((v) => v ?? null),
   steuersatz: z.union([z.literal(0), z.literal(7), z.literal(19)], { error: "Steuersatz: 0, 7 oder 19 %." }).default(19),
+  /** Leitweg-ID für Rechnungen an Behörden (XRechnung), z. B. 04011000-1234512345-35; leer = keine */
+  leitweg_id: z.string().trim().max(46, "Die Leitweg-ID ist zu lang.").regex(/^$|^[0-9A-Za-z-]{5,46}$/, "Die Leitweg-ID darf nur Ziffern, Buchstaben und Bindestriche enthalten (mindestens 5 Zeichen).").default(""),
 });
 
 const mussNamenHaben = (k: { firmenname: string; nachname: string }) => Boolean(k.firmenname || k.nachname);

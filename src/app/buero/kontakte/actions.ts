@@ -36,6 +36,7 @@ function zeile(k: ReturnType<typeof kontaktSchema.parse> | ReturnType<typeof imp
     skonto_prozent: k.skonto_prozent,
     skonto_tage: k.skonto_tage,
     steuersatz: k.steuersatz,
+    leitweg_id: leerZuNull(k.leitweg_id),
   };
 }
 

@@ -30,13 +30,14 @@ export type KontaktFormWerte = {
   skonto_prozent: string;
   skonto_tage: string;
   steuersatz: string;
+  leitweg_id: string;
   notizen: string;
 };
 
 export const LEERES_FORMULAR: KontaktFormWerte = {
   typ: "privat", kundennummer: "", firmenname: "", anrede: "", vorname: "", nachname: "", ansprechpartner: "",
   email: "", telefon: "", mobil: "", website: "", strasse: "", plz: "", ort: "", empfaenger: "",
-  zahlungsziel_tage: "", skonto_prozent: "", skonto_tage: "", steuersatz: "19", notizen: "",
+  zahlungsziel_tage: "", skonto_prozent: "", skonto_tage: "", steuersatz: "19", leitweg_id: "", notizen: "",
 };
 
 function Abschnitt({ titel, hinweis, children }: { titel: string; hinweis?: string; children: React.ReactNode }) {
@@ -175,6 +176,9 @@ export function KontaktFormular({ id, start }: { id: string | null; start: Konta
             <option value="7">7 %</option>
             <option value="0">0 %</option>
           </Auswahl>
+        </Feld>
+        <Feld label="Leitweg-ID (nur Behörden)" htmlFor="leitweg_id" hinweis="Behörden und Gemeinden verlangen E-Rechnungen (XRechnung) mit Leitweg-ID, z. B. 04011000-1234512345-35. Bei Privat- und Firmenkunden leer lassen.">
+          <Input id="leitweg_id" {...f("leitweg_id")} className={kopf} maxLength={46} />
         </Feld>
       </Abschnitt>
 

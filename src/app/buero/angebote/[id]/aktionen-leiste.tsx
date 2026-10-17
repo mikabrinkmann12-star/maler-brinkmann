@@ -2,13 +2,14 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ArchiveIcon, ArchiveRestoreIcon, ClipboardListIcon, CopyIcon, DownloadIcon, EyeIcon, SendIcon } from "lucide-react";
+import { ArchiveIcon, ArchiveRestoreIcon, ClipboardListIcon, CopyIcon, DownloadIcon, EyeIcon, ReceiptTextIcon, SendIcon } from "lucide-react";
 import { toast } from "sonner";
 import { FormularMeldung } from "@/components/formular-meldung";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { STATUS_NAMEN, type AngebotStatus } from "@/lib/angebot";
 import { angebotArchivieren, angebotKopieren, angebotStatusSetzen } from "../actions";
 import { arbeitsanweisungErstellen } from "../anweisung-actions";
+import { rechnungAusAngebotErstellen } from "../../rechnungen/actions";
 
 const WEITER: Record<AngebotStatus, AngebotStatus[]> = {
   entwurf: ["versendet"],
@@ -56,6 +57,16 @@ export function AktionenLeiste({ angebotId, status, archiviert }: { angebotId: s
     });
   }
 
+  function rechnung() {
+    setFehler(null);
+    starte(async () => {
+      const r = await rechnungAusAngebotErstellen(angebotId);
+      if (r.fehler || !r.id) return setFehler(r.fehler ?? "Das hat nicht geklappt.");
+      toast.success(r.hinweis ?? "Rechnungsentwurf erstellt: bitte prüfen");
+      router.push(`/buero/rechnungen/${r.id}`);
+    });
+  }
+
   function archivieren() {
     setFehler(null);
     starte(async () => {
@@ -77,6 +88,9 @@ export function AktionenLeiste({ angebotId, status, archiviert }: { angebotId: s
           <DownloadIcon /> PDF herunterladen
         </a>
         <Button type="button" variant="outline" onClick={kopieren} disabled={laeuft}><CopyIcon /> Kopieren</Button>
+        {(status === "versendet" || status === "angenommen") && (
+          <Button type="button" variant="outline" onClick={rechnung} disabled={laeuft}><ReceiptTextIcon /> Rechnung erstellen</Button>
+        )}
         <Button type="button" variant="outline" onClick={anweisung} disabled={laeuft}><ClipboardListIcon /> Arbeitsanweisung erstellen</Button>
         <Button type="button" variant="outline" onClick={archivieren} disabled={laeuft}>
           {archiviert ? <ArchiveRestoreIcon /> : <ArchiveIcon />} {archiviert ? "Wiederherstellen" : "Archivieren"}
