@@ -196,26 +196,48 @@ export async function angebotPdf(d: AngebotPdfDaten): Promise<Uint8Array> {
     }
   }
 
-  // Absenderzeile und Empfänger (Fensterbereich nach DIN 5008)
+  // Anschriftfeld nach DIN 5008 Form B (Fensterbriefumschlag): 20 mm von links, 45 mm von oben, 85 × 45 mm.
+  // Oben im Fenster die kleine Absenderzeile (Rücksendeangabe), darunter die Anschrift des Empfängers.
+  const mm = (wert: number) => wert * 72 / 25.4;
+  const ausOben = (wert: number) => SEITE_H - mm(wert);
+  const fensterBreite = mm(85);
+  const passend = (text: string, font: PDFFont, groesse: number, kleinste: number): { text: string; groesse: number } => {
+    let g = groesse;
+    while (g > kleinste && z.breite(text, font, g) > fensterBreite) g -= 0.5;
+    let t = text;
+    while (t.length > 1 && z.breite(t, font, g) > fensterBreite) t = t.slice(0, -1);
+    return { text: t === text ? t : `${t.trimEnd()}…`, groesse: g };
+  };
   const absender = absenderZeile(f);
-  if (absender) z.text(absender, RAND_L, 762, { groesse: 7.5, farbe: GRAU });
-  let ey = 742;
-  for (const zeile of d.empfaenger.split(/\r?\n/).map((t) => t.trim()).filter(Boolean)) {
-    z.text(zeile, RAND_L, ey, { groesse: 10.5 });
-    ey -= 13;
+  if (absender) {
+    const a = passend(absender, z.regular, 7.5, 6);
+    z.text(a.text, RAND_L, ausOben(48.6), { groesse: a.groesse, farbe: GRAU });
+    z.linie(RAND_L, ausOben(50.2), RAND_L + fensterBreite, ausOben(50.2), 0.3, LINIE);
+  }
+  let ey = ausOben(65.5);
+  for (const zeile of d.empfaenger.split("\n").map((t) => t.trim()).filter(Boolean)) {
+    const a = passend(zeile, z.regular, 10, 7.5);
+    z.text(a.text, RAND_L, ey, { groesse: a.groesse });
+    ey -= 12.2;
   }
 
-  // Titel links, Kunde / Projekt / Datum rechts
-  const titelY = 655;
-  z.text(titel, RAND_L, titelY, { font: z.bold, groesse: 15 });
+  // Falz- und Lochmarke am linken Rand (DIN 5008 Form B: 105 mm, 148,5 mm und 210 mm von oben)
+  for (const [von, laenge] of [[105, 4], [148.5, 6], [210, 4]] as const) {
+    z.linie(0, ausOben(von), mm(laenge), ausOben(von), 0.4, GRAU);
+  }
+
+  // Kunde / Projekt / Datum rechts neben dem Anschriftfeld, der Titel darunter (Betreffzone ab 98,5 mm)
+  const infoY = ausOben(65.5);
   const spalten: [string, string][] = [["Kunde", d.kundennummer], ["Projekt", d.projektnummer], ["Datum", formatDatum(d.datum)]];
   const spaltenX = [355, 430, 495];
   spalten.forEach(([label, wert], i) => {
-    z.text(label, spaltenX[i], titelY + 4, { font: z.bold, groesse: 8, farbe: GRAU });
-    z.text(wert || "–", spaltenX[i], titelY - 9, { groesse: 9 });
+    z.text(label, spaltenX[i], infoY + 4, { font: z.bold, groesse: 8, farbe: GRAU });
+    z.text(wert || "–", spaltenX[i], infoY - 9, { groesse: 9 });
   });
+  const titelY = ausOben(100);
+  z.text(titel, RAND_L, titelY, { font: z.bold, groesse: 15 });
 
-  z.y = titelY - 38;
+  z.y = titelY - 32;
   z.text("Betreff", RAND_L, z.y, { font: z.bold });
   z.y -= ZEILE;
   for (const zeile of z.umbrechen(d.betreff, z.bold, 11, INHALT_B)) {

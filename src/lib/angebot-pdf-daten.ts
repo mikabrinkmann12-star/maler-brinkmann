@@ -36,7 +36,7 @@ export async function angebotPdfErzeugen(id: string): Promise<{ bytes: Uint8Arra
   }
 
   let logo: Uint8Array | undefined;
-  if (firma.logo) {
+  if (firma.logo && vorgaben.logo_anzeigen) {
     const { data } = await supabase.storage.from("firmenlogo").download(firma.logo);
     if (data) logo = new Uint8Array(await data.arrayBuffer());
   }

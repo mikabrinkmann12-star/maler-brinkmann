@@ -25,6 +25,16 @@ export function AngebotEinstellungenFormular({ werte }: { werte: AngebotEinstell
       <Feld label="Schlusstext" htmlFor="schlusstext" hinweis="Steht unter den Summen, vor dem Unterschriftsfeld.">
         <Textarea id="schlusstext" name="schlusstext" defaultValue={werte.schlusstext} rows={5} />
       </Feld>
+      <label className="flex items-start gap-3 rounded-xl border p-4">
+        <input type="checkbox" name="logo_anzeigen" defaultChecked={werte.logo_anzeigen} className="mt-1 size-5 shrink-0 accent-primary" />
+        <span className="flex flex-col gap-1">
+          <span className="text-base font-medium">Logo im Briefkopf drucken</span>
+          <span className="text-sm text-muted-foreground">
+            Ausschalten, wenn ihr bereits bedrucktes Briefpapier mit Logo benutzt: Dann bleibt die Stelle oben links frei. Die Anschrift des Kunden im Fenster steht immer.
+            Das Logo selbst lädst du unter Einstellungen → Firmendaten hoch.
+          </span>
+        </span>
+      </label>
       <Feld label="Reverse-Charge-Hinweis" htmlFor="reverse_charge_text" hinweis="Erscheint statt der Umsatzsteuer, wenn im Angebot „Steuerschuldnerschaft des Leistungsempfängers“ gewählt ist (§ 13b UStG).">
         <Textarea id="reverse_charge_text" name="reverse_charge_text" defaultValue={werte.reverse_charge_text} rows={3} />
       </Feld>

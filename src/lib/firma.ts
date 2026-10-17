@@ -44,6 +44,7 @@ export const angebotEinstellungenSchema = z.object({
   standard_steuersatz: z.union([z.literal(0), z.literal(7), z.literal(19)], { error: "Steuersatz: 0, 7 oder 19 %." }),
   mail_betreff: text(200, "E-Mail-Betreff").min(1, "Bitte den E-Mail-Betreff eingeben."),
   mail_text: text(5000, "E-Mail-Text").min(1, "Bitte den E-Mail-Text eingeben."),
+  logo_anzeigen: z.boolean(),
   standard_rabatt: z.number({ error: "Rabatt: bitte eine Zahl." }).min(0, "Rabatt: 0 bis 100 %.").max(100, "Rabatt: 0 bis 100 %."),
 });
 
@@ -57,6 +58,7 @@ export const ANGEBOT_EINSTELLUNGEN_STANDARD: AngebotEinstellungen = {
   standard_rabatt: 0,
   mail_betreff: MAIL_STANDARD_BETREFF,
   mail_text: MAIL_STANDARD_TEXT,
+  logo_anzeigen: true,
 };
 
 /** Gespeicherten Wert (jsonb) lesen; Fehlendes oder Ungültiges wird durch Standardwerte ersetzt. */
@@ -81,6 +83,7 @@ export function angebotEinstellungenAusWert(wert: unknown): AngebotEinstellungen
       typeof roh.reverse_charge_text === "string" && roh.reverse_charge_text.trim() ? roh.reverse_charge_text : s.reverse_charge_text,
     standard_steuersatz: satz === 0 || satz === 7 || satz === 19 ? satz : s.standard_steuersatz,
     standard_rabatt: typeof rabatt === "number" && rabatt >= 0 && rabatt <= 100 ? rabatt : s.standard_rabatt,
+    logo_anzeigen: typeof roh.logo_anzeigen === "boolean" ? roh.logo_anzeigen : s.logo_anzeigen,
     mail_betreff: typeof roh.mail_betreff === "string" && roh.mail_betreff.trim() ? roh.mail_betreff : s.mail_betreff,
     mail_text: typeof roh.mail_text === "string" && roh.mail_text.trim() ? roh.mail_text : s.mail_text,
   };
