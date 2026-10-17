@@ -28,6 +28,12 @@ export function AngebotEinstellungenFormular({ werte }: { werte: AngebotEinstell
       <Feld label="Reverse-Charge-Hinweis" htmlFor="reverse_charge_text" hinweis="Erscheint statt der Umsatzsteuer, wenn im Angebot „Steuerschuldnerschaft des Leistungsempfängers“ gewählt ist (§ 13b UStG).">
         <Textarea id="reverse_charge_text" name="reverse_charge_text" defaultValue={werte.reverse_charge_text} rows={3} />
       </Feld>
+      <Feld label="E-Mail-Betreff" htmlFor="mail_betreff" hinweis="Platzhalter: {betreff} (Betreff des Angebots), {kunde}, {firma}.">
+        <Input id="mail_betreff" name="mail_betreff" defaultValue={werte.mail_betreff} maxLength={200} className="h-12 text-base" />
+      </Feld>
+      <Feld label="E-Mail-Text" htmlFor="mail_text" hinweis="Vorlage für den Versand per E-Mail, vor dem Senden änderbar. Das PDF hängt die App selbst an. Platzhalter wie oben.">
+        <Textarea id="mail_text" name="mail_text" defaultValue={werte.mail_text} rows={8} />
+      </Feld>
       <div className="grid gap-5 sm:grid-cols-2">
         <Feld label="Standard-Umsatzsteuer" htmlFor="standard_steuersatz" hinweis="Gilt, wenn der Kunde keinen eigenen Steuersatz hat. Normalerweise wird der Steuersatz vom Kunden übernommen.">
           <Auswahl id="standard_steuersatz" name="standard_steuersatz" defaultValue={String(werte.standard_steuersatz)}>

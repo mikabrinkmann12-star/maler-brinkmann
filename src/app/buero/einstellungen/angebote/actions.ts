@@ -20,6 +20,8 @@ export async function angebotEinstellungenSpeichern(
     einleitung: String(formData.get("einleitung") ?? ""),
     schlusstext: String(formData.get("schlusstext") ?? ""),
     reverse_charge_text: String(formData.get("reverse_charge_text") ?? ""),
+    mail_betreff: String(formData.get("mail_betreff") ?? ""),
+    mail_text: String(formData.get("mail_text") ?? ""),
     standard_steuersatz: Number(formData.get("standard_steuersatz")),
     standard_rabatt: rabatt ?? Number.NaN,
   });

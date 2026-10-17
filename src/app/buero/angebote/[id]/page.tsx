@@ -6,7 +6,9 @@ import { requireRole } from "@/lib/auth";
 import { angebotBerechnen } from "@/lib/angebot";
 import { auswahlAusSteuer } from "@/lib/angebot-schema";
 import { angebotLaden } from "@/lib/angebot-daten";
-import { angebotEinstellungenLaden } from "@/lib/firma-daten";
+import { mailPlatzhalter } from "@/lib/angebot-mail";
+import { smtpKonfiguration } from "@/lib/env";
+import { angebotEinstellungenLaden, firmaLaden } from "@/lib/firma-daten";
 import { formatBetrag, formatZahl } from "@/lib/format";
 import { BUERO_ROLLEN } from "@/lib/rollen";
 import { createClient } from "@/lib/supabase/server";
@@ -16,6 +18,7 @@ import { AktionenLeiste } from "./aktionen-leiste";
 import { BausteineEditor } from "./bausteine-editor";
 import { KiAssistent } from "./ki-assistent";
 import { KopfFormular } from "./kopf-formular";
+import { MailPanel } from "./mail-panel";
 
 export const metadata: Metadata = { title: "Angebot" };
 
@@ -31,7 +34,8 @@ export default async function AngebotSeite({ params }: PageProps<"/buero/angebot
 
   const gesperrt = a.status !== "entwurf" || a.archiviert;
   const rechnung = angebotBerechnen(bausteine, { rabattProzent: a.rabattProzent, steuersatz: a.steuersatz, reverseCharge: a.reverseCharge });
-  const vorgaben = await angebotEinstellungenLaden();
+  const [vorgaben, firma] = await Promise.all([angebotEinstellungenLaden(), firmaLaden()]);
+  const mailWerte = { betreff: a.betreff, kunde: kunde?.name ?? "", firma: firma.name };
 
   // Bilder liegen in einem privaten Speicher: für die Anzeige kurz gültige Adressen holen
   const bildUrls: Record<string, string> = {};
@@ -75,6 +79,17 @@ export default async function AngebotSeite({ params }: PageProps<"/buero/angebot
             ? "Dieses Angebot ist archiviert. Stelle es wieder her, um es zu bearbeiten."
             : "Dieses Angebot ist gesperrt, weil es nicht mehr im Status „Entwurf“ ist. Zum Bearbeiten setzt du es zurück auf Entwurf."}
         </p>
+      )}
+
+      {!a.archiviert && (
+        <MailPanel
+          key={`mail:${a.versendetAm}`}
+          angebotId={a.id}
+          bereit={smtpKonfiguration() !== null}
+          istEntwurf={a.status === "entwurf"}
+          start={{ an: kunde?.email ?? "", betreff: mailPlatzhalter(vorgaben.mail_betreff, mailWerte), text: mailPlatzhalter(vorgaben.mail_text, mailWerte) }}
+          zuletzt={a.versendetAm ? { am: a.versendetAm, an: a.versendetAn } : null}
+        />
       )}
 
       <KopfFormular

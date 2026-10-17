@@ -1194,6 +1194,8 @@ export type Database = {
           status: Database["public"]["Enums"]["angebot_status"]
           steuersatz: number
           updated_at: string
+          versendet_am: string | null
+          versendet_an: string | null
         }
         Insert: {
           archiviert_am?: string | null
@@ -1212,6 +1214,8 @@ export type Database = {
           status?: Database["public"]["Enums"]["angebot_status"]
           steuersatz?: number
           updated_at?: string
+          versendet_am?: string | null
+          versendet_an?: string | null
         }
         Update: {
           archiviert_am?: string | null
@@ -1230,6 +1234,8 @@ export type Database = {
           status?: Database["public"]["Enums"]["angebot_status"]
           steuersatz?: number
           updated_at?: string
+          versendet_am?: string | null
+          versendet_an?: string | null
         }
         Relationships: [
           {

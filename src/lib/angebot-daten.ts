@@ -21,6 +21,8 @@ export type AngebotKopf = {
   reverseCharge: boolean;
   rabattProzent: number;
   archiviert: boolean;
+  versendetAm: string | null;
+  versendetAn: string;
 };
 
 export type AngebotProjekt = {
@@ -35,6 +37,7 @@ export type AngebotKunde = {
   id: string;
   kundennummer: string;
   name: string;
+  email: string;
 };
 
 export type AngebotDetail = {
@@ -74,7 +77,7 @@ export async function angebotLaden(id: string): Promise<AngebotDetail | null> {
   const { data: q, error } = await supabase
     .from("quotes")
     .select(
-      "id, project_id, status, betreff, leistungsort, datum, empfaenger, einleitung, schlusstext, steuersatz, reverse_charge, rabatt_prozent, archiviert_am, projects(id, name, projektnummer, baustelle_strasse, baustelle_plz, baustelle_ort, archiviert_am, contacts(id, kundennummer, typ, firmenname, vorname, nachname))",
+      "id, project_id, status, betreff, leistungsort, datum, empfaenger, einleitung, schlusstext, steuersatz, reverse_charge, rabatt_prozent, archiviert_am, versendet_am, versendet_an, projects(id, name, projektnummer, baustelle_strasse, baustelle_plz, baustelle_ort, archiviert_am, contacts(id, kundennummer, typ, firmenname, vorname, nachname, email))",
     )
     .eq("id", id)
     .maybeSingle();
@@ -107,6 +110,8 @@ export async function angebotLaden(id: string): Promise<AngebotDetail | null> {
       reverseCharge: q.reverse_charge,
       rabattProzent: Number(q.rabatt_prozent),
       archiviert: q.archiviert_am != null,
+      versendetAm: q.versendet_am,
+      versendetAn: q.versendet_an ?? "",
     },
     bausteine: items.map(bausteinAusZeile),
     projekt: {
@@ -116,7 +121,7 @@ export async function angebotLaden(id: string): Promise<AngebotDetail | null> {
       adresse: p ? adresseText({ strasse: p.baustelle_strasse, plz: p.baustelle_plz, ort: p.baustelle_ort }) : "",
       archiviert: p?.archiviert_am != null,
     },
-    kunde: k ? { id: k.id, kundennummer: k.kundennummer ?? "", name: kontaktName(k) } : null,
+    kunde: k ? { id: k.id, kundennummer: k.kundennummer ?? "", name: kontaktName(k), email: k.email ?? "" } : null,
   };
 }
 
