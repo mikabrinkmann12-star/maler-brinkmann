@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeftIcon, ChevronRightIcon, MessageCircleIcon, ClipboardListIcon, FolderOpenIcon, PackageCheckIcon, PencilIcon, ClockIcon, NavigationIcon, PackageIcon, RulerIcon, StickyNoteIcon } from "lucide-react";
+import { ArrowLeftIcon, ChevronRightIcon, MessageCircleIcon, FileTextIcon, ClipboardListIcon, FolderOpenIcon, PackageCheckIcon, PencilIcon, ClockIcon, NavigationIcon, PackageIcon, RulerIcon, StickyNoteIcon } from "lucide-react";
 import { cn } from "cn";
 import { AnrufLink } from "@/components/anruf-link";
 import { buttonVariants } from "@/components/ui/button";
@@ -173,6 +173,7 @@ export default async function BaustelleSeite({ params }: { params: Promise<{ id:
               </span>
             )}
           </Link>
+          <Link href={`/baustellen/${p.id}/berichte`} className={SCHNELL}><FileTextIcon /> Berichte</Link>
           <a href="#arbeitsanweisung" className={SCHNELL}><ClipboardListIcon /> Arbeits­anweisung</a>
           <a href="#materialliste" className={SCHNELL}><PackageCheckIcon /> Material­liste</a>
           <a href="#ablage" className={SCHNELL}><FolderOpenIcon /> Ablage</a>

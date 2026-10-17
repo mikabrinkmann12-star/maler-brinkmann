@@ -1317,6 +1317,72 @@ export type Database = {
           },
         ]
       }
+      project_reports: {
+        Row: {
+          abgeschlossen_am: string | null
+          archiviert_am: string | null
+          art: string
+          created_at: string
+          daten: Json
+          datum: string
+          erstellt_von: string | null
+          id: string
+          project_id: string
+          status: string
+          unterschrieben_am: string | null
+          unterschrift_name: string | null
+          unterschrift_pfad: string | null
+          updated_at: string
+        }
+        Insert: {
+          abgeschlossen_am?: string | null
+          archiviert_am?: string | null
+          art: string
+          created_at?: string
+          daten?: Json
+          datum: string
+          erstellt_von?: string | null
+          id?: string
+          project_id: string
+          status?: string
+          unterschrieben_am?: string | null
+          unterschrift_name?: string | null
+          unterschrift_pfad?: string | null
+          updated_at?: string
+        }
+        Update: {
+          abgeschlossen_am?: string | null
+          archiviert_am?: string | null
+          art?: string
+          created_at?: string
+          daten?: Json
+          datum?: string
+          erstellt_von?: string | null
+          id?: string
+          project_id?: string
+          status?: string
+          unterschrieben_am?: string | null
+          unterschrift_name?: string | null
+          unterschrift_pfad?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_reports_erstellt_von_fkey"
+            columns: ["erstellt_von"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_reports_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_statuses: {
         Row: {
           aktiv: boolean

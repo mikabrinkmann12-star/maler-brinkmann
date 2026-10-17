@@ -41,11 +41,16 @@ describe("Firmenlogo", () => {
     expect(r.error).not.toBeNull();
   });
 
-  it("Büro und Admin lesen, Mitarbeiter und Fremde nicht", async () => {
+  it("alle Eingeloggten lesen (für Berichts-PDFs), ohne Login nicht", async () => {
     expect((await bueroC.storage.from("firmenlogo").download(pfad)).error).toBeNull();
     expect((await adminC.storage.from("firmenlogo").download(pfad)).error).toBeNull();
-    expect((await malerC.storage.from("firmenlogo").download(pfad)).error).not.toBeNull();
+    expect((await malerC.storage.from("firmenlogo").download(pfad)).error).toBeNull();
     expect((await anonClient().storage.from("firmenlogo").download(pfad)).error).not.toBeNull();
+  });
+
+  it("Hochladen und Löschen bleibt beim Admin (Mitarbeiter dürfen nicht)", async () => {
+    const r = await malerC.storage.from("firmenlogo").upload(`logo-${pfad.slice(5, 20)}x.png`, new Uint8Array([1, 2, 3]), { contentType: "image/png" });
+    expect(r.error).not.toBeNull();
   });
 
   it("nur der Admin löscht", async () => {
