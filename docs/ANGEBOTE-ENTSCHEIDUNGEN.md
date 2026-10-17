@@ -58,3 +58,8 @@ Diese Liste hält fest, was entschieden wurde und was noch fehlt.
 - „Mitarbeiter-Schnellzugriff“ auf die Arbeitsanweisung (Knopf neben Zeit/Fotos/Notizen).
 - Die **KI-Variante** der Arbeitsanweisung und des Angebots (erst nach Ralfs Entscheidung wegen der Kosten).
 - Angebot → Auftrag → Rechnung (Phase 5, Lexware).
+
+## Nachträge am 18.10.2026 (Mika wieder da)
+- **KI-Assistent als Platzhalter** (Mika: „soll drin stehen, aber noch nicht funktionieren, damit man zeigen kann, dass es das gibt“): Im Angebot gibt es einen Kasten „KI-Assistent – Vorschau: noch nicht aktiv“. Man kann schon eine Beschreibung eintippen, der Knopf „Positionen vorschlagen“ erklärt aber nur, dass die KI noch nicht angeschlossen ist. Es wird nichts gespeichert oder an einen Dienst geschickt. Schnittstelle: `src/lib/ki.ts` (`kiAnbieter()`), Aktion `src/app/buero/angebote/ki-actions.ts`. Später ersetzt ein echter Anbieter nur `kiAnbieter()`.
+- **Logo:** *Einstellungen → Firmendaten → Logo* (PNG/JPEG bis 2 MB, nur Admin). Erscheint oben links im PDF. Bucket `firmenlogo` (Migration `…18110000`, dev und live). Briefpapier (Hintergrund) ist damit noch nicht gebaut.
+- **Rechnungen (Wunsch von Mika):** In der App erstellen, an Lexware Office schicken, die fertige Rechnung (mit Lexware-Nummer und PDF) zurück in die App holen und dort als Spiegel behalten. Das passt zur harten Regel (Nummer und PDF kommen von Lexware, die App erzeugt sie nie selbst). Erkenntnisse aus der Lexware-Doku und offene Fragen stehen im Gespräch/in CLAUDE.md (Phase 5).

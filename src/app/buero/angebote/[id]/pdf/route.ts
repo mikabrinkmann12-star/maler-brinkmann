@@ -43,6 +43,12 @@ export async function GET(anfrage: Request, { params }: RouteContext<"/buero/ang
     if (data) bilder[b.id] = new Uint8Array(await data.arrayBuffer());
   }
 
+  let logo: Uint8Array | undefined;
+  if (firma.logo) {
+    const { data } = await supabase.storage.from("firmenlogo").download(firma.logo);
+    if (data) logo = new Uint8Array(await data.arrayBuffer());
+  }
+
   const bytes = await angebotPdf({
     firma,
     status: a.status,
@@ -57,6 +63,7 @@ export async function GET(anfrage: Request, { params }: RouteContext<"/buero/ang
     berechnung: angebotBerechnen(bausteine, { rabattProzent: a.rabattProzent, steuersatz: a.steuersatz, reverseCharge: a.reverseCharge }),
     reverseChargeText: vorgaben.reverse_charge_text,
     bilder,
+    logo,
   });
 
   const herunterladen = new URL(anfrage.url).searchParams.get("download") === "1";

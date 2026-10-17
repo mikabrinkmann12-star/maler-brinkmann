@@ -7,7 +7,7 @@ import type { Firma } from "./firma";
 const firma: Firma = {
   name: "Maler Betrieb Brinkmann", inhaber: "Ralf Brinkmann", strasse: "Zur Ziegelei 18", plz: "26683", ort: "Saterland",
   telefon: "04492/708108", email: "info@maler-brinkmann.de", website: "", ustid: "DE292718369", steuernummer: "56/106/09816",
-  bank: "Raiffeisenbank eG Scharrel", iban: "DE74280652860401694705", bic: "GENODEF1SAN",
+  bank: "Raiffeisenbank eG Scharrel", iban: "DE74280652860401694705", bic: "GENODEF1SAN", logo: "",
 };
 
 let n = 0;
@@ -64,6 +64,19 @@ describe("angebotPdf", () => {
       const bytes = await angebotPdf(daten(posten, { status: "versendet" }, rechnung));
       expect((await PDFDocument.load(bytes)).getPageCount()).toBe(1);
     }
+  });
+
+  it("Logo (PNG) wird eingebettet, ein kaputtes Logo bricht nicht ab", async () => {
+    const png = new Uint8Array([
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+      0x08, 0x06, 0x00, 0x00, 0x00, 0x1f, 0x15, 0xc4, 0x89, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9c, 0x63, 0xf8, 0xff, 0xff, 0x3f,
+      0x00, 0x05, 0xfe, 0x02, 0xfe, 0xa7, 0x35, 0x81, 0x84, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82,
+    ]);
+    const mitLogo = await angebotPdf(daten([pos("A", 1, "Stk", 1)], { logo: png }));
+    const ohneLogo = await angebotPdf(daten([pos("A", 1, "Stk", 1)]));
+    expect(mitLogo.length).toBeGreaterThan(ohneLogo.length);
+    const kaputt = await angebotPdf(daten([pos("A", 1, "Stk", 1)], { logo: new Uint8Array([1, 2, 3]) }));
+    expect((await PDFDocument.load(kaputt)).getPageCount()).toBe(1);
   });
 
   it("leeres Angebot und leere Firmendaten brechen nicht ab", async () => {

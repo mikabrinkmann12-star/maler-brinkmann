@@ -23,6 +23,8 @@ export type AngebotPdfDaten = {
   reverseChargeText: string;
   /** JPEG-Bytes der Bild-Bausteine (Schlüssel = Baustein-ID) */
   bilder: Record<string, Uint8Array>;
+  /** Firmenlogo (PNG oder JPEG), erscheint oben links im Briefkopf */
+  logo?: Uint8Array;
 };
 
 // Maße in Punkt (1 pt = 1/72 Zoll). A4 = 595,28 × 841,89.
@@ -179,6 +181,20 @@ export async function angebotPdf(d: AngebotPdfDaten): Promise<Uint8Array> {
   if (f.telefon) { z.text(`Telefon ${f.telefon}`, blockX, by); by -= ZEILE; }
   if (f.email) { z.text(`E-Mail ${f.email}`, blockX, by); by -= ZEILE; }
   if (f.website) { z.text(f.website, blockX, by); by -= ZEILE; }
+
+  // Logo oben links (höchstens 170 × 56 pt), ein kaputtes Logo wird weggelassen
+  if (d.logo) {
+    try {
+      const istPng = d.logo[0] === 0x89 && d.logo[1] === 0x50;
+      const logo = istPng ? await doc.embedPng(d.logo) : await doc.embedJpg(d.logo);
+      const faktor = Math.min(170 / logo.width, 56 / logo.height, 1);
+      const w = logo.width * faktor;
+      const h = logo.height * faktor;
+      z.seite.drawImage(logo, { x: RAND_L, y: 826 - h, width: w, height: h });
+    } catch {
+      // Logo nicht lesbar: ohne Logo weiter
+    }
+  }
 
   // Absenderzeile und Empfänger (Fensterbereich nach DIN 5008)
   const absender = absenderZeile(f);

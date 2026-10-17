@@ -22,13 +22,18 @@ export const firmaSchema = z.object({
   bank: text(100, "Bank"),
   iban: text(40, "IBAN"),
   bic: text(20, "BIC"),
+  /** Pfad der Logo-Datei im Bucket „firmenlogo“ (wird über den Logo-Bereich gesetzt, nicht im Formular) */
+  logo: text(200, "Logo"),
 });
+
+/** Erlaubte Dateinamen des Logos im Bucket (PNG oder JPEG). */
+export const LOGO_PFAD = /^logo-[a-z0-9-]{8,60}\.(png|jpg)$/;
 
 export type Firma = z.infer<typeof firmaSchema>;
 
 export const FIRMA_LEER: Firma = {
   name: "", inhaber: "", strasse: "", plz: "", ort: "", telefon: "", email: "", website: "",
-  ustid: "", steuernummer: "", bank: "", iban: "", bic: "",
+  ustid: "", steuernummer: "", bank: "", iban: "", bic: "", logo: "",
 };
 
 export const angebotEinstellungenSchema = z.object({

@@ -14,6 +14,7 @@ import { StatusBadge } from "../status-badge";
 import { AbschlussFormular } from "./abschluss-formular";
 import { AktionenLeiste } from "./aktionen-leiste";
 import { BausteineEditor } from "./bausteine-editor";
+import { KiAssistent } from "./ki-assistent";
 import { KopfFormular } from "./kopf-formular";
 
 export const metadata: Metadata = { title: "Angebot" };
@@ -82,6 +83,8 @@ export default async function AngebotSeite({ params }: PageProps<"/buero/angebot
         start={{ betreff: a.betreff, leistungsort: a.leistungsort, datum: a.datum, empfaenger: a.empfaenger, einleitung: a.einleitung }}
         gesperrt={gesperrt}
       />
+
+      {!gesperrt && <KiAssistent angebotId={a.id} />}
 
       <section aria-labelledby="bausteine-titel" className="flex flex-col gap-3">
         <h2 id="bausteine-titel" className="text-lg font-semibold">Positionen</h2>
