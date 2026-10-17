@@ -389,7 +389,7 @@ export function ZeitFormular({
       )}
 
       {/* Beschreibung */}
-      <Feld label="Was wurde gemacht? (optional)" htmlFor="beschreibung">
+      <Feld label="Beschreibung (Leistung, Material, …)" htmlFor="beschreibung" hinweis="Optional: was wurde gemacht, welches Material wurde gebraucht.">
         <textarea id="beschreibung" rows={2} maxLength={500} value={beschreibung}
           onChange={(ev) => setBeschreibung(ev.target.value)}
           className="w-full rounded-lg border border-input bg-transparent px-3 py-2 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50" />

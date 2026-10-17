@@ -14,9 +14,12 @@ import {
 } from "@/lib/angebot-schema";
 import { angebotEinstellungenLaden } from "@/lib/firma-daten";
 import { heuteIso, tageVerschieben } from "@/lib/datum";
-import { istKatalogArt } from "@/lib/katalog";
+import { istKatalogArt, ordnerPfad, unterordner } from "@/lib/katalog";
+import { ordnerLaden } from "@/lib/katalog-daten";
 import { briefanschrift } from "@/lib/kontakt-schema";
 import { ersteMeldung } from "@/lib/nutzer-schema";
+import { standardVorlage } from "@/lib/textvorlagen";
+import { textvorlagenLaden } from "@/lib/textvorlagen-daten";
 import { adresseText } from "@/lib/projekt";
 import { BUERO_ROLLEN } from "@/lib/rollen";
 import { suchtext } from "@/lib/suche";
@@ -67,6 +70,8 @@ export async function angebotAnlegen(projektId: string, eingabe: unknown): Promi
   if (projekt.archiviert_am) return { fehler: "Für ein archiviertes Projekt kann kein Angebot angelegt werden." };
 
   const vorgaben = await angebotEinstellungenLaden();
+  // Eine Standard-Vorlage (Einstellungen → Textvorlagen) füllt die Texte vor, sonst gilt der Text aus „Angebote – Vorgaben“
+  const vorlagen = await textvorlagenLaden();
   const kunde = projekt.contacts;
   const kundenSatz = kunde ? Number(kunde.steuersatz) : vorgaben.standard_steuersatz;
   const reverseCharge = kunde != null && kundenSatz === 0;
@@ -87,8 +92,8 @@ export async function angebotAnlegen(projektId: string, eingabe: unknown): Promi
       skonto_tage: kunde?.skonto_prozent && kunde.skonto_tage ? kunde.skonto_tage : null,
       gueltig_bis: vorgaben.gueltigkeit_tage > 0 ? tageVerschieben(heuteIso(), vorgaben.gueltigkeit_tage) : null,
       empfaenger: kunde ? briefanschrift(kunde).join("\n") || null : null,
-      einleitung: vorgaben.einleitung || null,
-      schlusstext: vorgaben.schlusstext || null,
+      einleitung: (standardVorlage(vorlagen, "einleitung")?.inhalt ?? vorgaben.einleitung) || null,
+      schlusstext: (standardVorlage(vorlagen, "schlusstext")?.inhalt ?? vorgaben.schlusstext) || null,
       steuersatz,
       reverse_charge: reverseCharge,
       rabatt_prozent: vorgaben.standard_rabatt,
@@ -403,6 +408,54 @@ export async function katalogSuchen(art: string, q: string): Promise<{ fehler?: 
     treffer: data.map((s) => ({
       id: s.id, name: s.name, nummer: s.nummer ?? "", einheit: s.einheit, vk: Number(s.vk), ordner: s.catalog_folders?.name ?? "",
     })),
+  };
+}
+
+/**
+ * Inhalt eines Katalog-Ordners zum Durchblättern (`ordnerId` leer = oberste Ebene): Ordner-Pfad, Unterordner und die Einträge
+ * dieses Ordners (höchstens 100). Archivierte Ordner und Einträge werden nicht gezeigt.
+ */
+export async function katalogOrdnerInhalt(
+  art: string,
+  ordnerId: string | null,
+): Promise<{
+  fehler?: string;
+  pfad?: { id: string; name: string }[];
+  unterordner?: { id: string; name: string }[];
+  treffer?: KatalogTreffer[];
+}> {
+  await requireRole(BUERO_ROLLEN);
+  if (!istKatalogArt(art)) return { fehler: "Ungültige Art." };
+  if (ordnerId !== null && !uuid.safeParse(ordnerId).success) return { fehler: "Ungültiger Ordner." };
+  const supabase = await createClient();
+
+  let ordner;
+  try {
+    ordner = (await ordnerLaden(art)).filter((o) => !o.archiviert);
+  } catch {
+    return { fehler: "Die Ordner konnten nicht geladen werden." };
+  }
+  if (ordnerId !== null && !ordner.some((o) => o.id === ordnerId)) return { fehler: "Der Ordner existiert nicht mehr." };
+  const pfad = ordnerPfad(ordner, ordnerId).map((o) => ({ id: o.id, name: o.name }));
+  const kinder = unterordner(ordner, ordnerId).map((o) => ({ id: o.id, name: o.name }));
+
+  if (art === "material") {
+    let abfrage = supabase.from("materials").select("id, name, artikelnr, einheit, vk, lieferant").is("archiviert_am", null);
+    abfrage = ordnerId ? abfrage.eq("folder_id", ordnerId) : abfrage.is("folder_id", null);
+    const { data, error } = await abfrage.order("name").limit(100);
+    if (error) return { fehler: "Der Ordner konnte nicht geladen werden." };
+    return {
+      pfad, unterordner: kinder,
+      treffer: data.map((m) => ({ id: m.id, name: m.name, nummer: m.artikelnr ?? "", einheit: m.einheit, vk: Number(m.vk), ordner: m.lieferant ?? "" })),
+    };
+  }
+  let abfrage = supabase.from("services").select("id, name, nummer, einheit, vk").is("archiviert_am", null);
+  abfrage = ordnerId ? abfrage.eq("folder_id", ordnerId) : abfrage.is("folder_id", null);
+  const { data, error } = await abfrage.order("name").limit(100);
+  if (error) return { fehler: "Der Ordner konnte nicht geladen werden." };
+  return {
+    pfad, unterordner: kinder,
+    treffer: data.map((s) => ({ id: s.id, name: s.name, nummer: s.nummer ?? "", einheit: s.einheit, vk: Number(s.vk), ordner: "" })),
   };
 }
 

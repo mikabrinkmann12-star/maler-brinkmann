@@ -214,7 +214,7 @@ export function BueroZeitFormular({
         {rechnung && "fehler" in rechnung && von && bis && <p className="text-sm text-destructive">{rechnung.fehler}</p>}
       </div>
 
-      <Feld label="Notiz (optional)" htmlFor="beschreibung">
+      <Feld label="Beschreibung (Leistung, Material, …)" htmlFor="beschreibung" hinweis="Optional.">
         <textarea id="beschreibung" rows={2} maxLength={500} value={beschreibung}
           onChange={(e) => setBeschreibung(e.target.value)}
           className="w-full rounded-lg border border-input bg-transparent px-3 py-2 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50" />

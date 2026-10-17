@@ -11,7 +11,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { zahlFuerFeld } from "@/lib/angebot";
 import { abschlussSchema, type SteuerAuswahl } from "@/lib/angebot-schema";
 import { ersteMeldung } from "@/lib/nutzer-schema";
+import type { Textvorlage } from "@/lib/textvorlagen";
 import { angebotAbschlussSpeichern } from "../actions";
+import { VorlagenAuswahl } from "./vorlagen-auswahl";
 
 type Start = {
   schlusstext: string;
@@ -24,7 +26,7 @@ type Start = {
 };
 
 /** Rabatt, Umsatzsteuer und Schlusstext des Angebots. */
-export function AbschlussFormular({ angebotId, start, gesperrt }: { angebotId: string; start: Start; gesperrt: boolean }) {
+export function AbschlussFormular({ angebotId, start, gesperrt, vorlagen }: { angebotId: string; start: Start; gesperrt: boolean; vorlagen: Textvorlage[] }) {
   const router = useRouter();
   const ausgang = {
     schlusstext: start.schlusstext,
@@ -96,6 +98,7 @@ export function AbschlussFormular({ angebotId, start, gesperrt }: { angebotId: s
         <Input id="gueltig-bis" type="date" className="h-12 max-w-52 text-base" {...f("gueltigBis")} />
       </Feld>
       <Feld label="Schlusstext" htmlFor="schlusstext" hinweis="Steht unter den Summen, vor dem Unterschriftsfeld.">
+        <VorlagenAuswahl vorlagen={vorlagen} gesperrt={gesperrt} onWahl={(inhalt) => { setW((alt) => ({ ...alt, schlusstext: inhalt })); setFehler(null); setGespeichert(false); }} />
         <Textarea id="schlusstext" rows={5} maxLength={3000} {...f("schlusstext")} />
       </Feld>
       {!gesperrt && (

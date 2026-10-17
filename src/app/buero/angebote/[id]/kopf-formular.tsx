@@ -10,12 +10,14 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { kopfSchema } from "@/lib/angebot-schema";
 import { ersteMeldung } from "@/lib/nutzer-schema";
+import type { Textvorlage } from "@/lib/textvorlagen";
 import { angebotKopfSpeichern } from "../actions";
+import { VorlagenAuswahl } from "./vorlagen-auswahl";
 
 type Start = { betreff: string; leistungsort: string; datum: string; empfaenger: string; einleitung: string };
 
 /** Betreff, Datum, Leistungsort, Empfänger und Anfangstext des Angebots. */
-export function KopfFormular({ angebotId, start, gesperrt }: { angebotId: string; start: Start; gesperrt: boolean }) {
+export function KopfFormular({ angebotId, start, gesperrt, vorlagen }: { angebotId: string; start: Start; gesperrt: boolean; vorlagen: Textvorlage[] }) {
   const router = useRouter();
   const [w, setW] = useState(start);
   const [fehler, setFehler] = useState<string | null>(null);
@@ -67,6 +69,7 @@ export function KopfFormular({ angebotId, start, gesperrt }: { angebotId: string
         </Feld>
       </div>
       <Feld label="Anfangstext" htmlFor="einleitung" hinweis="Steht über den Positionen.">
+        <VorlagenAuswahl vorlagen={vorlagen} gesperrt={gesperrt} onWahl={(inhalt) => { setW((alt) => ({ ...alt, einleitung: inhalt })); setFehler(null); setGespeichert(false); }} />
         <Textarea id="einleitung" rows={4} maxLength={3000} {...f("einleitung")} />
       </Feld>
       {!gesperrt && (

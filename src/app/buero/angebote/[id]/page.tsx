@@ -9,6 +9,8 @@ import { angebotLaden } from "@/lib/angebot-daten";
 import { mailPlatzhalter } from "@/lib/angebot-mail";
 import { smtpKonfiguration } from "@/lib/env";
 import { angebotEinstellungenLaden, firmaLaden } from "@/lib/firma-daten";
+import { textvorlagenLaden } from "@/lib/textvorlagen-daten";
+import { vorlagenDerArt } from "@/lib/textvorlagen";
 import { formatBetrag, formatZahl } from "@/lib/format";
 import { BUERO_ROLLEN } from "@/lib/rollen";
 import { createClient } from "@/lib/supabase/server";
@@ -34,7 +36,7 @@ export default async function AngebotSeite({ params }: PageProps<"/buero/angebot
 
   const gesperrt = a.status !== "entwurf" || a.archiviert;
   const rechnung = angebotBerechnen(bausteine, { rabattProzent: a.rabattProzent, steuersatz: a.steuersatz, reverseCharge: a.reverseCharge });
-  const [vorgaben, firma] = await Promise.all([angebotEinstellungenLaden(), firmaLaden()]);
+  const [vorgaben, firma, vorlagen] = await Promise.all([angebotEinstellungenLaden(), firmaLaden(), textvorlagenLaden()]);
   const mailWerte = { betreff: a.betreff, kunde: kunde?.name ?? "", firma: firma.name };
 
   // Bilder liegen in einem privaten Speicher: für die Anzeige kurz gültige Adressen holen
@@ -97,6 +99,7 @@ export default async function AngebotSeite({ params }: PageProps<"/buero/angebot
         angebotId={a.id}
         start={{ betreff: a.betreff, leistungsort: a.leistungsort, datum: a.datum, empfaenger: a.empfaenger, einleitung: a.einleitung }}
         gesperrt={gesperrt}
+        vorlagen={vorlagenDerArt(vorlagen, "einleitung")}
       />
 
       {!gesperrt && <KiAssistent angebotId={a.id} />}
@@ -135,6 +138,7 @@ export default async function AngebotSeite({ params }: PageProps<"/buero/angebot
           zahlungsziel: a.zahlungszielTage, skontoProzent: a.skontoProzent, skontoTage: a.skontoTage, gueltigBis: a.gueltigBis,
         }}
         gesperrt={gesperrt}
+        vorlagen={vorlagenDerArt(vorlagen, "schlusstext")}
       />
     </div>
   );

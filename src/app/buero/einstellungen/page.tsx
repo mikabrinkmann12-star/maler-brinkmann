@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Building2Icon, ChevronRightIcon, ClockIcon, FileTextIcon, HashIcon, ReceiptTextIcon, UserCogIcon } from "lucide-react";
+import { Building2Icon, ChevronRightIcon, ClockIcon, FileTextIcon, FileStackIcon, HashIcon, ReceiptTextIcon, UserCogIcon } from "lucide-react";
 import { requireRole } from "@/lib/auth";
 
 export const metadata: Metadata = { title: "Einstellungen" };
@@ -35,6 +35,12 @@ const BEREICHE = [
     titel: "Angebote – Vorgaben",
     text: "Anfangs- und Schlusstext, Reverse-Charge-Hinweis, Standard-Steuersatz",
     icon: FileTextIcon,
+  },
+  {
+    href: "/buero/einstellungen/textvorlagen",
+    titel: "Textvorlagen",
+    text: "Mehrere Anfangs- und Schlusstexte für Angebote, eine davon als Standard",
+    icon: FileStackIcon,
   },
   {
     href: "/buero/einstellungen/lexware",

@@ -1507,6 +1507,50 @@ export type Database = {
           },
         ]
       }
+      text_templates: {
+        Row: {
+          archiviert_am: string | null
+          art: Database["public"]["Enums"]["textvorlage_art"]
+          created_at: string
+          created_by: string | null
+          id: string
+          inhalt: string
+          name: string
+          standard: boolean
+          updated_at: string
+        }
+        Insert: {
+          archiviert_am?: string | null
+          art: Database["public"]["Enums"]["textvorlage_art"]
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          inhalt: string
+          name: string
+          standard?: boolean
+          updated_at?: string
+        }
+        Update: {
+          archiviert_am?: string | null
+          art?: Database["public"]["Enums"]["textvorlage_art"]
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          inhalt?: string
+          name?: string
+          standard?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "text_templates_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       time_entries: {
         Row: {
           archiviert_am: string | null
@@ -1759,6 +1803,7 @@ export type Database = {
       rechnung_baustein: "position" | "text"
       rechnung_status: "entwurf" | "wird_uebertragen" | "uebertragen"
       stopp_zeit_art: "um" | "ab"
+      textvorlage_art: "einleitung" | "schlusstext"
       urlaub_status: "offen" | "genehmigt" | "abgelehnt" | "zurueckgezogen"
       zeit_art:
         | "arbeitszeit"
@@ -1907,6 +1952,7 @@ export const Constants = {
       rechnung_baustein: ["position", "text"],
       rechnung_status: ["entwurf", "wird_uebertragen", "uebertragen"],
       stopp_zeit_art: ["um", "ab"],
+      textvorlage_art: ["einleitung", "schlusstext"],
       urlaub_status: ["offen", "genehmigt", "abgelehnt", "zurueckgezogen"],
       zeit_art: [
         "arbeitszeit",
