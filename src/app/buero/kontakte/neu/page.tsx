@@ -4,7 +4,8 @@ import { ArrowLeftIcon } from "lucide-react";
 import { requireRole } from "@/lib/auth";
 import { kundennummerVorschlag } from "@/lib/kundennummer-daten";
 import { BUERO_ROLLEN } from "@/lib/rollen";
-import { KontaktFormular, LEERES_FORMULAR } from "../kontakt-formular";
+import { LEERES_FORMULAR } from "@/lib/kontakt-formular";
+import { KontaktFormular } from "../kontakt-formular";
 
 export const metadata: Metadata = { title: "Neuer Kontakt" };
 

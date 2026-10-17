@@ -8,37 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { briefanschrift } from "@/lib/kontakt-schema";
 import { zahlLesen } from "@/lib/aufmass";
+import type { KontaktFormWerte } from "@/lib/kontakt-formular";
 import { kontaktSpeichern, kundennummerVorschlagen } from "./actions";
-
-export type KontaktFormWerte = {
-  typ: "privat" | "firma";
-  kundennummer: string;
-  firmenname: string;
-  anrede: string;
-  vorname: string;
-  nachname: string;
-  ansprechpartner: string;
-  email: string;
-  telefon: string;
-  mobil: string;
-  website: string;
-  strasse: string;
-  plz: string;
-  ort: string;
-  empfaenger: string;
-  zahlungsziel_tage: string;
-  skonto_prozent: string;
-  skonto_tage: string;
-  steuersatz: string;
-  leitweg_id: string;
-  notizen: string;
-};
-
-export const LEERES_FORMULAR: KontaktFormWerte = {
-  typ: "privat", kundennummer: "", firmenname: "", anrede: "", vorname: "", nachname: "", ansprechpartner: "",
-  email: "", telefon: "", mobil: "", website: "", strasse: "", plz: "", ort: "", empfaenger: "",
-  zahlungsziel_tage: "", skonto_prozent: "", skonto_tage: "", steuersatz: "19", leitweg_id: "", notizen: "",
-};
 
 function Abschnitt({ titel, hinweis, children }: { titel: string; hinweis?: string; children: React.ReactNode }) {
   return (
