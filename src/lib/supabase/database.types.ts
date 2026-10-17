@@ -1017,6 +1017,60 @@ export type Database = {
         }
         Relationships: []
       }
+      project_files: {
+        Row: {
+          archiviert_am: string | null
+          created_at: string
+          dateiname: string
+          erstellt_von: string | null
+          groesse_bytes: number | null
+          id: string
+          mime: string | null
+          project_id: string
+          storage_pfad: string
+          updated_at: string
+        }
+        Insert: {
+          archiviert_am?: string | null
+          created_at?: string
+          dateiname: string
+          erstellt_von?: string | null
+          groesse_bytes?: number | null
+          id?: string
+          mime?: string | null
+          project_id: string
+          storage_pfad: string
+          updated_at?: string
+        }
+        Update: {
+          archiviert_am?: string | null
+          created_at?: string
+          dateiname?: string
+          erstellt_von?: string | null
+          groesse_bytes?: number | null
+          id?: string
+          mime?: string | null
+          project_id?: string
+          storage_pfad?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_files_erstellt_von_fkey"
+            columns: ["erstellt_von"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_files_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_members: {
         Row: {
           added_at: string

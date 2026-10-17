@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeftIcon, ChevronRightIcon, ClipboardListIcon, PackageCheckIcon, PencilIcon, ClockIcon, ImageIcon, NavigationIcon, PackageIcon, RulerIcon, StickyNoteIcon } from "lucide-react";
+import { ArrowLeftIcon, ChevronRightIcon, ClipboardListIcon, FolderOpenIcon, PackageCheckIcon, PencilIcon, ClockIcon, NavigationIcon, PackageIcon, RulerIcon, StickyNoteIcon } from "lucide-react";
 import { AnrufLink } from "@/components/anruf-link";
 import { buttonVariants } from "@/components/ui/button";
 import { requireUser } from "@/lib/auth";
 import { EINHEIT_NAMEN, aufmassSummen } from "@/lib/aufmass";
 import { aufmassLaden } from "@/lib/baustellen-daten";
 import { vorschauPfad } from "@/lib/bild";
+import { groesseText } from "@/lib/dateien";
 import { formatDatum, formatDatumZeit, formatZahl } from "@/lib/format";
 import { kollegenLaden } from "@/lib/mitarbeiter-daten";
 import { adresseText, kontaktName, mapsLink } from "@/lib/projekt";
@@ -17,6 +18,7 @@ import { Warteschlange } from "../../warteschlange";
 import { Angebote } from "./angebote";
 import { Projektliste } from "./arbeitsanweisung";
 import { Rechnungen } from "./rechnungen";
+import { Dateien, type DateiAnzeige } from "./dateien";
 import { Fotos, type FotoAnzeige } from "./fotos";
 import { Material, type MaterialAnzeige } from "./material";
 import { Notizen, type NotizAnzeige } from "./notizen";
@@ -47,12 +49,14 @@ export default async function BaustelleSeite({ params }: { params: Promise<{ id:
     .maybeSingle();
   if (!p) notFound();
 
-  const [{ data: mitglieder }, kollegen, { data: notizDaten }, { data: fotoDaten }, { data: materialDaten }, aufmass] = await Promise.all([
+  const [{ data: mitglieder }, kollegen, { data: notizDaten }, { data: fotoDaten }, { data: dateiDaten }, { data: materialDaten }, aufmass] = await Promise.all([
     supabase.from("project_members").select("user_id").eq("project_id", id),
     kollegenLaden(),
     supabase.from("project_notes").select("id, text, erstellt_von, created_at")
       .eq("project_id", id).is("archiviert_am", null).order("created_at", { ascending: false }),
     supabase.from("project_photos").select("id, storage_pfad, kategorie, kommentar, erstellt_von, created_at")
+      .eq("project_id", id).is("archiviert_am", null).order("created_at", { ascending: false }),
+    supabase.from("project_files").select("id, storage_pfad, dateiname, groesse_bytes, erstellt_von, created_at")
       .eq("project_id", id).is("archiviert_am", null).order("created_at", { ascending: false }),
     supabase.from("material_usage").select("id, material, menge, einheit, bemerkung, erledigt_am, erstellt_von, created_at")
       .eq("project_id", id).is("archiviert_am", null).order("created_at", { ascending: false }),
@@ -85,6 +89,21 @@ export default async function BaustelleSeite({ params }: { params: Promise<{ id:
     wann: formatDatumZeit(f.created_at),
     darfLoeschen: darfLoeschen(f.erstellt_von),
   }));
+  // Dateien liegen im privaten Speicher: Adressen mit dem Originalnamen zum Herunterladen (1 Stunde gültig)
+  const dateien: DateiAnzeige[] = await Promise.all(
+    (dateiDaten ?? []).map(async (f) => {
+      const { data: url } = await supabase.storage.from("projektdateien").createSignedUrl(f.storage_pfad, 60 * 60, { download: f.dateiname });
+      return {
+        id: f.id,
+        dateiname: f.dateiname,
+        groesse: groesseText(Number(f.groesse_bytes ?? 0)),
+        wer: wer(f.erstellt_von),
+        wann: formatDatumZeit(f.created_at),
+        url: url?.signedUrl ?? null,
+        darfLoeschen: darfLoeschen(f.erstellt_von),
+      };
+    }),
+  );
   const material: MaterialAnzeige[] = (materialDaten ?? []).map((m) => ({
     id: m.id,
     material: m.material,
@@ -144,7 +163,7 @@ export default async function BaustelleSeite({ params }: { params: Promise<{ id:
           )}
           <a href="#arbeitsanweisung" className={SCHNELL}><ClipboardListIcon /> Arbeits­anweisung</a>
           <a href="#materialliste" className={SCHNELL}><PackageCheckIcon /> Material­liste</a>
-          <a href="#fotos" className={SCHNELL}><ImageIcon /> Fotos</a>
+          <a href="#ablage" className={SCHNELL}><FolderOpenIcon /> Ablage</a>
           <a href="#notizen" className={SCHNELL}><StickyNoteIcon /> Notizen</a>
           <a href="#material" className={SCHNELL}><PackageIcon /> Material melden</a>
           <Link href={`/baustellen/${p.id}/aufmass`} className={SCHNELL}><RulerIcon /> Aufmaß</Link>
@@ -189,7 +208,11 @@ export default async function BaustelleSeite({ params }: { params: Promise<{ id:
         kollegen={[...kollegen.values()].filter((k) => k.id !== nutzer.id)}
       />
 
-      <Fotos projektId={p.id} ichId={nutzer.id} darfHochladen={darfInhalte} fotos={fotos} />
+      <section id="ablage" className="flex scroll-mt-4 flex-col gap-5">
+        <h2 className="flex items-center gap-2 text-lg font-semibold"><FolderOpenIcon className="size-5" /> Ablage</h2>
+        <Fotos projektId={p.id} ichId={nutzer.id} darfHochladen={darfInhalte} fotos={fotos} />
+        <Dateien projektId={p.id} darfHochladen={darfInhalte} dateien={dateien} />
+      </section>
       <Notizen projektId={p.id} ichId={nutzer.id} darfSchreiben={darfInhalte} notizen={notizen} />
 
       <Material projektId={p.id} ichId={nutzer.id} darfMelden={darfInhalte} darfAbhaken={istBuero} eintraege={material} />
