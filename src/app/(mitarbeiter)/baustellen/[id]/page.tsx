@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeftIcon, ChevronRightIcon, PencilIcon, ClockIcon, ImageIcon, NavigationIcon, PackageIcon, RulerIcon, StickyNoteIcon } from "lucide-react";
+import { ArrowLeftIcon, ChevronRightIcon, ClipboardListIcon, PackageCheckIcon, PencilIcon, ClockIcon, ImageIcon, NavigationIcon, PackageIcon, RulerIcon, StickyNoteIcon } from "lucide-react";
 import { AnrufLink } from "@/components/anruf-link";
 import { buttonVariants } from "@/components/ui/button";
 import { requireUser } from "@/lib/auth";
@@ -15,7 +15,7 @@ import { istBueroRolle } from "@/lib/rollen";
 import { createClient } from "@/lib/supabase/server";
 import { Warteschlange } from "../../warteschlange";
 import { Angebote } from "./angebote";
-import { Arbeitsanweisung } from "./arbeitsanweisung";
+import { Projektliste } from "./arbeitsanweisung";
 import { Rechnungen } from "./rechnungen";
 import { Fotos, type FotoAnzeige } from "./fotos";
 import { Material, type MaterialAnzeige } from "./material";
@@ -142,9 +142,11 @@ export default async function BaustelleSeite({ params }: { params: Promise<{ id:
               <ClockIcon /> Zeit
             </Link>
           )}
+          <a href="#arbeitsanweisung" className={SCHNELL}><ClipboardListIcon /> Arbeits­anweisung</a>
+          <a href="#materialliste" className={SCHNELL}><PackageCheckIcon /> Material­liste</a>
           <a href="#fotos" className={SCHNELL}><ImageIcon /> Fotos</a>
           <a href="#notizen" className={SCHNELL}><StickyNoteIcon /> Notizen</a>
-          <a href="#material" className={SCHNELL}><PackageIcon /> Material</a>
+          <a href="#material" className={SCHNELL}><PackageIcon /> Material melden</a>
           <Link href={`/baustellen/${p.id}/aufmass`} className={SCHNELL}><RulerIcon /> Aufmaß</Link>
         </nav>
       )}
@@ -175,7 +177,8 @@ export default async function BaustelleSeite({ params }: { params: Promise<{ id:
         </section>
       )}
 
-      <Arbeitsanweisung projektId={p.id} istBuero={istBuero} />
+      <Projektliste projektId={p.id} art="arbeitsanweisung" istBuero={istBuero} archiviert={Boolean(p.archiviert_am)} />
+      <Projektliste projektId={p.id} art="materialliste" istBuero={istBuero} archiviert={Boolean(p.archiviert_am)} />
 
       <Team
         projektId={p.id}

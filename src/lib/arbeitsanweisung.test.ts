@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { angebotBerechnen, type Baustein } from "./angebot";
-import { anweisungBlocks, arbeitsanweisungErzeugen, mengeText, saetze } from "./arbeitsanweisung";
+import { MATERIALLISTE_LEER, anweisungBlocks, arbeitsanweisungErzeugen, materiallisteErzeugen, mengeText, saetze } from "./arbeitsanweisung";
 
 let n = 0;
 const b = (typ: Baustein["typ"], teil: Partial<Baustein> = {}): Baustein => ({
@@ -88,5 +88,34 @@ describe("anweisungBlocks", () => {
       { art: "leer" },
       { art: "absatz", text: "Ende" },
     ]);
+  });
+});
+
+describe("materiallisteErzeugen", () => {
+  const material = (kurz: string, menge: number, einheit: string, preis: number, id: string | null): Baustein =>
+    ({ ...pos(kurz, menge, einheit, preis), materialId: id });
+
+  it("nimmt nur Positionen aus dem Material-Katalog, ohne Preise", () => {
+    const zeilen = rechne([
+      pos("Wände streichen", 100, "m²", 10),
+      material("Dispersionsfarbe weiß 12,5 l", 5, "Eimer", 19.99, "m-1"),
+      material("Malerkrepp", 4, "Rolle", 2.49, "m-2"),
+      material("Abzug", -1, "Stk", -5, "m-3"),
+      b("titel", { kurztext: "Wohnzimmer" }),
+    ]);
+    const r = materiallisteErzeugen({ betreff: "Haus 2", adresse: "Technologiepark 10, 26129 Oldenburg", zeilen });
+    expect(r.titel).toBe("Materialliste: Haus 2");
+    expect(r.anzahl).toBe(2);
+    expect(r.inhalt).toContain("Baustelle: Technologiepark 10, 26129 Oldenburg");
+    expect(r.inhalt).toContain("# Material");
+    expect(r.inhalt).toContain("- Dispersionsfarbe weiß 12,5 l – 5 Eimer");
+    expect(r.inhalt).toContain("- Malerkrepp – 4 Rolle");
+    expect(r.inhalt).not.toMatch(/Wände|Abzug|Wohnzimmer|€|19,99|2,49/);
+  });
+
+  it("ohne Material-Positionen steht ein Hinweis zum Ergänzen von Hand da", () => {
+    const r = materiallisteErzeugen({ betreff: "X", adresse: "", zeilen: rechne([pos("Wände streichen", 100, "m²", 10)]) });
+    expect(r.anzahl).toBe(0);
+    expect(r.inhalt).toContain(MATERIALLISTE_LEER);
   });
 });

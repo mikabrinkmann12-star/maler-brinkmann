@@ -2,13 +2,13 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ArchiveIcon, ArchiveRestoreIcon, ClipboardListIcon, CopyIcon, DownloadIcon, EyeIcon, ReceiptTextIcon, SendIcon } from "lucide-react";
+import { ArchiveIcon, ArchiveRestoreIcon, ClipboardListIcon, CopyIcon, PackageCheckIcon, DownloadIcon, EyeIcon, ReceiptTextIcon, SendIcon } from "lucide-react";
 import { toast } from "sonner";
 import { FormularMeldung } from "@/components/formular-meldung";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { STATUS_NAMEN, type AngebotStatus } from "@/lib/angebot";
 import { angebotArchivieren, angebotKopieren, angebotStatusSetzen } from "../actions";
-import { arbeitsanweisungErstellen } from "../anweisung-actions";
+import { arbeitsanweisungErstellen, materialListeErstellen } from "../anweisung-actions";
 import { rechnungAusAngebotErstellen } from "../../rechnungen/actions";
 
 const WEITER: Record<AngebotStatus, AngebotStatus[]> = {
@@ -57,6 +57,16 @@ export function AktionenLeiste({ angebotId, status, archiviert }: { angebotId: s
     });
   }
 
+  function materialliste() {
+    setFehler(null);
+    starte(async () => {
+      const r = await materialListeErstellen(angebotId);
+      if (r.fehler) return setFehler(r.fehler);
+      toast.success("Materialliste erzeugt: bitte prüfen, ergänzen und freigeben");
+      router.push(`/baustellen/${r.projektId}#materialliste`);
+    });
+  }
+
   function rechnung() {
     setFehler(null);
     starte(async () => {
@@ -91,6 +101,7 @@ export function AktionenLeiste({ angebotId, status, archiviert }: { angebotId: s
         {(status === "versendet" || status === "angenommen") && (
           <Button type="button" variant="outline" onClick={rechnung} disabled={laeuft}><ReceiptTextIcon /> Rechnung erstellen</Button>
         )}
+        <Button type="button" variant="outline" onClick={materialliste} disabled={laeuft}><PackageCheckIcon /> Materialliste erstellen</Button>
         <Button type="button" variant="outline" onClick={anweisung} disabled={laeuft}><ClipboardListIcon /> Arbeitsanweisung erstellen</Button>
         <Button type="button" variant="outline" onClick={archivieren} disabled={laeuft}>
           {archiviert ? <ArchiveRestoreIcon /> : <ArchiveIcon />} {archiviert ? "Wiederherstellen" : "Archivieren"}

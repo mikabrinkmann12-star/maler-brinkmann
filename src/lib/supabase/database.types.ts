@@ -1674,6 +1674,7 @@ export type Database = {
       work_instructions: {
         Row: {
           archiviert_am: string | null
+          art: string
           created_at: string
           erstellt_von: string | null
           freigegeben_am: string | null
@@ -1686,6 +1687,7 @@ export type Database = {
         }
         Insert: {
           archiviert_am?: string | null
+          art?: string
           created_at?: string
           erstellt_von?: string | null
           freigegeben_am?: string | null
@@ -1698,6 +1700,7 @@ export type Database = {
         }
         Update: {
           archiviert_am?: string | null
+          art?: string
           created_at?: string
           erstellt_von?: string | null
           freigegeben_am?: string | null

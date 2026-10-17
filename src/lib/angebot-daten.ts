@@ -60,6 +60,7 @@ type ItemZeile = {
   einheit: string | null;
   einzelpreis: number | string | null;
   bild_pfad: string | null;
+  material_id?: string | null;
 };
 
 export function bausteinAusZeile(z: ItemZeile): Baustein {
@@ -72,6 +73,7 @@ export function bausteinAusZeile(z: ItemZeile): Baustein {
     einheit: z.einheit ?? "",
     einzelpreis: z.einzelpreis == null ? null : Number(z.einzelpreis),
     bildPfad: z.bild_pfad,
+    materialId: z.material_id ?? null,
   };
 }
 
@@ -90,7 +92,7 @@ export async function angebotLaden(id: string): Promise<AngebotDetail | null> {
 
   const { data: items, error: itemsFehler } = await supabase
     .from("quote_items")
-    .select("id, typ, kurztext, langtext, menge, einheit, einzelpreis, bild_pfad")
+    .select("id, typ, kurztext, langtext, menge, einheit, einzelpreis, bild_pfad, material_id")
     .eq("quote_id", id)
     .order("sortierung")
     .order("created_at")

@@ -76,3 +76,30 @@ export function anweisungBlocks(inhalt: string): AnweisungBlock[] {
     return { art: "absatz", text: zeile.trim() };
   });
 }
+
+// ---------------------------------------------------------------------------
+// Materialliste (Mika, 18.10.2026): die Material-Positionen eines Angebots, ohne Preise
+// ---------------------------------------------------------------------------
+
+export const MATERIALLISTE_LEER = "Noch kein Material. Zeilen mit „- “ eintragen, zum Beispiel: - Dispersionsfarbe weiß – 2 Eimer";
+
+/**
+ * Materialliste aus einem Angebot: Positionen, die aus dem Material-Katalog stammen, als Stichpunkte „Bezeichnung – Menge Einheit“.
+ * Preise fehlen. Eigene Zeilen ergänzt das Büro von Hand (der Text ist vor der Freigabe änderbar).
+ */
+export function materiallisteErzeugen(angebot: { betreff: string; adresse: string; zeilen: BerechneteZeile[] }): { titel: string; inhalt: string; anzahl: number } {
+  const zeilen: string[] = [];
+  if (angebot.adresse.trim()) zeilen.push(`Baustelle: ${angebot.adresse.trim()}`, "");
+  zeilen.push("# Material");
+  let anzahl = 0;
+  for (const z of angebot.zeilen) {
+    const b = z.baustein;
+    if (b.typ !== "position" || !b.materialId) continue;
+    if ((b.menge ?? 0) <= 0) continue;
+    const name = b.kurztext.trim() || saetze(b.langtext)[0] || "Material";
+    zeilen.push(`- ${name} – ${mengeText(b.menge ?? 0, b.einheit)}`);
+    anzahl += 1;
+  }
+  if (anzahl === 0) zeilen.push(MATERIALLISTE_LEER);
+  return { titel: `Materialliste: ${angebot.betreff}`.slice(0, 200), inhalt: zeilen.join("\n").slice(0, MAX_ANWEISUNG), anzahl };
+}

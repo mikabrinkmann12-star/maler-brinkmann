@@ -40,6 +40,8 @@ export type Baustein = {
   einheit: string;
   einzelpreis: number | null;
   bildPfad: string | null;
+  /** Wenn die Position aus dem Material-Katalog stammt: dessen ID (für die Materialliste) */
+  materialId?: string | null;
 };
 
 export type BerechneteZeile = {

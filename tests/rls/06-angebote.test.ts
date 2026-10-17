@@ -252,6 +252,19 @@ describe("Arbeitsanweisung (ohne Preise, erst nach Freigabe für Mitarbeiter)", 
     expect(doppelt.error?.code).toBe("23505");
   });
 
+  it("Materialliste: pro Angebot je Art eine aktive Liste, Standard ist die Arbeitsanweisung", async () => {
+    const m = await bueroC.from("work_instructions").insert({ project_id: projekt, quote_id: angebot, titel: `${kennung} Material`, inhalt: "# Material", art: "materialliste" }).select("id, art").single();
+    expect(m.error).toBeNull();
+    expect(m.data!.art).toBe("materialliste");
+    const doppelt = await adminC.from("work_instructions").insert({ project_id: projekt, quote_id: angebot, titel: "Nochmal", inhalt: "x", art: "materialliste" });
+    expect(doppelt.error?.code).toBe("23505");
+    expect((await adminC.from("work_instructions").insert({ project_id: projekt, titel: "Hack", inhalt: "x", art: "chat" })).error).not.toBeNull();
+    // Die Materialliste ist wie die Arbeitsanweisung erst nach der Freigabe für Mitarbeiter sichtbar
+    expect((await malerC.from("work_instructions").select("id").eq("id", m.data!.id)).data ?? []).toEqual([]);
+    await bueroC.from("work_instructions").update({ freigegeben_am: new Date().toISOString() }).eq("id", m.data!.id);
+    expect((await malerC.from("work_instructions").select("id").eq("id", m.data!.id)).data).toHaveLength(1);
+  });
+
   it("Mitarbeiter (auch Projektmitglied) sehen den Entwurf nicht und können nichts anlegen oder ändern", async () => {
     expect((await malerC.from("work_instructions").select("id").eq("id", anweisung)).data ?? []).toEqual([]);
     expect((await malerC.from("work_instructions").insert({ project_id: projekt, titel: "Hack", inhalt: "x" })).error).not.toBeNull();
