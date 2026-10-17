@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ChevronRightIcon, PlusIcon, SearchIcon } from "lucide-react";
+import { ChevronRightIcon, MessageCircleIcon, PlusIcon, SearchIcon } from "lucide-react";
 import { cn } from "cn";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { requireRole } from "@/lib/auth";
+import { ungelesenKarte, zaehlerText } from "@/lib/chat";
 import { formatDatum } from "@/lib/format";
 import { adresseText } from "@/lib/projekt";
 import { istProjektSortierung, projekteSuchen, type ProjektSortierung } from "@/lib/projekt-liste";
@@ -23,10 +24,12 @@ export default async function ProjekteSeite({ searchParams }: PageProps<"/buero/
   const sortierung: ProjektSortierung = istProjektSortierung(wert("sortierung")) ? (wert("sortierung") as ProjektSortierung) : "neu";
 
   const supabase = await createClient();
-  const [{ projekte, gesamt }, { data: status }] = await Promise.all([
+  const [{ projekte, gesamt }, { data: status }, { data: ungelesenDaten }] = await Promise.all([
     projekteSuchen({ q, archiv, statusId, sortierung, limit: 300 }),
     supabase.from("project_statuses").select("id, name").eq("aktiv", true).order("sortierung"),
+    supabase.rpc("chat_ungelesen"),
   ]);
+  const chatNeu = ungelesenKarte(ungelesenDaten);
 
   const adresse = (teil: Record<string, string>) => {
     const p = new URLSearchParams();
@@ -83,6 +86,11 @@ export default async function ProjekteSeite({ searchParams }: PageProps<"/buero/
                 <span className="block">{p.status?.name}</span>
                 <span className="block text-xs">{p.projektnummer}{p.start_datum && ` · ${formatDatum(p.start_datum)}`}</span>
               </span>
+              {(chatNeu.get(p.id) ?? 0) > 0 && (
+                <span aria-label={`${chatNeu.get(p.id)} neue Chat-Nachrichten`} className="flex shrink-0 items-center gap-1 rounded-full bg-red-600 px-2 text-sm font-semibold leading-6 text-white">
+                  <MessageCircleIcon className="size-4" /> {zaehlerText(chatNeu.get(p.id) ?? 0)}
+                </span>
+              )}
               <ChevronRightIcon className="size-5 shrink-0 text-muted-foreground" />
             </Link>
           </li>

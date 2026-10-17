@@ -337,6 +337,39 @@ export type Database = {
           },
         ]
       }
+      chat_reads: {
+        Row: {
+          gelesen_bis: string
+          project_id: string
+          user_id: string
+        }
+        Insert: {
+          gelesen_bis?: string
+          project_id: string
+          user_id?: string
+        }
+        Update: {
+          gelesen_bis?: string
+          project_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_reads_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_reads_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contacts: {
         Row: {
           anrede: string | null
@@ -1114,6 +1147,71 @@ export type Database = {
           },
         ]
       }
+      project_messages: {
+        Row: {
+          archiviert_am: string | null
+          created_at: string
+          datei_id: string | null
+          erstellt_von: string | null
+          foto_id: string | null
+          id: string
+          project_id: string
+          text: string
+          updated_at: string
+        }
+        Insert: {
+          archiviert_am?: string | null
+          created_at?: string
+          datei_id?: string | null
+          erstellt_von?: string | null
+          foto_id?: string | null
+          id?: string
+          project_id: string
+          text?: string
+          updated_at?: string
+        }
+        Update: {
+          archiviert_am?: string | null
+          created_at?: string
+          datei_id?: string | null
+          erstellt_von?: string | null
+          foto_id?: string | null
+          id?: string
+          project_id?: string
+          text?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_messages_datei_id_fkey"
+            columns: ["datei_id"]
+            isOneToOne: false
+            referencedRelation: "project_files"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_messages_erstellt_von_fkey"
+            columns: ["erstellt_von"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_messages_foto_id_fkey"
+            columns: ["foto_id"]
+            isOneToOne: false
+            referencedRelation: "project_photos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_messages_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_notes: {
         Row: {
           archiviert_am: string | null
@@ -1803,6 +1901,17 @@ export type Database = {
         Returns: boolean
       }
       aufmass_sichtbar: { Args: { p_measurement_id: string }; Returns: boolean }
+      chat_gelesen_markieren: {
+        Args: { p_projekt: string }
+        Returns: undefined
+      }
+      chat_ungelesen: {
+        Args: never
+        Returns: {
+          anzahl: number
+          project_id: string
+        }[]
+      }
       ist_admin: { Args: never; Returns: boolean }
       ist_aktiv: { Args: never; Returns: boolean }
       ist_aktiver_nutzer: { Args: { p_user_id: string }; Returns: boolean }

@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArchiveIcon, ChevronRightIcon } from "lucide-react";
+import { ArchiveIcon, ChevronRightIcon, MessageCircleIcon } from "lucide-react";
 import { requireUser } from "@/lib/auth";
+import { ungelesenKarte, zaehlerText } from "@/lib/chat";
 import { heuteIso } from "@/lib/datum";
 import { formatDatum } from "@/lib/format";
 import { meineEinsaetze, meineProjektIds } from "@/lib/mitarbeiter-daten";
@@ -16,6 +17,8 @@ export default async function BaustellenSeite() {
   const heuteIds = new Set(heute.flatMap((e) => e.assignment_stops.map((s) => s.projects?.id)).filter(Boolean));
 
   const supabase = await createClient();
+  const { data: ungelesenDaten } = await supabase.rpc("chat_ungelesen");
+  const chatNeu = ungelesenKarte(ungelesenDaten);
   const { data } = ids.length
     ? await supabase
         .from("projects")
@@ -62,6 +65,11 @@ export default async function BaustellenSeite() {
                   {p.start_datum && ` · ${formatDatum(p.start_datum)}–${formatDatum(p.end_datum)}`}
                 </span>
               </span>
+              {(chatNeu.get(p.id) ?? 0) > 0 && (
+                <span aria-label={`${chatNeu.get(p.id)} neue Chat-Nachrichten`} className="flex shrink-0 items-center gap-1 rounded-full bg-red-600 px-2 text-sm font-semibold leading-6 text-white">
+                  <MessageCircleIcon className="size-4" /> {zaehlerText(chatNeu.get(p.id) ?? 0)}
+                </span>
+              )}
               <ChevronRightIcon className="size-5 shrink-0 text-muted-foreground" />
             </Link>
           </li>

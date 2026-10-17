@@ -101,7 +101,7 @@ async function main() {
   const entferne = async (
     tabelle: "assignments" | "assignment_members" | "time_entries" | "leave_requests" | "notifications"
       | "project_notes" | "project_photos" | "material_usage" | "measurements" | "project_members" | "appointments"
-      | "appointment_members",
+      | "appointment_members" | "project_messages" | "chat_reads" | "project_files",
     spalte: string,
     ids: string[],
   ) => {
@@ -132,7 +132,12 @@ async function main() {
   await entferne("leave_requests", "entschieden_von", alteNutzerIds);
   await entferne("notifications", "project_id", alteProjektIds);
   await entferne("notifications", "ausgeloest_von", alteNutzerIds);
-  for (const tabelle of ["project_notes", "project_photos", "material_usage", "measurements"] as const) {
+  // Chat zuerst (Nachrichten verweisen auf Fotos und Dateien der Ablage)
+  await entferne("project_messages", "project_id", alteProjektIds);
+  await entferne("project_messages", "erstellt_von", alteNutzerIds);
+  await entferne("chat_reads", "project_id", alteProjektIds);
+  await entferne("chat_reads", "user_id", alteNutzerIds);
+  for (const tabelle of ["project_files", "project_notes", "project_photos", "material_usage", "measurements"] as const) {
     await entferne(tabelle, "project_id", alteProjektIds);
     await entferne(tabelle, "erstellt_von", alteNutzerIds);
   }

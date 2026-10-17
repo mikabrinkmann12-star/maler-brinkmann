@@ -1,13 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeftIcon, ChevronRightIcon, ClipboardListIcon, FolderOpenIcon, PackageCheckIcon, PencilIcon, ClockIcon, NavigationIcon, PackageIcon, RulerIcon, StickyNoteIcon } from "lucide-react";
+import { ArrowLeftIcon, ChevronRightIcon, MessageCircleIcon, ClipboardListIcon, FolderOpenIcon, PackageCheckIcon, PencilIcon, ClockIcon, NavigationIcon, PackageIcon, RulerIcon, StickyNoteIcon } from "lucide-react";
+import { cn } from "cn";
 import { AnrufLink } from "@/components/anruf-link";
 import { buttonVariants } from "@/components/ui/button";
 import { requireUser } from "@/lib/auth";
 import { EINHEIT_NAMEN, aufmassSummen } from "@/lib/aufmass";
 import { aufmassLaden } from "@/lib/baustellen-daten";
 import { vorschauPfad } from "@/lib/bild";
+import { ungelesenKarte, zaehlerText } from "@/lib/chat";
 import { groesseText } from "@/lib/dateien";
 import { formatDatum, formatDatumZeit, formatZahl } from "@/lib/format";
 import { kollegenLaden } from "@/lib/mitarbeiter-daten";
@@ -49,7 +51,7 @@ export default async function BaustelleSeite({ params }: { params: Promise<{ id:
     .maybeSingle();
   if (!p) notFound();
 
-  const [{ data: mitglieder }, kollegen, { data: notizDaten }, { data: fotoDaten }, { data: dateiDaten }, { data: materialDaten }, aufmass] = await Promise.all([
+  const [{ data: mitglieder }, kollegen, { data: notizDaten }, { data: fotoDaten }, { data: dateiDaten }, { data: materialDaten }, aufmass, { data: ungelesenDaten }] = await Promise.all([
     supabase.from("project_members").select("user_id").eq("project_id", id),
     kollegenLaden(),
     supabase.from("project_notes").select("id, text, erstellt_von, created_at")
@@ -61,7 +63,9 @@ export default async function BaustelleSeite({ params }: { params: Promise<{ id:
     supabase.from("material_usage").select("id, material, menge, einheit, bemerkung, erledigt_am, erstellt_von, created_at")
       .eq("project_id", id).is("archiviert_am", null).order("created_at", { ascending: false }),
     aufmassLaden(id),
+    supabase.rpc("chat_ungelesen"),
   ]);
+  const chatNeu = ungelesenKarte(ungelesenDaten).get(id) ?? 0;
   const team = (mitglieder ?? []).map((m) => kollegen.get(m.user_id)).filter((k): k is NonNullable<typeof k> => Boolean(k));
   const istMitglied = team.some((t) => t.id === nutzer.id);
   const istBuero = istBueroRolle(nutzer.rolle);
@@ -161,6 +165,14 @@ export default async function BaustelleSeite({ params }: { params: Promise<{ id:
               <ClockIcon /> Zeit
             </Link>
           )}
+          <Link href={`/baustellen/${p.id}/chat`} className={cn(SCHNELL, "relative")}>
+            <MessageCircleIcon /> Chat
+            {chatNeu > 0 && (
+              <span aria-label={`${chatNeu} neue Nachrichten`} className="absolute right-1.5 top-1.5 min-w-5 rounded-full bg-red-600 px-1.5 text-center text-xs font-semibold leading-5 text-white">
+                {zaehlerText(chatNeu)}
+              </span>
+            )}
+          </Link>
           <a href="#arbeitsanweisung" className={SCHNELL}><ClipboardListIcon /> Arbeits­anweisung</a>
           <a href="#materialliste" className={SCHNELL}><PackageCheckIcon /> Material­liste</a>
           <a href="#ablage" className={SCHNELL}><FolderOpenIcon /> Ablage</a>
