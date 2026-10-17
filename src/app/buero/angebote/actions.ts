@@ -13,7 +13,7 @@ import {
   type BausteinEingabe,
 } from "@/lib/angebot-schema";
 import { angebotEinstellungenLaden } from "@/lib/firma-daten";
-import { heuteIso } from "@/lib/datum";
+import { heuteIso, tageVerschieben } from "@/lib/datum";
 import { istKatalogArt } from "@/lib/katalog";
 import { briefanschrift } from "@/lib/kontakt-schema";
 import { ersteMeldung } from "@/lib/nutzer-schema";
@@ -59,7 +59,7 @@ export async function angebotAnlegen(projektId: string, eingabe: unknown): Promi
   const { data: projekt } = await supabase
     .from("projects")
     .select(
-      "id, archiviert_am, baustelle_strasse, baustelle_plz, baustelle_ort, contacts(typ, anrede, firmenname, ansprechpartner, vorname, nachname, strasse, plz, ort, empfaenger, steuersatz)",
+      "id, archiviert_am, baustelle_strasse, baustelle_plz, baustelle_ort, contacts(typ, anrede, firmenname, ansprechpartner, vorname, nachname, strasse, plz, ort, empfaenger, steuersatz, zahlungsziel_tage, skonto_prozent, skonto_tage)",
     )
     .eq("id", projektId)
     .maybeSingle();
@@ -82,6 +82,10 @@ export async function angebotAnlegen(projektId: string, eingabe: unknown): Promi
       betreff: pruefung.data.betreff,
       leistungsort: leistungsort || null,
       datum: heuteIso(),
+      zahlungsziel_tage: kunde?.zahlungsziel_tage ?? null,
+      skonto_prozent: kunde?.skonto_prozent && kunde.skonto_tage ? kunde.skonto_prozent : null,
+      skonto_tage: kunde?.skonto_prozent && kunde.skonto_tage ? kunde.skonto_tage : null,
+      gueltig_bis: vorgaben.gueltigkeit_tage > 0 ? tageVerschieben(heuteIso(), vorgaben.gueltigkeit_tage) : null,
       empfaenger: kunde ? briefanschrift(kunde).join("\n") || null : null,
       einleitung: vorgaben.einleitung || null,
       schlusstext: vorgaben.schlusstext || null,
@@ -139,6 +143,10 @@ export async function angebotAbschlussSpeichern(id: string, eingabe: unknown): P
       steuersatz: steuer.steuersatz,
       reverse_charge: steuer.reverseCharge,
       rabatt_prozent: a.rabatt,
+      zahlungsziel_tage: a.zahlungsziel,
+      skonto_prozent: a.skontoProzent,
+      skonto_tage: a.skontoTage,
+      gueltig_bis: a.gueltigBis,
     })
     .eq("id", id)
     .select("id");
@@ -195,6 +203,7 @@ export async function angebotKopieren(id: string): Promise<AngebotErgebnis> {
   const supabase = await createClient();
 
   const { data: alt } = await supabase.from("quotes").select("*").eq("id", id).maybeSingle();
+  const gueltigkeit = (await angebotEinstellungenLaden()).gueltigkeit_tage;
   if (!alt) return { fehler: "Angebot nicht gefunden." };
   const { data: items, error: itemsFehler } = await supabase
     .from("quote_items")
@@ -216,6 +225,11 @@ export async function angebotKopieren(id: string): Promise<AngebotErgebnis> {
       steuersatz: alt.steuersatz,
       reverse_charge: alt.reverse_charge,
       rabatt_prozent: alt.rabatt_prozent,
+      zahlungsziel_tage: alt.zahlungsziel_tage,
+      skonto_prozent: alt.skonto_prozent,
+      skonto_tage: alt.skonto_tage,
+      // „gültig bis“ zählt ab dem neuen Datum (heute), nicht ab dem alten Angebot
+      gueltig_bis: alt.gueltig_bis ? (gueltigkeit > 0 ? tageVerschieben(heuteIso(), gueltigkeit) : null) : null,
     })
     .select("id")
     .single();

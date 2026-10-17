@@ -79,6 +79,17 @@ describe("angebotPdf", () => {
     expect((await PDFDocument.load(kaputt)).getPageCount()).toBe(1);
   });
 
+  it("Zahlungsbedingungen und „gültig bis“ erscheinen im PDF, lange Sätze brechen nicht ab", async () => {
+    const posten = [pos("A", 1, "Stk", 100)];
+    const ohne = await angebotPdf(daten(posten));
+    const mit = await angebotPdf(daten(posten, { zahlungsbedingung: "Bei Zahlung innerhalb von 7 Tagen 2 % Skonto, zahlbar innerhalb von 30 Tagen netto", gueltigBis: "2026-11-17" }));
+    expect(mit.length).toBeGreaterThan(ohne.length);
+    expect((await PDFDocument.load(mit)).getPageCount()).toBe(1);
+    const viele = Array.from({ length: 40 }, (_, i) => pos(`Position ${i + 1}`, 1, "m²", 10));
+    const lang = await angebotPdf(daten(viele, { zahlungsbedingung: "x ".repeat(300), gueltigBis: "2026-11-17" }));
+    expect((await PDFDocument.load(lang)).getPageCount()).toBeGreaterThanOrEqual(2);
+  });
+
   it("leeres Angebot und leere Firmendaten brechen nicht ab", async () => {
     const bytes = await angebotPdf(daten([], { firma: { ...firma, name: "", ustid: "", iban: "", bank: "", bic: "", inhaber: "", steuernummer: "" } }));
     expect((await PDFDocument.load(bytes)).getPageCount()).toBe(1);

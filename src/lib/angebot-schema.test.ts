@@ -70,6 +70,21 @@ describe("Kopf, Abschluss, Steuer", () => {
     expect(abschlussSchema.safeParse({ schlusstext: "", steuer: "16", rabatt: "0" }).success).toBe(false);
   });
 
+  it("abschlussSchema: Zahlungsziel, Skonto und gültig bis (leer = keine Angabe)", () => {
+    const basis = { schlusstext: "", steuer: "19", rabatt: "" };
+    expect(abschlussSchema.parse(basis)).toMatchObject({ zahlungsziel: null, skontoProzent: null, skontoTage: null, gueltigBis: null });
+    expect(abschlussSchema.parse({ ...basis, zahlungsziel: "14", skontoProzent: "2,5", skontoTage: "7", gueltigBis: "2026-11-17" })).toMatchObject({
+      zahlungsziel: 14, skontoProzent: 2.5, skontoTage: 7, gueltigBis: "2026-11-17",
+    });
+    expect(abschlussSchema.safeParse({ ...basis, zahlungsziel: "-1" }).success).toBe(false);
+    expect(abschlussSchema.safeParse({ ...basis, zahlungsziel: "14,5" }).success).toBe(false);
+    expect(abschlussSchema.safeParse({ ...basis, skontoProzent: "2" }).success).toBe(false);
+    expect(abschlussSchema.safeParse({ ...basis, skontoTage: "7" }).success).toBe(false);
+    expect(abschlussSchema.safeParse({ ...basis, skontoProzent: "25", skontoTage: "7" }).success).toBe(false);
+    expect(abschlussSchema.safeParse({ ...basis, gueltigBis: "17.11.2026" }).success).toBe(false);
+    expect(abschlussSchema.safeParse({ ...basis, gueltigBis: "2026-02-30" }).success).toBe(false);
+  });
+
   it("Steuer-Auswahl ↔ Spalten", () => {
     expect(steuerAusAuswahl("19")).toEqual({ steuersatz: 19, reverseCharge: false });
     expect(steuerAusAuswahl("7")).toEqual({ steuersatz: 7, reverseCharge: false });

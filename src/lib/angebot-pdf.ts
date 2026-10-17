@@ -25,6 +25,10 @@ export type AngebotPdfDaten = {
   bilder: Record<string, Uint8Array>;
   /** Firmenlogo (PNG oder JPEG), erscheint oben links im Briefkopf */
   logo?: Uint8Array;
+  /** Satz zu Zahlungsziel und Skonto, z. B. „Zahlbar innerhalb von 14 Tagen netto“; leer = keine Angabe */
+  zahlungsbedingung?: string;
+  /** Gültig bis (JJJJ-MM-TT); leer = keine Angabe */
+  gueltigBis?: string;
 };
 
 // Maße in Punkt (1 pt = 1/72 Zoll). A4 = 595,28 × 841,89.
@@ -331,6 +335,21 @@ export async function angebotPdf(d: AngebotPdfDaten): Promise<Uint8Array> {
     for (const zeile of hinweisZeilen) {
       z.text(zeile, RAND_L, z.y, { groesse: 8.5 });
       z.y -= 11;
+    }
+  }
+
+  // Zahlungsbedingungen und Gültigkeit direkt unter den Summen
+  const bedingungen: string[] = [];
+  if (d.zahlungsbedingung?.trim()) bedingungen.push(`Zahlungsbedingungen: ${d.zahlungsbedingung.trim()}.`);
+  if (d.gueltigBis?.trim()) bedingungen.push(`Dieses Angebot ist gültig bis ${formatDatum(d.gueltigBis)}.`);
+  if (bedingungen.length) {
+    z.y -= 10;
+    for (const satz of bedingungen) {
+      for (const zeile of z.umbrechen(satz, z.regular, SCHRIFT, INHALT_B)) {
+        if (z.y < UNTEN + ZEILE) { z.neueSeite(); folgekopf(z, titel, d); }
+        z.text(zeile, RAND_L, z.y);
+        z.y -= ZEILE;
+      }
     }
   }
 

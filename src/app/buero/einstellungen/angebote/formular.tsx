@@ -52,6 +52,9 @@ export function AngebotEinstellungenFormular({ werte }: { werte: AngebotEinstell
             <option value="0">0 %</option>
           </Auswahl>
         </Feld>
+        <Feld label="Angebot gültig (Tage)" htmlFor="gueltigkeit_tage" hinweis="Frist für neue Angebote: Angebotsdatum plus diese Tage ergibt „gültig bis“ (im Angebot änderbar). 0 = keine Gültigkeitsangabe.">
+          <Input id="gueltigkeit_tage" name="gueltigkeit_tage" inputMode="numeric" defaultValue={String(werte.gueltigkeit_tage)} className="h-12 max-w-40 text-base" />
+        </Feld>
         <Feld label="Standard-Rabatt in %" htmlFor="standard_rabatt" hinweis="Vorgabe für neue Angebote, normalerweise 0.">
           <Input id="standard_rabatt" name="standard_rabatt" defaultValue={zahlFuerFeld(werte.standard_rabatt)} inputMode="decimal" className="h-12 max-w-40 text-base" />
         </Feld>

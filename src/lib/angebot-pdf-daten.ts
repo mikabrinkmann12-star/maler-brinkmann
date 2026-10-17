@@ -2,6 +2,7 @@ import "server-only";
 import { angebotBerechnen } from "@/lib/angebot";
 import { angebotLaden } from "@/lib/angebot-daten";
 import { angebotPdf } from "@/lib/angebot-pdf";
+import { zahlungsbedingungText } from "@/lib/rechnung";
 import { angebotEinstellungenLaden, firmaLaden } from "@/lib/firma-daten";
 import { createClient } from "@/lib/supabase/server";
 
@@ -56,6 +57,8 @@ export async function angebotPdfErzeugen(id: string): Promise<{ bytes: Uint8Arra
     reverseChargeText: vorgaben.reverse_charge_text,
     bilder,
     logo,
+    zahlungsbedingung: a.zahlungszielTage == null ? "" : zahlungsbedingungText(a.zahlungszielTage, a.skontoProzent, a.skontoTage),
+    gueltigBis: a.gueltigBis ?? "",
   });
   return { bytes, dateiname: pdfDateiname(a.betreff) };
 }

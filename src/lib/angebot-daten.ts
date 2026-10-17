@@ -23,6 +23,10 @@ export type AngebotKopf = {
   archiviert: boolean;
   versendetAm: string | null;
   versendetAn: string;
+  zahlungszielTage: number | null;
+  skontoProzent: number | null;
+  skontoTage: number | null;
+  gueltigBis: string | null;
 };
 
 export type AngebotProjekt = {
@@ -77,7 +81,7 @@ export async function angebotLaden(id: string): Promise<AngebotDetail | null> {
   const { data: q, error } = await supabase
     .from("quotes")
     .select(
-      "id, project_id, status, betreff, leistungsort, datum, empfaenger, einleitung, schlusstext, steuersatz, reverse_charge, rabatt_prozent, archiviert_am, versendet_am, versendet_an, projects(id, name, projektnummer, baustelle_strasse, baustelle_plz, baustelle_ort, archiviert_am, contacts(id, kundennummer, typ, firmenname, vorname, nachname, email))",
+      "id, project_id, status, betreff, leistungsort, datum, empfaenger, einleitung, schlusstext, steuersatz, reverse_charge, rabatt_prozent, archiviert_am, versendet_am, versendet_an, zahlungsziel_tage, skonto_prozent, skonto_tage, gueltig_bis, projects(id, name, projektnummer, baustelle_strasse, baustelle_plz, baustelle_ort, archiviert_am, contacts(id, kundennummer, typ, firmenname, vorname, nachname, email))",
     )
     .eq("id", id)
     .maybeSingle();
@@ -112,6 +116,10 @@ export async function angebotLaden(id: string): Promise<AngebotDetail | null> {
       archiviert: q.archiviert_am != null,
       versendetAm: q.versendet_am,
       versendetAn: q.versendet_an ?? "",
+      zahlungszielTage: q.zahlungsziel_tage,
+      skontoProzent: q.skonto_prozent == null ? null : Number(q.skonto_prozent),
+      skontoTage: q.skonto_tage,
+      gueltigBis: q.gueltig_bis,
     },
     bausteine: items.map(bausteinAusZeile),
     projekt: {

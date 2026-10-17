@@ -28,18 +28,53 @@ export const kopfSchema = z.object({
 export const STEUER_AUSWAHL = ["19", "7", "0", "rc"] as const;
 export type SteuerAuswahl = (typeof STEUER_AUSWAHL)[number];
 
-export const abschlussSchema = z.object({
-  schlusstext: optional(3000, "Der Schlusstext"),
-  steuer: z.enum(STEUER_AUSWAHL, { error: "Bitte die Umsatzsteuer wählen." }),
-  rabatt: z.string().transform((t, ctx) => {
-    const zahl = t.trim() === "" ? 0 : zahlLesen(t, 2);
-    if (zahl === null || zahl < 0 || zahl > 100) {
-      ctx.addIssue({ code: "custom", message: "Der Rabatt muss eine Zahl von 0 bis 100 sein." });
+const leerOderGanzzahl = (label: string, min: number, max: number) =>
+  z.string().default("").transform((t, ctx) => {
+    if (t.trim() === "") return null;
+    const wert = Number(t.trim());
+    if (!Number.isInteger(wert) || wert < min || wert > max) {
+      ctx.addIssue({ code: "custom", message: `${label}: bitte eine ganze Zahl von ${min} bis ${max} eingeben oder leer lassen.` });
       return z.NEVER;
     }
-    return zahl;
-  }),
-});
+    return wert;
+  });
+
+export const abschlussSchema = z
+  .object({
+    schlusstext: optional(3000, "Der Schlusstext"),
+    steuer: z.enum(STEUER_AUSWAHL, { error: "Bitte die Umsatzsteuer wählen." }),
+    rabatt: z.string().transform((t, ctx) => {
+      const zahl = t.trim() === "" ? 0 : zahlLesen(t, 2);
+      if (zahl === null || zahl < 0 || zahl > 100) {
+        ctx.addIssue({ code: "custom", message: "Der Rabatt muss eine Zahl von 0 bis 100 sein." });
+        return z.NEVER;
+      }
+      return zahl;
+    }),
+    zahlungsziel: leerOderGanzzahl("Zahlungsziel in Tagen", 0, 365),
+    skontoProzent: z.string().default("").transform((t, ctx) => {
+      if (t.trim() === "") return null;
+      const zahl = zahlLesen(t, 2);
+      if (zahl === null || zahl <= 0 || zahl > 20) {
+        ctx.addIssue({ code: "custom", message: "Skonto: bitte einen Prozentwert von 0,01 bis 20 eingeben oder leer lassen." });
+        return z.NEVER;
+      }
+      return zahl;
+    }),
+    skontoTage: leerOderGanzzahl("Skonto-Frist in Tagen", 1, 365),
+    gueltigBis: z.string().default("").transform((t, ctx) => {
+      if (t.trim() === "") return null;
+      if (!istDatum(t)) {
+        ctx.addIssue({ code: "custom", message: "Bitte ein gültiges Datum für „gültig bis“ wählen oder das Feld leeren." });
+        return z.NEVER;
+      }
+      return t;
+    }),
+  })
+  .refine((k) => (k.skontoProzent === null) === (k.skontoTage === null), {
+    message: "Skonto braucht Prozent und Frist, oder beides leer lassen.",
+    path: ["skontoTage"],
+  });
 
 /** Auswahl → Spalten der Datenbank */
 export function steuerAusAuswahl(wert: SteuerAuswahl): { steuersatz: number; reverseCharge: boolean } {

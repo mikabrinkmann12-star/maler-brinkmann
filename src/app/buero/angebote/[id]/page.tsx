@@ -128,9 +128,12 @@ export default async function AngebotSeite({ params }: PageProps<"/buero/angebot
       </section>
 
       <AbschlussFormular
-        key={`abschluss:${a.schlusstext}|${a.steuersatz}|${a.reverseCharge}|${a.rabattProzent}`}
+        key={`abschluss:${a.schlusstext}|${a.steuersatz}|${a.reverseCharge}|${a.rabattProzent}|${a.zahlungszielTage}|${a.skontoProzent}|${a.skontoTage}|${a.gueltigBis}`}
         angebotId={a.id}
-        start={{ schlusstext: a.schlusstext, steuer: auswahlAusSteuer(a.steuersatz, a.reverseCharge), rabatt: a.rabattProzent }}
+        start={{
+          schlusstext: a.schlusstext, steuer: auswahlAusSteuer(a.steuersatz, a.reverseCharge), rabatt: a.rabattProzent,
+          zahlungsziel: a.zahlungszielTage, skontoProzent: a.skontoProzent, skontoTage: a.skontoTage, gueltigBis: a.gueltigBis,
+        }}
         gesperrt={gesperrt}
       />
     </div>

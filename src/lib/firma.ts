@@ -45,6 +45,7 @@ export const angebotEinstellungenSchema = z.object({
   mail_betreff: text(200, "E-Mail-Betreff").min(1, "Bitte den E-Mail-Betreff eingeben."),
   mail_text: text(5000, "E-Mail-Text").min(1, "Bitte den E-Mail-Text eingeben."),
   logo_anzeigen: z.boolean(),
+  gueltigkeit_tage: z.number({ error: "Gültigkeit: bitte eine Zahl." }).int("Gültigkeit: bitte ganze Tage angeben.").min(0, "Gültigkeit: 0 bis 365 Tage.").max(365, "Gültigkeit: 0 bis 365 Tage."),
   standard_rabatt: z.number({ error: "Rabatt: bitte eine Zahl." }).min(0, "Rabatt: 0 bis 100 %.").max(100, "Rabatt: 0 bis 100 %."),
 });
 
@@ -59,6 +60,7 @@ export const ANGEBOT_EINSTELLUNGEN_STANDARD: AngebotEinstellungen = {
   mail_betreff: MAIL_STANDARD_BETREFF,
   mail_text: MAIL_STANDARD_TEXT,
   logo_anzeigen: true,
+  gueltigkeit_tage: 30,
 };
 
 /** Gespeicherten Wert (jsonb) lesen; Fehlendes oder Ungültiges wird durch Standardwerte ersetzt. */
@@ -83,6 +85,7 @@ export function angebotEinstellungenAusWert(wert: unknown): AngebotEinstellungen
       typeof roh.reverse_charge_text === "string" && roh.reverse_charge_text.trim() ? roh.reverse_charge_text : s.reverse_charge_text,
     standard_steuersatz: satz === 0 || satz === 7 || satz === 19 ? satz : s.standard_steuersatz,
     standard_rabatt: typeof rabatt === "number" && rabatt >= 0 && rabatt <= 100 ? rabatt : s.standard_rabatt,
+    gueltigkeit_tage: typeof roh.gueltigkeit_tage === "number" && Number.isInteger(roh.gueltigkeit_tage) && roh.gueltigkeit_tage >= 0 && roh.gueltigkeit_tage <= 365 ? roh.gueltigkeit_tage : s.gueltigkeit_tage,
     logo_anzeigen: typeof roh.logo_anzeigen === "boolean" ? roh.logo_anzeigen : s.logo_anzeigen,
     mail_betreff: typeof roh.mail_betreff === "string" && roh.mail_betreff.trim() ? roh.mail_betreff : s.mail_betreff,
     mail_text: typeof roh.mail_text === "string" && roh.mail_text.trim() ? roh.mail_text : s.mail_text,

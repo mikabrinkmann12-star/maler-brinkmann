@@ -120,6 +120,17 @@ describe("Angebote anlegen und lesen", () => {
     expect(ok.error).toBeNull();
   });
 
+  it("Zahlungsbedingungen und gültig bis: Skonto nur zusammen, Grenzen", async () => {
+    const basis = { project_id: projekt, betreff: `${kennung} Zahlung` };
+    const fehler = async (teil: object) => (await bueroC.from("quotes").insert({ ...basis, ...teil })).error;
+    expect(await fehler({ skonto_prozent: 2 })).not.toBeNull();
+    expect(await fehler({ skonto_tage: 7 })).not.toBeNull();
+    expect(await fehler({ zahlungsziel_tage: -1 })).not.toBeNull();
+    expect(await fehler({ zahlungsziel_tage: 366 })).not.toBeNull();
+    expect(await fehler({ skonto_prozent: 21, skonto_tage: 7 })).not.toBeNull();
+    expect(await fehler({ zahlungsziel_tage: 14, skonto_prozent: 2, skonto_tage: 7, gueltig_bis: "2026-11-17" })).toBeNull();
+  });
+
   it("das Projekt eines Angebots lässt sich nicht ändern", async () => {
     const r = await bueroC.from("quotes").update({ project_id: projekt2 }).eq("id", angebot);
     expect(r.error?.code).toBe("P0001");
@@ -182,6 +193,8 @@ describe("Sperre nach dem Versand", () => {
 
     expect((await bueroC.from("quotes").update({ betreff: "neu" }).eq("id", angebot)).error?.code).toBe("P0001");
     expect((await bueroC.from("quotes").update({ rabatt_prozent: 5 }).eq("id", angebot)).error?.code).toBe("P0001");
+    expect((await bueroC.from("quotes").update({ zahlungsziel_tage: 30 }).eq("id", angebot)).error?.code).toBe("P0001");
+    expect((await bueroC.from("quotes").update({ gueltig_bis: "2026-12-31" }).eq("id", angebot)).error?.code).toBe("P0001");
     expect((await bueroC.from("quote_items").update({ menge: 11 }).eq("id", position)).error?.code).toBe("P0001");
     expect((await bueroC.from("quote_items").insert({ quote_id: angebot, sortierung: 7, typ: "text", langtext: "x" })).error?.code).toBe("P0001");
     expect((await bueroC.from("quote_items").delete().eq("id", position)).error?.code).toBe("P0001");

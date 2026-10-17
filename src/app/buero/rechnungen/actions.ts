@@ -89,9 +89,10 @@ export async function rechnungAusAngebotErstellen(angebotId: string): Promise<Re
       rechnungsdatum: heute,
       leistung_von: von,
       leistung_bis: bis,
-      zahlungsziel_tage: kunde?.zahlungsziel_tage ?? 14,
-      skonto_prozent: kunde?.skonto_prozent ?? null,
-      skonto_tage: kunde?.skonto_prozent ? kunde.skonto_tage : null,
+      // Zahlungsbedingungen des Angebots gelten weiter; hat es keine, nimmt die Rechnung die des Kunden (sonst 14 Tage)
+      zahlungsziel_tage: a.zahlungszielTage ?? kunde?.zahlungsziel_tage ?? 14,
+      skonto_prozent: a.zahlungszielTage != null ? a.skontoProzent : kunde?.skonto_prozent ?? null,
+      skonto_tage: a.zahlungszielTage != null ? a.skontoTage : kunde?.skonto_prozent ? kunde.skonto_tage : null,
       steuersatz: a.steuersatz,
       reverse_charge: a.reverseCharge,
       rabatt_prozent: a.rabattProzent,

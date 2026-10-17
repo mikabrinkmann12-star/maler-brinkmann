@@ -1363,17 +1363,21 @@ export type Database = {
           datum: string
           einleitung: string | null
           empfaenger: string | null
+          gueltig_bis: string | null
           id: string
           leistungsort: string | null
           project_id: string
           rabatt_prozent: number
           reverse_charge: boolean
           schlusstext: string | null
+          skonto_prozent: number | null
+          skonto_tage: number | null
           status: Database["public"]["Enums"]["angebot_status"]
           steuersatz: number
           updated_at: string
           versendet_am: string | null
           versendet_an: string | null
+          zahlungsziel_tage: number | null
         }
         Insert: {
           archiviert_am?: string | null
@@ -1383,17 +1387,21 @@ export type Database = {
           datum?: string
           einleitung?: string | null
           empfaenger?: string | null
+          gueltig_bis?: string | null
           id?: string
           leistungsort?: string | null
           project_id: string
           rabatt_prozent?: number
           reverse_charge?: boolean
           schlusstext?: string | null
+          skonto_prozent?: number | null
+          skonto_tage?: number | null
           status?: Database["public"]["Enums"]["angebot_status"]
           steuersatz?: number
           updated_at?: string
           versendet_am?: string | null
           versendet_an?: string | null
+          zahlungsziel_tage?: number | null
         }
         Update: {
           archiviert_am?: string | null
@@ -1403,17 +1411,21 @@ export type Database = {
           datum?: string
           einleitung?: string | null
           empfaenger?: string | null
+          gueltig_bis?: string | null
           id?: string
           leistungsort?: string | null
           project_id?: string
           rabatt_prozent?: number
           reverse_charge?: boolean
           schlusstext?: string | null
+          skonto_prozent?: number | null
+          skonto_tage?: number | null
           status?: Database["public"]["Enums"]["angebot_status"]
           steuersatz?: number
           updated_at?: string
           versendet_am?: string | null
           versendet_an?: string | null
+          zahlungsziel_tage?: number | null
         }
         Relationships: [
           {

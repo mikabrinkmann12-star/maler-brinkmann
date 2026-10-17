@@ -13,12 +13,28 @@ import { abschlussSchema, type SteuerAuswahl } from "@/lib/angebot-schema";
 import { ersteMeldung } from "@/lib/nutzer-schema";
 import { angebotAbschlussSpeichern } from "../actions";
 
-type Start = { schlusstext: string; steuer: SteuerAuswahl; rabatt: number };
+type Start = {
+  schlusstext: string;
+  steuer: SteuerAuswahl;
+  rabatt: number;
+  zahlungsziel: number | null;
+  skontoProzent: number | null;
+  skontoTage: number | null;
+  gueltigBis: string | null;
+};
 
 /** Rabatt, Umsatzsteuer und Schlusstext des Angebots. */
 export function AbschlussFormular({ angebotId, start, gesperrt }: { angebotId: string; start: Start; gesperrt: boolean }) {
   const router = useRouter();
-  const ausgang = { schlusstext: start.schlusstext, steuer: start.steuer as string, rabatt: start.rabatt === 0 ? "" : zahlFuerFeld(start.rabatt) };
+  const ausgang = {
+    schlusstext: start.schlusstext,
+    steuer: start.steuer as string,
+    rabatt: start.rabatt === 0 ? "" : zahlFuerFeld(start.rabatt),
+    zahlungsziel: start.zahlungsziel == null ? "" : String(start.zahlungsziel),
+    skontoProzent: start.skontoProzent == null ? "" : zahlFuerFeld(start.skontoProzent),
+    skontoTage: start.skontoTage == null ? "" : String(start.skontoTage),
+    gueltigBis: start.gueltigBis ?? "",
+  };
   const [w, setW] = useState(ausgang);
   const [fehler, setFehler] = useState<string | null>(null);
   const [gespeichert, setGespeichert] = useState(false);
@@ -41,7 +57,7 @@ export function AbschlussFormular({ angebotId, start, gesperrt }: { angebotId: s
     if (!pruefung.success) return setFehler(ersteMeldung(pruefung.error));
     setFehler(null);
     starte(async () => {
-      const r = await angebotAbschlussSpeichern(angebotId, { schlusstext: w.schlusstext, steuer: w.steuer, rabatt: w.rabatt });
+      const r = await angebotAbschlussSpeichern(angebotId, { ...w });
       if (r.fehler) return setFehler(r.fehler);
       setGespeichert(true);
       router.refresh();
@@ -65,6 +81,20 @@ export function AbschlussFormular({ angebotId, start, gesperrt }: { angebotId: s
           <Input id="rabatt" inputMode="decimal" placeholder="0" className="h-12 max-w-40 text-base" {...f("rabatt")} />
         </Feld>
       </div>
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Feld label="Zahlungsziel (Tage)" htmlFor="zahlungsziel" hinweis="Leer = keine Angabe im Angebot.">
+          <Input id="zahlungsziel" inputMode="numeric" className="h-12 text-base" {...f("zahlungsziel")} />
+        </Feld>
+        <Feld label="Skonto in %" htmlFor="skonto-prozent" hinweis="Leer = kein Skonto.">
+          <Input id="skonto-prozent" inputMode="decimal" className="h-12 text-base" {...f("skontoProzent")} />
+        </Feld>
+        <Feld label="Skonto-Frist (Tage)" htmlFor="skonto-tage">
+          <Input id="skonto-tage" inputMode="numeric" className="h-12 text-base" {...f("skontoTage")} />
+        </Feld>
+      </div>
+      <Feld label="Angebot gültig bis" htmlFor="gueltig-bis" hinweis="Leer = keine Gültigkeitsangabe. Neue Angebote bekommen Angebotsdatum plus die Frist aus den Einstellungen.">
+        <Input id="gueltig-bis" type="date" className="h-12 max-w-52 text-base" {...f("gueltigBis")} />
+      </Feld>
       <Feld label="Schlusstext" htmlFor="schlusstext" hinweis="Steht unter den Summen, vor dem Unterschriftsfeld.">
         <Textarea id="schlusstext" rows={5} maxLength={3000} {...f("schlusstext")} />
       </Feld>
