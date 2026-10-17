@@ -92,7 +92,7 @@ export default async function RechnungSeite({ params }: PageProps<"/buero/rechnu
 
       <section aria-labelledby="pos-titel" className="flex flex-col gap-3">
         <h2 id="pos-titel" className="text-lg font-semibold">Positionen</h2>
-        <PositionenEditor rechnungId={r.id} bausteine={bausteine} gesperrt={gesperrt} />
+        <PositionenEditor rechnungId={r.id} projektId={projekt.id} bausteine={bausteine} gesperrt={gesperrt} />
       </section>
 
       <section aria-labelledby="summen-titel" className="ml-auto flex w-full max-w-md flex-col gap-1 rounded-xl border p-4">

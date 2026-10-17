@@ -11,6 +11,7 @@ import { einzelpreisLesen, mengeLesen, positionGesamt, zahlFuerFeld } from "@/li
 import { formatBetrag } from "@/lib/format";
 import { EINHEITEN } from "@/lib/katalog";
 import type { RechnungsBaustein } from "@/lib/rechnung";
+import { AufmassWahl } from "../../aufmass-wahl";
 import { rechnungBausteinLoeschen, rechnungBausteinSpeichern, rechnungBausteinVerschieben } from "../actions";
 
 const EINHEITEN_LISTE = [...new Set([...EINHEITEN.leistung, ...EINHEITEN.material, "Lfm", "Pkg"])];
@@ -29,9 +30,10 @@ function startWerte(b: RechnungsBaustein | null, typ: "position" | "text"): Wert
 }
 
 function Zeile({
-  rechnungId, baustein, neuTyp, nummer, gesperrt, erste, letzte, onFertig,
+  rechnungId, projektId, baustein, neuTyp, nummer, gesperrt, erste, letzte, onFertig,
 }: {
   rechnungId: string;
+  projektId: string;
   baustein: Baustein | null;
   neuTyp?: "position" | "text";
   nummer: string;
@@ -101,6 +103,10 @@ function Zeile({
           <div className="ml-auto flex flex-col items-end text-sm text-muted-foreground">Gesamt<span className="text-lg font-semibold text-foreground tabular-nums">{gesamt === null ? "–" : formatBetrag(gesamt)}</span></div>
         </div>
       )}
+      {typ === "position" && (
+        <AufmassWahl projektId={projektId} positionsText={`${w.kurztext} ${w.langtext}`} gesperrt={gesperrt}
+          onWahl={(m, einheit) => { setW((alt) => ({ ...alt, menge: zahlFuerFeld(m), einheit })); setFehler(null); }} />
+      )}
       {!gesperrt && geaendert && (
         <div>
           <Button type="button" disabled={laeuft} onClick={() => aktion(() => rechnungBausteinSpeichern(rechnungId, baustein?.id ?? null, { typ, ...w }), onFertig)}>
@@ -113,7 +119,7 @@ function Zeile({
 }
 
 /** Positionen der Rechnung: Mengen und Preise ändern (z. B. nach dem Aufmaß), Zeilen hinzufügen, verschieben, löschen. */
-export function PositionenEditor({ rechnungId, bausteine, gesperrt }: { rechnungId: string; bausteine: Baustein[]; gesperrt: boolean }) {
+export function PositionenEditor({ rechnungId, projektId, bausteine, gesperrt }: { rechnungId: string; projektId: string; bausteine: Baustein[]; gesperrt: boolean }) {
   const [neu, setNeu] = useState<"position" | "text" | null>(null);
   const nummern = bausteine.reduce<string[]>((acc, b) => {
     acc.push(b.typ === "position" ? `${acc.filter((x) => x !== "·").length + 1}.` : "·");
@@ -124,11 +130,11 @@ export function PositionenEditor({ rechnungId, bausteine, gesperrt }: { rechnung
       <datalist id="rechnung-einheiten">{EINHEITEN_LISTE.map((e) => <option key={e} value={e} />)}</datalist>
       {bausteine.length === 0 && <p className="rounded-xl border border-dashed p-6 text-muted-foreground">Noch keine Positionen.</p>}
       {bausteine.map((b, i) => (
-        <Zeile key={`${b.id}:${b.kurztext}|${b.langtext}|${b.menge}|${b.einheit}|${b.einzelpreis}`} rechnungId={rechnungId} baustein={b}
+        <Zeile key={`${b.id}:${b.kurztext}|${b.langtext}|${b.menge}|${b.einheit}|${b.einzelpreis}`} rechnungId={rechnungId} projektId={projektId} baustein={b}
           nummer={nummern[i]} gesperrt={gesperrt} erste={i === 0} letzte={i === bausteine.length - 1} />
       ))}
       {!gesperrt && (neu ? (
-        <Zeile rechnungId={rechnungId} baustein={null} neuTyp={neu} nummer="neu" gesperrt={false} erste={false} letzte={false} onFertig={() => setNeu(null)} />
+        <Zeile rechnungId={rechnungId} projektId={projektId} baustein={null} neuTyp={neu} nummer="neu" gesperrt={false} erste={false} letzte={false} onFertig={() => setNeu(null)} />
       ) : (
         <div className="flex flex-wrap gap-2 rounded-xl border border-dashed p-3">
           <Button type="button" variant="outline" size="sm" onClick={() => setNeu("position")}><PlusIcon /> Position</Button>

@@ -19,6 +19,7 @@ import {
 } from "@/lib/angebot";
 import { formatBetrag } from "@/lib/format";
 import { EINHEITEN } from "@/lib/katalog";
+import { AufmassWahl } from "../../aufmass-wahl";
 import { bausteinLoeschen, bausteinSpeichern, bausteinVerschieben } from "../actions";
 
 const EINHEITEN_LISTE = [...new Set([...EINHEITEN.leistung, ...EINHEITEN.material, "Lfm", "Pkg"])];
@@ -41,6 +42,7 @@ function startWerte(b: Baustein | null): Werte {
  */
 export function BausteinKarte({
   angebotId,
+  projektId,
   baustein,
   neuTyp,
   nachId,
@@ -53,6 +55,7 @@ export function BausteinKarte({
   onFertig,
 }: {
   angebotId: string;
+  projektId: string;
   baustein: Baustein | null;
   neuTyp?: BausteinTyp;
   /** Neuer Baustein kommt hinter diesen (leer = ans Ende) */
@@ -173,6 +176,8 @@ export function BausteinKarte({
               <span className="text-lg font-semibold text-foreground tabular-nums">{gesamt === null ? "–" : formatBetrag(gesamt)}</span>
             </div>
           </div>
+          <AufmassWahl projektId={projektId} positionsText={`${w.kurztext} ${w.langtext}`} gesperrt={gesperrt}
+            onWahl={(menge, einheit) => { setW((alt) => ({ ...alt, menge: zahlFuerFeld(menge), einheit })); setFehler(null); }} />
           <datalist id="einheiten-liste">{EINHEITEN_LISTE.map((e) => <option key={e} value={e} />)}</datalist>
         </>
       )}

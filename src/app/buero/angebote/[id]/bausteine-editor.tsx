@@ -16,7 +16,7 @@ import { KatalogAuswahl } from "./katalog-auswahl";
 
 type Modus = { art: "neu"; typ: BausteinTyp } | { art: "katalog" } | null;
 
-function HinzufuegenLeiste({ angebotId, nachId, onAbbrechen }: { angebotId: string; nachId: string | null; onAbbrechen?: () => void }) {
+function HinzufuegenLeiste({ angebotId, projektId, nachId, onAbbrechen }: { angebotId: string; projektId: string; nachId: string | null; onAbbrechen?: () => void }) {
   const router = useRouter();
   const [modus, setModus] = useState<Modus>(null);
   const [fehler, setFehler] = useState<string | null>(null);
@@ -57,7 +57,7 @@ function HinzufuegenLeiste({ angebotId, nachId, onAbbrechen }: { angebotId: stri
   if (modus?.art === "katalog") return <KatalogAuswahl angebotId={angebotId} nachId={nachId} onSchliessen={() => { setModus(null); onAbbrechen?.(); }} />;
   if (modus?.art === "neu") {
     return (
-      <BausteinKarte angebotId={angebotId} baustein={null} neuTyp={modus.typ} nachId={nachId} nummer="neu" zwischensumme={null}
+      <BausteinKarte angebotId={angebotId} projektId={projektId} baustein={null} neuTyp={modus.typ} nachId={nachId} nummer="neu" zwischensumme={null}
         gesperrt={false} erste={false} letzte={false} onFertig={() => { setModus(null); onAbbrechen?.(); }} />
     );
   }
@@ -93,11 +93,13 @@ function HinzufuegenLeiste({ angebotId, nachId, onAbbrechen }: { angebotId: stri
 /** Liste der Bausteine mit Hinzufügen-Leiste am Ende und optional mitten im Angebot. */
 export function BausteineEditor({
   angebotId,
+  projektId,
   zeilen,
   bildUrls,
   gesperrt,
 }: {
   angebotId: string;
+  projektId: string;
   zeilen: BerechneteZeile[];
   bildUrls: Record<string, string>;
   gesperrt: boolean;
@@ -109,11 +111,11 @@ export function BausteineEditor({
       {zeilen.length === 0 && <p className="rounded-xl border border-dashed p-6 text-muted-foreground">Noch keine Bausteine. Füge unten eine Position hinzu oder nimm sie aus dem Katalog.</p>}
       {zeilen.map((z, i) => (
         <div key={`${z.baustein.id}:${z.baustein.kurztext}|${z.baustein.langtext}|${z.baustein.menge}|${z.baustein.einheit}|${z.baustein.einzelpreis}`} className="flex flex-col gap-2">
-          <BausteinKarte angebotId={angebotId} baustein={z.baustein} nummer={z.nummer} zwischensumme={z.zwischensumme}
+          <BausteinKarte angebotId={angebotId} projektId={projektId} baustein={z.baustein} nummer={z.nummer} zwischensumme={z.zwischensumme}
             bildUrl={bildUrls[z.baustein.id]} gesperrt={gesperrt} erste={i === 0} letzte={i === zeilen.length - 1} />
           {!gesperrt && i < zeilen.length - 1 && (
             einfuegenNach === z.baustein.id ? (
-              <HinzufuegenLeiste angebotId={angebotId} nachId={z.baustein.id} onAbbrechen={() => setEinfuegenNach(null)} />
+              <HinzufuegenLeiste angebotId={angebotId} projektId={projektId} nachId={z.baustein.id} onAbbrechen={() => setEinfuegenNach(null)} />
             ) : (
               <button type="button" onClick={() => setEinfuegenNach(z.baustein.id)}
                 className="mx-auto -my-1 flex h-6 items-center gap-1 rounded-full px-3 text-xs text-muted-foreground hover:bg-muted hover:text-foreground">
@@ -123,7 +125,7 @@ export function BausteineEditor({
           )}
         </div>
       ))}
-      {!gesperrt && <HinzufuegenLeiste angebotId={angebotId} nachId={null} />}
+      {!gesperrt && <HinzufuegenLeiste angebotId={angebotId} projektId={projektId} nachId={null} />}
     </div>
   );
 }

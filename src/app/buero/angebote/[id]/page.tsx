@@ -103,7 +103,7 @@ export default async function AngebotSeite({ params }: PageProps<"/buero/angebot
 
       <section aria-labelledby="bausteine-titel" className="flex flex-col gap-3">
         <h2 id="bausteine-titel" className="text-lg font-semibold">Positionen</h2>
-        <BausteineEditor angebotId={a.id} zeilen={rechnung.zeilen} bildUrls={bildUrls} gesperrt={gesperrt} />
+        <BausteineEditor angebotId={a.id} projektId={projekt.id} zeilen={rechnung.zeilen} bildUrls={bildUrls} gesperrt={gesperrt} />
       </section>
 
       <section aria-labelledby="summen-titel" className="ml-auto flex w-full max-w-md flex-col gap-1 rounded-xl border p-4">
