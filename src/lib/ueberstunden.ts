@@ -4,8 +4,8 @@
 // - Das Soll gilt je Wochentag (Mo–Fr) und Mitarbeiter. Ein leeres Feld heißt: Standard
 //   aus den Einstellungen „Zeiterfassung“ (Mo–Do 8:30, Fr 6:00). Sa/So und Feiertage
 //   in Niedersachsen haben Soll 0.
-// - Arbeitszeit, Fahrtzeit, Schlechtwetter und Sonstiges zählen als gearbeitet.
-// - Urlaub und Krank erfüllen das Soll des Tages (kein Minus), mehr gearbeitete
+// - Arbeitszeit, Fahrtzeit, Bildung (Schulung, Berufsschule), Schlechtwetter und Sonstiges zählen als gearbeitet.
+// - Urlaub, Krank und Feiertag erfüllen das Soll des Tages (kein Minus), mehr gearbeitete
 //   Stunden bleiben aber Plus.
 // - Unbezahlter Urlaub und Kurzarbeit nehmen das Soll des Tages weg (neutral).
 // - Ein Tag ohne jeden Eintrag zählt mit dem vollen Soll als Minus.
@@ -24,8 +24,8 @@ export type SollEinstellung = [number | null, number | null, number | null, numb
 
 export const WOCHENTAGE_KURZ = ["Mo", "Di", "Mi", "Do", "Fr"] as const;
 
-const ALS_GEARBEITET: readonly ZeitArt[] = ["arbeitszeit", "fahrtzeit", "schlechtwetter", "sonstiges"];
-const ERSETZT_SOLL: readonly ZeitArt[] = ["urlaub", "krank"];
+const ALS_GEARBEITET: readonly ZeitArt[] = ["arbeitszeit", "fahrtzeit", "bildung", "schlechtwetter", "sonstiges"];
+const ERSETZT_SOLL: readonly ZeitArt[] = ["urlaub", "krank", "feiertag"];
 const SOLL_FAELLT_WEG: readonly ZeitArt[] = ["unbezahlter_urlaub", "kurzarbeit"];
 
 /**

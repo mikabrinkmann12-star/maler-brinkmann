@@ -1815,6 +1815,8 @@ export type Database = {
         | "kurzarbeit"
         | "sonstiges"
         | "ueberstundenabbau"
+        | "bildung"
+        | "feiertag"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1964,6 +1966,8 @@ export const Constants = {
         "kurzarbeit",
         "sonstiges",
         "ueberstundenabbau",
+        "bildung",
+        "feiertag",
       ],
     },
   },

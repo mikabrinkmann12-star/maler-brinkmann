@@ -10,12 +10,14 @@ export type ZeitArt = Database["public"]["Enums"]["zeit_art"];
 export const ZEIT_ARTEN = [
   "arbeitszeit",
   "fahrtzeit",
+  "bildung",
   "schlechtwetter",
   "sonstiges",
   "urlaub",
   "unbezahlter_urlaub",
   "krank",
   "kurzarbeit",
+  "feiertag",
   "ueberstundenabbau",
 ] as const satisfies readonly ZeitArt[];
 
@@ -28,12 +30,14 @@ export const MITARBEITER_ARTEN = ZEIT_ARTEN.filter((a) => a !== "ueberstundenabb
 export const ZEIT_ART_NAMEN: Record<ZeitArt, string> = {
   arbeitszeit: "Arbeitszeit",
   fahrtzeit: "Fahrtzeit",
+  bildung: "Bildung",
   schlechtwetter: "Schlechtwetter",
   sonstiges: "Sonstiges",
   urlaub: "Urlaub",
   unbezahlter_urlaub: "Unbezahlter Urlaub",
   krank: "Krank",
   kurzarbeit: "Kurzarbeit",
+  feiertag: "Feiertag",
   ueberstundenabbau: "Überstundenabbau",
 };
 

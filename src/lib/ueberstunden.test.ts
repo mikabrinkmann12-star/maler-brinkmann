@@ -106,6 +106,15 @@ describe("tagesBilanz", () => {
     // Auf einem Feiertag (Soll 0) ändert Abfeiern nichts
     expect(tagesBilanz(0, [{ art: "ueberstundenabbau", stunden: 8.5 }]).differenz).toBe(0);
   });
+  it("Bildung zählt wie Arbeitszeit, Feiertag erfüllt das Soll wie Urlaub", () => {
+    expect(tagesBilanz(8.5, [{ art: "bildung", stunden: 8.5 }])).toEqual({ soll: 8.5, ist: 8.5, differenz: 0 });
+    expect(tagesBilanz(8.5, [{ art: "bildung", stunden: 10 }]).differenz).toBe(1.5);
+    expect(tagesBilanz(8.5, [{ art: "feiertag", stunden: 8.5 }]).differenz).toBe(0);
+    // Feiertag ersetzt das Soll wie Urlaub: Wer zusätzlich weniger als das Soll arbeitet, bekommt kein Plus, mehr als das Soll bleibt Plus
+    expect(tagesBilanz(8.5, [{ art: "feiertag", stunden: 8.5 }, { art: "arbeitszeit", stunden: 2 }]).differenz).toBe(0);
+    expect(tagesBilanz(8.5, [{ art: "feiertag", stunden: 8.5 }, { art: "arbeitszeit", stunden: 10 }]).differenz).toBe(1.5);
+    expect(tagesBilanz(4.67, [{ art: "feiertag", stunden: 8.5 }]).differenz).toBe(0);
+  });
   it("Unbezahlter Urlaub und Kurzarbeit nehmen das Soll weg", () => {
     expect(tagesBilanz(8.5, [{ art: "unbezahlter_urlaub", stunden: 8.5 }])).toEqual({ soll: 0, ist: 0, differenz: 0 });
     expect(tagesBilanz(8.5, [{ art: "kurzarbeit", stunden: 8.5 }]).differenz).toBe(0);
