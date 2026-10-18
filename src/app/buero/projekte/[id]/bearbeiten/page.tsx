@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeftIcon } from "lucide-react";
 import { requireRole } from "@/lib/auth";
+import { heuteIso } from "@/lib/datum";
+import { kollegenLaden } from "@/lib/mitarbeiter-daten";
 import { BUERO_ROLLEN } from "@/lib/rollen";
 import { createClient } from "@/lib/supabase/server";
 import { ProjektFormular } from "../../projekt-formular";
@@ -16,50 +16,52 @@ export default async function ProjektBearbeitenSeite({ params }: PageProps<"/bue
   const { id } = await params;
   if (!UUID.test(id)) notFound();
   const supabase = await createClient();
-  const [{ data: p }, { data: status }, { data: buero }] = await Promise.all([
+  const [{ data: p }, { data: status }, { data: buero }, { data: mitglieder }, kollegen] = await Promise.all([
     supabase
       .from("projects")
       .select("*, contacts(id, firmenname, vorname, nachname, kundennummer, strasse, plz, ort)")
       .eq("id", id)
       .maybeSingle(),
-    supabase.from("project_statuses").select("id, name").eq("aktiv", true).order("sortierung"),
+    supabase.from("project_statuses").select("id, name, farbe").eq("aktiv", true).order("sortierung"),
     supabase.from("profiles").select("id, vorname, nachname").in("rolle", ["buero", "admin"]).eq("aktiv", true).order("vorname"),
+    supabase.from("project_members").select("user_id").eq("project_id", id),
+    kollegenLaden(),
   ]);
   if (!p) notFound();
   const k = p.contacts;
   // Aktuellen Status auch anbieten, falls er inzwischen deaktiviert wurde
   const statusListe = [...(status ?? [])];
   if (!statusListe.some((s) => s.id === p.status_id)) {
-    const { data: aktuell } = await supabase.from("project_statuses").select("id, name").eq("id", p.status_id).maybeSingle();
+    const { data: aktuell } = await supabase.from("project_statuses").select("id, name, farbe").eq("id", p.status_id).maybeSingle();
     if (aktuell) statusListe.push(aktuell);
   }
 
+  const personen = [...kollegen.values()].map((x) => ({ id: x.id, name: `${x.vorname} ${x.nachname}`.trim() })).sort((a, b) => a.name.localeCompare(b.name, "de"));
+
   return (
-    <div className="flex flex-col gap-5">
-      <Link href={`/baustellen/${id}`} className="flex w-fit items-center gap-1 text-sm text-muted-foreground">
-        <ArrowLeftIcon className="size-4" /> {p.name}
-      </Link>
-      <h1 className="text-2xl font-semibold">Projekt bearbeiten</h1>
-      <ProjektFormular
-        id={id}
-        status={statusListe}
-        buero={(buero ?? []).map((b) => ({ id: b.id, name: `${b.vorname} ${b.nachname}`.trim() }))}
-        start={{
-          projektnummer: p.projektnummer,
-          name: p.name,
-          kunde: k
-            ? {
-                id: k.id,
-                name: k.firmenname || [k.vorname, k.nachname].filter(Boolean).join(" ") || "Ohne Namen",
-                kundennummer: k.kundennummer ?? "", strasse: k.strasse ?? "", plz: k.plz ?? "", ort: k.ort ?? "",
-              }
-            : null,
-          statusId: p.status_id,
-          strasse: p.baustelle_strasse ?? "", plz: p.baustelle_plz ?? "", ort: p.baustelle_ort ?? "",
-          startDatum: p.start_datum ?? "", endDatum: p.end_datum ?? "", beschreibung: p.beschreibung ?? "",
-          bueroAnsprechpartnerId: p.buero_ansprechpartner_id ?? "",
-        }}
-      />
-    </div>
+    <ProjektFormular
+      id={id}
+      status={statusListe}
+      buero={(buero ?? []).map((b) => ({ id: b.id, name: `${b.vorname} ${b.nachname}`.trim() }))}
+      personen={personen}
+      heute={heuteIso()}
+      zurueck={`/baustellen/${id}`}
+      start={{
+        projektnummer: p.projektnummer,
+        name: p.name,
+        kunde: k
+          ? {
+              id: k.id,
+              name: k.firmenname || [k.vorname, k.nachname].filter(Boolean).join(" ") || "Ohne Namen",
+              kundennummer: k.kundennummer ?? "", strasse: k.strasse ?? "", plz: k.plz ?? "", ort: k.ort ?? "",
+            }
+          : null,
+        statusId: p.status_id,
+        strasse: p.baustelle_strasse ?? "", plz: p.baustelle_plz ?? "", ort: p.baustelle_ort ?? "",
+        startDatum: p.start_datum ?? "", endDatum: p.end_datum ?? "", beschreibung: p.beschreibung ?? "",
+        bueroAnsprechpartnerId: p.buero_ansprechpartner_id ?? "",
+        mitarbeiterIds: (mitglieder ?? []).map((m) => m.user_id),
+      }}
+    />
   );
 }

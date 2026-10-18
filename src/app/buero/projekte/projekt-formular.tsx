@@ -1,13 +1,17 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { SearchIcon, XIcon } from "lucide-react";
-import { Auswahl, Feld } from "@/components/feld";
-import { FormularMeldung } from "@/components/formular-meldung";
+import { ArrowLeftIcon, ChevronDownIcon, SearchIcon, XIcon } from "lucide-react";
+import { cn } from "cn";
+import { DatumWahl } from "@/components/listen/datum-wahl";
+import { MehrfachListe } from "@/components/listen/mehrfach-liste";
+import { StatusPille } from "@/components/status-pille";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { kundenFinden, projektSpeichern, projektnummerVorschlagen, type KundeTreffer } from "./actions";
+import { Popover, PopoverClose, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { personKreis } from "@/lib/listen-anzeige";
+import { kundenFinden, projektSpeichern, type KundeTreffer } from "./actions";
 
 export type ProjektFormWerte = {
   projektnummer: string;
@@ -21,29 +25,59 @@ export type ProjektFormWerte = {
   endDatum: string;
   beschreibung: string;
   bueroAnsprechpartnerId: string;
+  mitarbeiterIds: string[];
 };
 
-function Abschnitt({ titel, hinweis, children }: { titel: string; hinweis?: string; children: React.ReactNode }) {
+const EINGABE =
+  "h-8 w-full rounded-md border border-border bg-white px-2.5 text-[13px] outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30";
+
+/** Abschnitt mit Überschrift und feiner Linie daneben (wie in Plancraft). */
+function Abschnitt({ titel, zusatz, children }: { titel: string; zusatz?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <fieldset className="flex flex-col gap-4 rounded-xl border p-5">
-      <legend className="px-1 text-lg font-semibold">{titel}</legend>
-      {hinweis && <p className="-mt-2 text-sm text-muted-foreground">{hinweis}</p>}
+    <section className="flex flex-col gap-3.5">
+      <h2 className="flex items-center gap-3 text-[15px] font-semibold">
+        <span className="flex items-center gap-1.5 whitespace-nowrap">{titel}{zusatz}</span>
+        <span className="h-px flex-1 bg-border" />
+      </h2>
       {children}
-    </fieldset>
+    </section>
   );
 }
 
-/** Projekt anlegen und bearbeiten (Büro/Admin). */
+/** Zeile: Beschriftung links, Feld rechts. */
+function Zeile({ label, htmlFor, hinweis, children }: { label: string; htmlFor?: string; hinweis?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <div className="grid items-start gap-x-4 gap-y-1 sm:grid-cols-[8rem_minmax(0,18rem)_1fr]">
+      <label htmlFor={htmlFor} className="pt-1.5 text-[13px]">{label}</label>
+      <div>{children}</div>
+      {hinweis && <div className="pt-1.5 text-[13px] sm:col-start-3">{hinweis}</div>}
+    </div>
+  );
+}
+
+/**
+ * Projekt anlegen und bearbeiten im Aufbau von Plancraft (Mika, 18.10.2026): Kopfzeile mit Abbrechen und „Projekt erstellen“,
+ * Abschnitte Allgemein, Mitarbeiter, Kunde, Baustellenadresse. Leere Projektnummer = die App vergibt die nächste.
+ */
 export function ProjektFormular({
   id,
   start,
   status,
   buero,
+  personen,
+  vorschlag,
+  heute,
+  zurueck,
 }: {
   id: string | null;
   start: ProjektFormWerte;
-  status: { id: string; name: string }[];
+  status: { id: string; name: string; farbe: string }[];
   buero: { id: string; name: string }[];
+  personen: { id: string; name: string }[];
+  /** Nummer, die bei leerem Feld vergeben würde (nur beim Anlegen) */
+  vorschlag?: string;
+  heute: string;
+  zurueck: string;
 }) {
   const router = useRouter();
   const [w, setW] = useState(start);
@@ -52,10 +86,10 @@ export function ProjektFormular({
   const [suche, setSuche] = useState("");
   const [treffer, setTreffer] = useState<KundeTreffer[]>([]);
 
-  const f = (feld: keyof Omit<ProjektFormWerte, "kunde">) => ({
-    value: w[feld],
-    onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-      setW((alt) => ({ ...alt, [feld]: e.target.value }));
+  const feld = (name: keyof Omit<ProjektFormWerte, "kunde" | "mitarbeiterIds">) => ({
+    value: w[name],
+    onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      setW((alt) => ({ ...alt, [name]: e.target.value }));
       setFehler(null);
     },
   });
@@ -81,17 +115,9 @@ export function ProjektFormular({
     setFehler(null);
   }
 
-  function neuVorschlagen() {
-    starte(async () => {
-      const r = await projektnummerVorschlagen();
-      if (r.fehler || !r.nummer) return setFehler(r.fehler ?? "Kein Vorschlag möglich.");
-      setW((alt) => ({ ...alt, projektnummer: r.nummer! }));
-      setFehler(null);
-    });
-  }
-
   function speichern(ereignis: React.FormEvent<HTMLFormElement>) {
     ereignis.preventDefault();
+    if (!w.name.trim()) return setFehler("Bitte einen Projektnamen eingeben.");
     starte(async () => {
       const r = await projektSpeichern(id, {
         projektnummer: w.projektnummer,
@@ -105,101 +131,162 @@ export function ProjektFormular({
         endDatum: w.endDatum,
         beschreibung: w.beschreibung,
         bueroAnsprechpartnerId: w.bueroAnsprechpartnerId || null,
+        mitarbeiterIds: w.mitarbeiterIds,
       });
       if (r.fehler) setFehler(r.fehler);
       else router.push(`/baustellen/${r.id}`);
     });
   }
 
-  const kopf = "h-12 text-base";
+  const aktuellerStatus = status.find((s) => s.id === w.statusId) ?? status[0];
+  const gewaehltePersonen = w.mitarbeiterIds.map((uid) => personen.find((p) => p.id === uid)).filter((p): p is { id: string; name: string } => Boolean(p));
+
   return (
-    <form onSubmit={speichern} className="flex max-w-3xl flex-col gap-5">
-      {fehler && <FormularMeldung>{fehler}</FormularMeldung>}
+    <form onSubmit={speichern} className="flex flex-col gap-6">
+      <div className="flex items-center gap-3">
+        <Link href={zurueck} aria-label="Zurück" className="flex size-8 items-center justify-center rounded-md border bg-white hover:bg-muted">
+          <ArrowLeftIcon className="size-4" />
+        </Link>
+        <h1 className="text-[15px] font-semibold">{id ? "Projekt bearbeiten" : "Neues Projekt"}</h1>
+        <div className="ml-auto flex items-center gap-2">
+          <Button type="button" variant="outline" className="h-8 px-3 text-[13px]" onClick={() => router.push(zurueck)} disabled={laeuft}>Abbrechen</Button>
+          <Button type="submit" className="h-8 px-3 text-[13px]" disabled={laeuft || !w.name.trim()}>{laeuft ? "Speichern …" : id ? "Speichern" : "Projekt erstellen"}</Button>
+        </div>
+      </div>
+
+      {fehler && <p role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-[13px] text-destructive">{fehler}</p>}
 
       <Abschnitt titel="Allgemein">
-        <Feld label="Projektname" htmlFor="name"><Input id="name" {...f("name")} maxLength={120} placeholder="z. B. Malerarbeiten Wohnzimmer" className={kopf} /></Feld>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Feld label="Projektnummer" htmlFor="projektnummer" hinweis="Der Vorschlag zählt weiter (nächste freie Nummer, nie doppelt).">
-            <div className="flex gap-2">
-              <Input id="projektnummer" {...f("projektnummer")} maxLength={40} className={`${kopf} flex-1`} />
-              <Button type="button" variant="outline" size="touch" onClick={neuVorschlagen} disabled={laeuft}>Neu vorschlagen</Button>
-            </div>
-          </Feld>
-          <Feld label="Status" htmlFor="status">
-            <Auswahl id="status" {...f("statusId")}>
-              {status.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </Auswahl>
-          </Feld>
-        </div>
-        <Feld label="Beschreibung (optional)" htmlFor="beschreibung">
-          <textarea id="beschreibung" rows={3} maxLength={2000} {...f("beschreibung")}
-            className="w-full rounded-lg border border-input bg-transparent px-3 py-2 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50" />
-        </Feld>
-      </Abschnitt>
-
-      <Abschnitt titel="Kunde" hinweis="Name, Ort, Straße oder Kundennummer eintippen. Den Kunden gibt es noch nicht? Zuerst unter Kontakte anlegen.">
-        {w.kunde ? (
-          <div className="flex items-center justify-between gap-3 rounded-lg bg-muted px-4 py-3">
-            <span>
-              <span className="block font-medium">{w.kunde.name}</span>
-              <span className="block text-sm text-muted-foreground">{[w.kunde.kundennummer, [w.kunde.strasse, [w.kunde.plz, w.kunde.ort].filter(Boolean).join(" ")].filter(Boolean).join(", ")].filter(Boolean).join(" · ")}</span>
-            </span>
-            <Button type="button" variant="ghost" size="icon-touch" aria-label="Kunde entfernen" onClick={() => setW((alt) => ({ ...alt, kunde: null }))}><XIcon /></Button>
+        <Zeile label="Projektname*" htmlFor="name"><input id="name" {...feld("name")} maxLength={120} placeholder="Projektname" className={EINGABE} /></Zeile>
+        <Zeile label="Start / Ende">
+          <div className="grid grid-cols-2 gap-2">
+            <DatumWahl wert={w.startDatum} onAendern={(d) => setW((alt) => ({ ...alt, startDatum: d }))} platzhalter="Start" heute={heute} />
+            <DatumWahl wert={w.endDatum} onAendern={(d) => setW((alt) => ({ ...alt, endDatum: d }))} platzhalter="Ende" heute={heute} />
           </div>
-        ) : (
-          <div className="flex flex-col gap-2">
-            <div className="relative">
-              <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input aria-label="Kunde suchen" value={suche} onChange={(e) => sucheAendern(e.target.value)} placeholder="Kunde suchen …" className={`${kopf} pl-9`} />
-            </div>
-            {treffer.length > 0 && (
-              <ul className="flex flex-col divide-y rounded-lg border">
-                {treffer.map((k) => (
-                  <li key={k.id}>
-                    <button type="button" onClick={() => kundeWaehlen(k)} className="flex w-full flex-col px-4 py-2 text-left hover:bg-muted">
-                      <span className="font-medium">{k.name}</span>
-                      <span className="text-sm text-muted-foreground">{[k.kundennummer, [k.strasse, k.ort].filter(Boolean).join(", ")].filter(Boolean).join(" · ")}</span>
-                    </button>
+        </Zeile>
+        <Zeile label="Beschreibung" htmlFor="beschreibung">
+          <textarea id="beschreibung" rows={3} maxLength={2000} {...feld("beschreibung")} placeholder="Beschreibung" className={cn(EINGABE, "h-auto min-h-16 py-1.5")} />
+        </Zeile>
+        <Zeile
+          label="Projektnummer"
+          htmlFor="projektnummer"
+          hinweis={!id && !w.projektnummer.trim() && vorschlag ? <span className="font-medium text-primary">{vorschlag} wird vergeben</span> : null}
+        >
+          <input id="projektnummer" {...feld("projektnummer")} maxLength={40} placeholder="Projektnummer" className={EINGABE} />
+        </Zeile>
+        <Zeile label="Projektstatus">
+          <Popover>
+            <PopoverTrigger className="inline-flex items-center gap-1 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring/50" aria-label="Projektstatus wählen">
+              {aktuellerStatus && <StatusPille name={aktuellerStatus.name} farbe={aktuellerStatus.farbe} className="pr-1.5" />}
+              <ChevronDownIcon className="-ml-1.5 size-3 text-muted-foreground" />
+            </PopoverTrigger>
+            <PopoverContent className="w-52 p-1">
+              <ul>
+                {status.map((s) => (
+                  <li key={s.id}>
+                    <PopoverClose render={<button type="button" />} onClick={() => setW((alt) => ({ ...alt, statusId: s.id }))} className="flex w-full items-center rounded-md px-2 py-1.5 text-left hover:bg-muted">
+                      <StatusPille name={s.name} farbe={s.farbe} />
+                    </PopoverClose>
                   </li>
                 ))}
               </ul>
-            )}
-            {suche.trim().length >= 2 && treffer.length === 0 && <p className="text-sm text-muted-foreground">Kein Kunde gefunden.</p>}
+            </PopoverContent>
+          </Popover>
+        </Zeile>
+        <Zeile label="Büro-Kontakt" htmlFor="buero">
+          <select id="buero" value={w.bueroAnsprechpartnerId} onChange={(e) => setW((alt) => ({ ...alt, bueroAnsprechpartnerId: e.target.value }))} className={EINGABE}>
+            <option value="">– keiner –</option>
+            {buero.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+          </select>
+        </Zeile>
+      </Abschnitt>
+
+      <Abschnitt titel="Mitarbeiter">
+        <div className="flex flex-col gap-2">
+          <div className="max-w-72">
+            <Popover>
+              <PopoverTrigger className="flex h-8 w-full items-center gap-2 rounded-md border border-border bg-white px-2.5 text-left text-[13px] text-muted-foreground hover:bg-muted data-popup-open:border-ring">
+                <span className="flex-1">Durchsuche deine Mitarbeiter</span>
+                <ChevronDownIcon className="size-3.5" />
+              </PopoverTrigger>
+              <PopoverContent className="w-72 p-0">
+                <MehrfachListe
+                  optionen={personen.map((p) => ({ id: p.id, text: p.name }))}
+                  gewaehlt={w.mitarbeiterIds}
+                  onAendern={(ids) => setW((alt) => ({ ...alt, mitarbeiterIds: ids }))}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+          {gewaehltePersonen.length > 0 && (
+            <ul className="flex flex-wrap gap-1.5">
+              {gewaehltePersonen.map((p) => (
+                <li key={p.id} className="flex items-center gap-1.5 rounded-full border bg-white py-0.5 pr-1.5 pl-1 text-[13px]">
+                  <span className="flex size-5 items-center justify-center rounded-full text-[9px] font-semibold text-neutral-800" style={{ backgroundColor: personKreis(p.name).farbe }}>{personKreis(p.name).initialen}</span>
+                  {p.name}
+                  <button type="button" aria-label={`${p.name} entfernen`} onClick={() => setW((alt) => ({ ...alt, mitarbeiterIds: alt.mitarbeiterIds.filter((x) => x !== p.id) }))} className="text-muted-foreground hover:text-foreground">
+                    <XIcon className="size-3" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </Abschnitt>
+
+      <Abschnitt titel="Kunde">
+        <div className="max-w-72">
+          {w.kunde ? (
+            <div className="flex items-center justify-between gap-2 rounded-md border bg-white px-2.5 py-1.5">
+              <span className="min-w-0">
+                <span className="block truncate text-[13px] font-medium">{w.kunde.name}</span>
+                <span className="block truncate text-xs text-muted-foreground">{[w.kunde.kundennummer, [w.kunde.strasse, [w.kunde.plz, w.kunde.ort].filter(Boolean).join(" ")].filter(Boolean).join(", ")].filter(Boolean).join(" · ")}</span>
+              </span>
+              <button type="button" aria-label="Kunde entfernen" onClick={() => setW((alt) => ({ ...alt, kunde: null }))} className="text-muted-foreground hover:text-foreground"><XIcon className="size-4" /></button>
+            </div>
+          ) : (
+            <Popover onOpenChange={(offen) => !offen && sucheAendern("")}>
+              <PopoverTrigger className="flex h-8 w-full items-center gap-2 rounded-md border border-border bg-white px-2.5 text-left text-[13px] text-muted-foreground hover:bg-muted data-popup-open:border-ring">
+                <span className="flex-1">Kunde aus Kontakte auswählen</span>
+                <ChevronDownIcon className="size-3.5" />
+              </PopoverTrigger>
+              <PopoverContent className="w-80 p-0">
+                <div className="p-2 pb-1">
+                  <label className="flex items-center gap-2 rounded-md border border-ring/60 px-2 ring-2 ring-ring/20">
+                    <SearchIcon className="size-3.5 text-muted-foreground" />
+                    <input autoFocus aria-label="Kunde suchen" value={suche} onChange={(e) => sucheAendern(e.target.value)} placeholder="Name, Ort, Straße oder Nummer …" className="h-8 w-full bg-transparent text-[13px] outline-none placeholder:text-muted-foreground" />
+                  </label>
+                </div>
+                <ul className="max-h-64 overflow-y-auto p-1">
+                  {treffer.map((k) => (
+                    <li key={k.id}>
+                      <PopoverClose render={<button type="button" />} onClick={() => kundeWaehlen(k)} className="flex w-full flex-col rounded-md px-2 py-1.5 text-left hover:bg-muted">
+                        <span className="text-[13px] font-medium">{k.name}</span>
+                        <span className="text-xs text-muted-foreground">{[k.kundennummer, [k.strasse, k.ort].filter(Boolean).join(", ")].filter(Boolean).join(" · ")}</span>
+                      </PopoverClose>
+                    </li>
+                  ))}
+                  {suche.trim().length < 2 && <li className="px-2 py-3 text-center text-[13px] text-muted-foreground">Mindestens 2 Buchstaben eintippen</li>}
+                  {suche.trim().length >= 2 && treffer.length === 0 && <li className="px-2 py-3 text-center text-[13px] text-muted-foreground">Kein Kunde gefunden. Zuerst unter Kontakte anlegen.</li>}
+                </ul>
+              </PopoverContent>
+            </Popover>
+          )}
+        </div>
+      </Abschnitt>
+
+      <Abschnitt titel="Baustellenadresse" zusatz={<span className="font-normal text-muted-foreground">(Leistungsort)</span>}>
+        <Zeile label="Straße & Nr." htmlFor="strasse"><input id="strasse" {...feld("strasse")} maxLength={120} placeholder="Straße & Nr." className={EINGABE} /></Zeile>
+        <Zeile label="PLZ" htmlFor="plz"><input id="plz" {...feld("plz")} inputMode="numeric" maxLength={10} placeholder="PLZ" className={EINGABE} /></Zeile>
+        <Zeile label="Stadt" htmlFor="ort"><input id="ort" {...feld("ort")} maxLength={80} placeholder="Stadt" className={EINGABE} /></Zeile>
+        {w.kunde && (w.kunde.strasse || w.kunde.ort) && (
+          <div className="sm:pl-36">
+            <Button type="button" variant="outline" className="h-8 px-3 text-[13px]" onClick={() => setW((alt) => ({ ...alt, strasse: w.kunde!.strasse, plz: w.kunde!.plz, ort: w.kunde!.ort }))}>
+              Adresse vom Kunden übernehmen
+            </Button>
           </div>
         )}
       </Abschnitt>
-
-      <Abschnitt titel="Baustelle">
-        <Feld label="Straße und Hausnummer" htmlFor="strasse"><Input id="strasse" {...f("strasse")} maxLength={120} className={kopf} /></Feld>
-        <div className="grid gap-4 sm:grid-cols-[8rem_1fr]">
-          <Feld label="PLZ" htmlFor="plz"><Input id="plz" {...f("plz")} inputMode="numeric" maxLength={10} className={kopf} /></Feld>
-          <Feld label="Ort" htmlFor="ort"><Input id="ort" {...f("ort")} maxLength={80} className={kopf} /></Feld>
-        </div>
-        {w.kunde && (w.kunde.strasse || w.kunde.ort) && (
-          <Button type="button" variant="outline" size="lg" className="w-fit"
-            onClick={() => setW((alt) => ({ ...alt, strasse: w.kunde!.strasse, plz: w.kunde!.plz, ort: w.kunde!.ort }))}>
-            Adresse vom Kunden übernehmen
-          </Button>
-        )}
-      </Abschnitt>
-
-      <Abschnitt titel="Zeitraum und Ansprechpartner">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Feld label="Beginn (optional)" htmlFor="start"><Input id="start" type="date" {...f("startDatum")} className={kopf} /></Feld>
-          <Feld label="Ende (optional)" htmlFor="ende"><Input id="ende" type="date" {...f("endDatum")} className={kopf} /></Feld>
-        </div>
-        <Feld label="Ansprechpartner im Büro" htmlFor="buero">
-          <Auswahl id="buero" {...f("bueroAnsprechpartnerId")}>
-            <option value="">– keiner –</option>
-            {buero.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-          </Auswahl>
-        </Feld>
-      </Abschnitt>
-
-      <div className="flex gap-3">
-        <Button type="submit" size="touch" disabled={laeuft}>{laeuft ? "Speichern …" : "Speichern"}</Button>
-        <Button type="button" variant="outline" size="touch" onClick={() => router.back()} disabled={laeuft}>Abbrechen</Button>
-      </div>
     </form>
   );
 }
