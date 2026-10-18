@@ -8,7 +8,9 @@ import { ersteMeldung } from "@/lib/nutzer-schema";
 import { BUERO_ROLLEN } from "@/lib/rollen";
 import { createClient } from "@/lib/supabase/server";
 import { zeitDatenSchema, zeitZeile, type GepruefteZeitDaten } from "@/lib/zeit-schema";
-import { ueberschneidetSich, uhrzeitKurz } from "@/lib/zeiten";
+import { ueberschneidetSich, uhrzeitKurz, type ZeiterfassungEinstellungen } from "@/lib/zeiten";
+import { bueroPersonen } from "@/lib/zeiten-buero-daten";
+import { zeiterfassungEinstellungen } from "@/lib/zeiten-daten";
 
 // Zeiten nachtragen, ändern und löschen (= archivieren) durch Büro und Admin.
 // Verbindlich regelt die Datenbank die Rechte (RLS); jede Aktion prüft die
@@ -140,4 +142,20 @@ export async function bueroZeitArchivieren(id: string): Promise<BueroZeitErgebni
 
   aktualisieren();
   return {};
+}
+
+/** Daten für das Fenster „Neue Zeit“: aktive Mitarbeiter, offene Projekte und die Standardzeiten (Büro/Admin). */
+export async function neueZeitDatenLaden(): Promise<{
+  personen: { id: string; name: string }[];
+  projekte: { id: string; name: string }[];
+  einstellungen: ZeiterfassungEinstellungen;
+}> {
+  await requireRole(BUERO_ROLLEN);
+  const supabase = await createClient();
+  const [personen, einstellungen, { data: projekte }] = await Promise.all([
+    bueroPersonen(),
+    zeiterfassungEinstellungen(),
+    supabase.from("projects").select("id, name").is("archiviert_am", null).order("name"),
+  ]);
+  return { personen: personen.filter((p) => p.aktiv).map((p) => ({ id: p.id, name: p.name })), projekte: projekte ?? [], einstellungen };
 }

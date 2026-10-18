@@ -17,14 +17,14 @@ import {
   UsersIcon,
 } from "lucide-react";
 import { cn } from "cn";
-import { BENACHRICHTIGUNGEN_OEFFNEN, SUCHE_OEFFNEN, useBuero } from "./buero-kontext";
+import { BENACHRICHTIGUNGEN_OEFFNEN, NEUE_ZEIT_OEFFNEN, SUCHE_OEFFNEN, useBuero } from "./buero-kontext";
 
 type Eintrag = {
   href: string;
   name: string;
   icon: typeof HouseIcon;
   /** Kleines „+“ rechts beim Darüberfahren (wie in Plancraft): legt direkt etwas Neues an. */
-  plus?: { href: string; titel: string };
+  plus?: { href: string; titel: string; /** Öffnet statt der Seite ein Fenster (Ereignis aus buero-kontext) */ ereignis?: string };
   neu?: boolean;
   /** Weitere Pfade, bei denen der Eintrag als aktiv gilt (z. B. Urlaubsanträge gehören zu „Zeiten“). */
   auch?: string[];
@@ -38,7 +38,7 @@ const EINTRAEGE: Eintrag[] = [
   { href: "/buero/angebote", name: "Angebote", icon: FileTextIcon },
   { href: "/buero/rechnungen", name: "Ausgangsrechnungen", icon: ReceiptTextIcon },
   { href: "/buero/eingangsrechnungen", name: "Eingangsrechnungen", icon: InboxIcon },
-  { href: "/buero/zeiten", name: "Zeiten", icon: ClockIcon, plus: { href: "/buero/zeiten/neu", titel: "Neue Zeit" }, auch: ["/buero/urlaub"] },
+  { href: "/buero/zeiten", name: "Zeiten", icon: ClockIcon, plus: { href: "/buero/zeiten/neu", titel: "Neue Zeit", ereignis: NEUE_ZEIT_OEFFNEN }, auch: ["/buero/urlaub"] },
   { href: "/buero/katalog", name: "Stammdaten", icon: LayersIcon, neu: true },
   { href: "/buero/kontakte", name: "Kontakte", icon: UsersIcon, plus: { href: "/buero/kontakte/neu", titel: "Neuer Kontakt" } },
 ];
@@ -128,15 +128,30 @@ export function BueroNavigation({
                 )}
               </Link>
               {plus && !eingeklappt && (
-                <Link
-                  href={plus.href}
-                  onClick={onNavigiert}
-                  aria-label={plus.titel}
-                  title={plus.titel}
-                  className="absolute top-1/2 right-1.5 flex size-6 -translate-y-1/2 items-center justify-center rounded text-white/70 opacity-0 transition-opacity group-hover/eintrag:opacity-100 hover:bg-white/10 hover:text-white focus-visible:opacity-100"
-                >
-                  <PlusIcon className="size-4" />
-                </Link>
+                plus.ereignis ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onNavigiert?.();
+                      window.dispatchEvent(new CustomEvent(plus.ereignis as string));
+                    }}
+                    aria-label={plus.titel}
+                    title={plus.titel}
+                    className="absolute top-1/2 right-1.5 flex size-6 -translate-y-1/2 items-center justify-center rounded text-white/70 opacity-0 transition-opacity group-hover/eintrag:opacity-100 hover:bg-white/10 hover:text-white focus-visible:opacity-100"
+                  >
+                    <PlusIcon className="size-4" />
+                  </button>
+                ) : (
+                  <Link
+                    href={plus.href}
+                    onClick={onNavigiert}
+                    aria-label={plus.titel}
+                    title={plus.titel}
+                    className="absolute top-1/2 right-1.5 flex size-6 -translate-y-1/2 items-center justify-center rounded text-white/70 opacity-0 transition-opacity group-hover/eintrag:opacity-100 hover:bg-white/10 hover:text-white focus-visible:opacity-100"
+                  >
+                    <PlusIcon className="size-4" />
+                  </Link>
+                )
               )}
             </li>
           );

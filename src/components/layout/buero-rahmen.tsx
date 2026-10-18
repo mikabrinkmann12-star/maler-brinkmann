@@ -7,6 +7,7 @@ import type { Rolle } from "@/lib/rollen";
 import { BenachrichtigungenPanel } from "./benachrichtigungen-panel";
 import { BueroKontext } from "./buero-kontext";
 import { BueroMobilMenue } from "./buero-mobil-menue";
+import { NeueZeitDialog } from "./neue-zeit-dialog";
 import { SucheDialog } from "./suche-dialog";
 import { BueroSeitenleiste } from "./buero-seitenleiste";
 
@@ -73,6 +74,7 @@ export function BueroRahmen({
     <div className="flex min-h-dvh flex-1" style={{ "--seitenleiste": eingeklappt ? "3.75rem" : "13rem" } as React.CSSProperties}>
       <SucheDialog />
       <BenachrichtigungenPanel />
+      <NeueZeitDialog />
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-(--seitenleiste) border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-[width] duration-200 md:block">
         <BueroSeitenleiste firmenname={firmenname} name={name} rolle={rolle} eingeklappt={eingeklappt} onUmschalten={umschalten} />
       </aside>

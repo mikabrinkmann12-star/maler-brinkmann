@@ -6,7 +6,7 @@ import { BuildingIcon, ClockIcon, FileIcon, FolderIcon, FolderPlusIcon, SearchIc
 import { cn } from "cn";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { suchen, type SuchTreffer } from "@/app/buero/suche-actions";
-import { SUCHE_OEFFNEN } from "./buero-kontext";
+import { NEUE_ZEIT_OEFFNEN, SUCHE_OEFFNEN } from "./buero-kontext";
 
 const REITER = [
   ["alle", "Alle"],
@@ -102,6 +102,8 @@ export function SucheDialog() {
 
   function gehe(href: string) {
     aendern(false);
+    // „Zeit erstellen“ öffnet das Fenster „Neue Zeit“ statt einer eigenen Seite
+    if (href === "/buero/zeiten/neu") return void window.dispatchEvent(new CustomEvent(NEUE_ZEIT_OEFFNEN));
     router.push(href);
   }
 

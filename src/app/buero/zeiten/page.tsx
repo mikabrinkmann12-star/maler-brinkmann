@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { PlusIcon } from "lucide-react";
-import { buttonVariants } from "@/components/ui/button";
 import { ArtenFenster } from "@/components/zeiten/arten-fenster";
 import { ZeitenFilter } from "@/components/zeiten/zeiten-filter";
 import { ZeitenTabs } from "@/components/zeiten/zeiten-tabs";
+import { NeueZeitKnopf } from "./neue-zeit-knopf";
 import { requireRole } from "@/lib/auth";
 import { heuteIso } from "@/lib/datum";
 import { formatDatum } from "@/lib/format";
@@ -72,9 +71,7 @@ export default async function BueroZeitenSeite({ searchParams }: PageProps<"/bue
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-xl font-semibold">Zeiten</h1>
-        <Link href={`/buero/zeiten/neu${personIds.length === 1 ? `?person=${personIds[0]}` : ""}`} className={buttonVariants({ className: "h-8 px-3 text-[13px]" })}>
-          <PlusIcon className="size-3.5 sm:hidden" /> Neue Zeit
-        </Link>
+        <NeueZeitKnopf person={personIds.length === 1 ? personIds[0] : undefined} />
       </div>
 
       <ZeitenTabs aktiv="alle" offeneAntraege={offeneAntraege ?? 0} />

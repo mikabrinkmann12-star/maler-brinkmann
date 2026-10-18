@@ -45,7 +45,10 @@ export function BueroZeitFormular({
   personen,
   projekte,
   einstellungen,
+  onFertig,
 }: {
+  /** Statt zur Zeitenliste zu springen (Fenster „Neue Zeit“): wird nach dem Speichern aufgerufen. */
+  onFertig?: () => void;
   /** Vorhandener Eintrag: der Mitarbeiter ist dann fest. */
   id: string | null;
   start: BueroZeitStart;
@@ -122,7 +125,10 @@ export function BueroZeitFormular({
       const r = id ? await bueroZeitAendern(id, werte) : await bueroZeitAnlegen({ eintragId, userId, daten: werte });
       if (r.fehler) return setFehler(r.fehler);
       toast.success(id ? "Änderung gespeichert." : `Zeit für ${name} gespeichert.`);
-      router.push(`/buero/zeiten?monat=${datum.slice(0, 7)}&person=${userId}`);
+      if (onFertig) {
+        onFertig();
+        router.refresh();
+      } else router.push(`/buero/zeiten?monat=${datum.slice(0, 7)}&person=${userId}`);
     });
   }
 
