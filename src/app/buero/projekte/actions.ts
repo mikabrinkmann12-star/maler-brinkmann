@@ -83,3 +83,16 @@ export async function kundenFinden(suche: string): Promise<KundeTreffer[]> {
     ort: k.ort ?? "",
   }));
 }
+
+/** Status eines Projekts direkt in der Liste ändern (wie in Plancraft: Status-Pille antippen). Büro und Admin. */
+export async function projektStatusAendern(projektId: string, statusId: string): Promise<{ fehler?: string }> {
+  await requireRole(BUERO_ROLLEN);
+  if (!z.uuid().safeParse(projektId).success || !z.uuid().safeParse(statusId).success) return { fehler: "Ungültige Eingabe." };
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("projects").update({ status_id: statusId }).eq("id", projektId).select("id");
+  if (error || !data?.length) return { fehler: "Der Status konnte nicht geändert werden." };
+  revalidatePath("/buero/projekte");
+  revalidatePath("/buero");
+  revalidatePath(`/baustellen/${projektId}`);
+  return {};
+}

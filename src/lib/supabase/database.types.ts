@@ -1419,6 +1419,7 @@ export type Database = {
           baustelle_ort: string | null
           baustelle_plz: string | null
           baustelle_strasse: string | null
+          bearbeitet_von: string | null
           beschreibung: string | null
           buero_ansprechpartner_id: string | null
           contact_id: string | null
@@ -1437,6 +1438,7 @@ export type Database = {
           baustelle_ort?: string | null
           baustelle_plz?: string | null
           baustelle_strasse?: string | null
+          bearbeitet_von?: string | null
           beschreibung?: string | null
           buero_ansprechpartner_id?: string | null
           contact_id?: string | null
@@ -1455,6 +1457,7 @@ export type Database = {
           baustelle_ort?: string | null
           baustelle_plz?: string | null
           baustelle_strasse?: string | null
+          bearbeitet_von?: string | null
           beschreibung?: string | null
           buero_ansprechpartner_id?: string | null
           contact_id?: string | null
@@ -1469,6 +1472,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "projects_bearbeitet_von_fkey"
+            columns: ["bearbeitet_von"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "projects_buero_ansprechpartner_id_fkey"
             columns: ["buero_ansprechpartner_id"]
