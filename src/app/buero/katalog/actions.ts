@@ -3,6 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireRole } from "@/lib/auth";
+import { kalkulationInGrenzen, kalkulieren } from "@/lib/kalkulation";
+import { kalkulationEingabeSchema, kalkulationEinstellungenSchema } from "@/lib/kalkulation-schema";
+import { kalkulationLaden } from "@/lib/kalkulation-daten";
 import { MAX_PREIS, MAX_ZUSCHLAG, istKatalogArt, type KatalogArt } from "@/lib/katalog";
 import { katalogSchluesselLaden, ordnerLaden, type OrdnerZeile } from "@/lib/katalog-daten";
 import { MAX_ORDNER_TIEFE, importStatus, type KatalogEntwurf } from "@/lib/katalog-import";
@@ -145,14 +148,32 @@ export async function eintragSpeichern(art: string, id: string | null, eingabe: 
   const l = pruefung.data;
   const ordnerFehler = await pruefeOrdner(l.folderId);
   if (ordnerFehler) return { fehler: ordnerFehler };
+
+  // Kalkulierte Leistung: Kosten und Zuschlag kommen aus der Zusammensetzung (Lohn, Material, Geräte, …), nicht aus den Feldern.
+  let kosten = l.kosten;
+  let zuschlag = l.zuschlag;
+  let kalkulation: Record<string, unknown> | null = null;
+  const roh = (eingabe as { kalkulation?: unknown } | null)?.kalkulation;
+  if (roh && typeof roh === "object") {
+    const k = kalkulationEingabeSchema.safeParse(roh);
+    if (!k.success) return { fehler: ersteMeldung(k.error) };
+    const ergebnis = kalkulieren(k.data, await kalkulationLaden());
+    if (ergebnis.ekGesamt <= 0) return { fehler: "Die Kalkulation ergibt keine Kosten. Bitte Lohn oder einen Betrag eintragen." };
+    if (!kalkulationInGrenzen(ergebnis)) return { fehler: "Die Kalkulation ist zu hoch." };
+    kosten = ergebnis.ekGesamt;
+    zuschlag = ergebnis.zuschlagProzent;
+    kalkulation = { ...k.data };
+  }
+
   const felder = {
     folder_id: l.folderId,
     nummer: l.nummer || null,
     name: l.name,
     langtext: l.langtext || null,
     einheit: l.einheit,
-    kosten: l.kosten,
-    zuschlag_prozent: l.zuschlag,
+    kosten,
+    zuschlag_prozent: zuschlag,
+    kalkulation: kalkulation as never,
   };
   const abfrage = id ? supabase.from("services").update(felder).eq("id", id) : supabase.from("services").insert(felder);
   const { data, error } = await abfrage.select("id");
@@ -184,6 +205,28 @@ export async function eintragArchivieren(art: string, id: string, archivieren: b
   if (error) return { fehler: dbMeldung(error) };
   if (!data?.length) return { fehler: "Eintrag nicht gefunden." };
 
+  aktualisieren();
+  return {};
+}
+
+// ---------------------------------------------------------------------------
+// Einstellungen der Kalkulation (nur Admin): Zuschläge je Kostenart und Lohngruppen
+// ---------------------------------------------------------------------------
+export async function kalkulationSpeichern(eingabe: unknown): Promise<KatalogErgebnis> {
+  await requireRole(["admin"]);
+  const pruefung = kalkulationEinstellungenSchema.safeParse(eingabe);
+  if (!pruefung.success) return { fehler: ersteMeldung(pruefung.error) };
+  const e = pruefung.data;
+  const supabase = await createClient();
+  // Neue Lohngruppen bekommen eine feste Kennung, damit Leistungen sie auch nach einer Umbenennung wiederfinden
+  const gruppen = e.lohngruppen.map((g) => ({ id: g.id || crypto.randomUUID().slice(0, 8), name: g.name, lohnkosten: g.lohnkosten, verrechnungssatz: g.verrechnungssatz }));
+  const { data, error } = await supabase
+    .from("kalkulation_einstellungen")
+    .update({ zuschlaege: { material: e.material, geraete: e.geraete, fremdleistung: e.fremdleistung, sonstiges: e.sonstiges }, lohngruppen: gruppen })
+    .eq("einzig", true)
+    .select("id");
+  if (error) return { fehler: dbMeldung(error) };
+  if (!data?.length) return { fehler: "Die Einstellungen konnten nicht gespeichert werden." };
   aktualisieren();
   return {};
 }

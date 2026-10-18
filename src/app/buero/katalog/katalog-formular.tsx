@@ -8,11 +8,22 @@ import { Auswahl, Feld } from "@/components/feld";
 import { FormularMeldung } from "@/components/formular-meldung";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { formatBetrag } from "@/lib/format";
+import { formatBetrag, formatZahl } from "@/lib/format";
+import {
+  KOSTENARTEN,
+  KOSTENART_NAMEN,
+  kalkulieren,
+  lohnZuschlagProzent,
+  lohngruppeFinden,
+  type KalkulationEingabe,
+  type KalkulationEinstellungen,
+} from "@/lib/kalkulation";
+import { kalkulationEingabeSchema } from "@/lib/kalkulation-schema";
 import {
   EINHEITEN,
   MAX_PREIS,
   ordnerOptionen,
+  preisFuerFeld,
   preisLesen,
   vkBerechnen,
   zuschlagLesen,
@@ -37,13 +48,18 @@ export type KatalogStart = {
   zuschlag: string;
 };
 
-/** Material oder Leistung anlegen bzw. ändern (Büro/Admin). Der Verkaufspreis wird live berechnet. */
+/**
+ * Material oder Leistung anlegen bzw. ändern (Büro/Admin). Der Verkaufspreis wird live berechnet. Leistungen lassen sich
+ * kalkulieren (Lohn + Material + Geräte + Fremdleistung + Sonstiges mit den Zuschlägen aus „Kalkulation“).
+ */
 export function KatalogFormular({
   art,
   id,
   start,
   ordner,
   archiviert,
+  kalkulation,
+  kalkulationStart,
 }: {
   art: KatalogArt;
   id: string | null;
@@ -51,6 +67,10 @@ export function KatalogFormular({
   /** Alle aktiven Ordner dieser Art */
   ordner: OrdnerEintrag[];
   archiviert: boolean;
+  /** Einstellungen der Kalkulation (nur bei Leistungen) */
+  kalkulation?: KalkulationEinstellungen;
+  /** Gespeicherte Zusammensetzung dieser Leistung; leer = Preis von Hand */
+  kalkulationStart?: KalkulationEingabe | null;
 }) {
   const router = useRouter();
   const istMaterial = art === "material";
@@ -58,6 +78,25 @@ export function KatalogFormular({
   const [fehler, setFehler] = useState<string | null>(null);
   const [laeuft, starte] = useTransition();
   const optionen = ordnerOptionen(ordner);
+
+  // Kalkulation (nur Leistungen)
+  const kannKalkulieren = !istMaterial && kalkulation != null;
+  const [kalkAn, setKalkAn] = useState(kalkulationStart != null);
+  const [kw, setKw] = useState(() => {
+    const k = kalkulationStart;
+    const t = (n: number) => (n ? preisFuerFeld(n) : "");
+    return {
+      lohngruppeId: k?.lohngruppeId || kalkulation?.lohngruppen[0]?.id || "",
+      lohnMinuten: k?.lohnMinuten ? String(k.lohnMinuten).replace(".", ",") : "",
+      material: t(k?.material ?? 0),
+      geraete: t(k?.geraete ?? 0),
+      fremdleistung: t(k?.fremdleistung ?? 0),
+      sonstiges: t(k?.sonstiges ?? 0),
+    };
+  });
+  const kPruefung = kalkulationEingabeSchema.safeParse(kw);
+  const kErgebnis = kannKalkulieren && kalkAn && kPruefung.success && kalkulation ? kalkulieren(kPruefung.data, kalkulation) : null;
+  const gruppe = kalkulation ? lohngruppeFinden(kalkulation, kw.lohngruppeId) : null;
 
   const f = (feld: keyof KatalogStart) => ({
     value: w[feld],
@@ -75,12 +114,19 @@ export function KatalogFormular({
   function eingabe() {
     return istMaterial
       ? { folderId: w.folderId, artikelnr: w.nummer, name: w.name, beschreibung: w.text, lieferant: w.lieferant, einheit: w.einheit, ek: w.preis, zuschlag: w.zuschlag }
-      : { folderId: w.folderId, nummer: w.nummer, name: w.name, langtext: w.text, einheit: w.einheit, kosten: w.preis, zuschlag: w.zuschlag };
+      : {
+          folderId: w.folderId, nummer: w.nummer, name: w.name, langtext: w.text, einheit: w.einheit, kosten: w.preis, zuschlag: w.zuschlag,
+          ...(kannKalkulieren && kalkAn ? { kalkulation: kw } : {}),
+        };
   }
 
   function speichern(ereignis: React.FormEvent<HTMLFormElement>) {
     ereignis.preventDefault();
     if (laeuft) return;
+    if (kannKalkulieren && kalkAn) {
+      if (!kPruefung.success) return setFehler(ersteMeldung(kPruefung.error));
+      if (!kErgebnis || kErgebnis.ekGesamt <= 0) return setFehler("Die Kalkulation ergibt keine Kosten. Bitte Lohn oder einen Betrag eintragen.");
+    }
     const werte = eingabe();
     const pruefung = (istMaterial ? materialSchema : leistungSchema).safeParse(werte);
     if (!pruefung.success) return setFehler(ersteMeldung(pruefung.error));
@@ -143,27 +189,100 @@ export function KatalogFormular({
         </Feld>
       </div>
 
-      <fieldset className="flex flex-col gap-3 rounded-xl border p-4">
-        <legend className="px-1 text-base font-medium">Preis</legend>
-        <div className="grid gap-4 sm:grid-cols-3">
-          <Feld label={istMaterial ? "Einkaufspreis (€)" : "Kosten (€)"} htmlFor="preis" hinweis="bis 4 Nachkommastellen, z. B. 12,50">
-            <Input id="preis" inputMode="decimal" placeholder="0,00" {...f("preis")} className="h-11 text-base" />
-          </Feld>
-          <Feld label="Zuschlag (%)" htmlFor="zuschlag" hinweis="z. B. 25 oder 12,5">
-            <Input id="zuschlag" inputMode="decimal" placeholder="0" {...f("zuschlag")} className="h-11 text-base" />
-          </Feld>
-          <div className="flex flex-col gap-2">
-            <p className="text-base font-medium">Verkaufspreis (VK)</p>
-            <p className="flex h-11 items-center rounded-lg bg-muted px-3 text-lg font-semibold tabular-nums" role="status" aria-live="polite">
-              {vk != null ? formatBetrag(vk) : "–"}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              {vk != null && ek != null ? `Aufschlag ${formatBetrag(Math.round((vk - ek) * 100) / 100)}` : "wird berechnet"}
-            </p>
+      {kannKalkulieren && (
+        <label className="flex items-center gap-2 text-base font-medium">
+          <input type="checkbox" checked={kalkAn} onChange={(e) => { setKalkAn(e.target.checked); setFehler(null); }} className="size-4 accent-[oklch(0.6_0.135_153)]" />
+          Preis kalkulieren (Lohn, Material, Geräte …)
+        </label>
+      )}
+
+      {kannKalkulieren && kalkAn && kalkulation ? (
+        <fieldset className="flex flex-col gap-3 rounded-xl border p-4">
+          <legend className="px-1 text-base font-medium">Kalkulation je {w.einheit.trim() || "Einheit"}</legend>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Feld label="Lohngruppe" htmlFor="lohngruppe">
+              <Auswahl id="lohngruppe" value={kw.lohngruppeId} onChange={(e) => setKw((alt) => ({ ...alt, lohngruppeId: e.target.value }))}>
+                {kalkulation.lohngruppen.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+              </Auswahl>
+            </Feld>
+            <Feld
+              label="Lohn (Minuten)"
+              htmlFor="lohnminuten"
+              hinweis={gruppe ? `${formatBetrag(gruppe.lohnkosten)} Lohnkosten, ${formatBetrag(gruppe.verrechnungssatz)} Verrechnungssatz je Stunde` : undefined}
+            >
+              <Input id="lohnminuten" inputMode="decimal" placeholder="0" value={kw.lohnMinuten} onChange={(e) => { setKw((alt) => ({ ...alt, lohnMinuten: e.target.value })); setFehler(null); }} className="h-11 text-base" />
+            </Feld>
           </div>
-        </div>
-        <p className="text-sm text-muted-foreground">Der Verkaufspreis ist immer Einkaufspreis × (1 + Zuschlag) und wird auf Cent gerundet.</p>
-      </fieldset>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {(["material", "geraete", "fremdleistung", "sonstiges"] as const).map((a) => (
+              <Feld key={a} label={`${KOSTENART_NAMEN[a]} (€, Einkauf)`} htmlFor={`k-${a}`} hinweis={`Zuschlag ${formatZahl(kalkulation.zuschlaege[a])} %`}>
+                <Input id={`k-${a}`} inputMode="decimal" placeholder="0,00" value={kw[a]} onChange={(e) => { setKw((alt) => ({ ...alt, [a]: e.target.value })); setFehler(null); }} className="h-11 text-base" />
+              </Feld>
+            ))}
+          </div>
+
+          {kErgebnis ? (
+            <div className="overflow-hidden rounded-lg border text-sm">
+              <table className="w-full">
+                <thead className="bg-muted/50 text-left text-muted-foreground">
+                  <tr>
+                    <th className="px-3 py-1.5 font-medium">Kostenart</th>
+                    <th className="px-3 py-1.5 text-right font-medium">Kosten</th>
+                    <th className="px-3 py-1.5 text-right font-medium">Zuschlag</th>
+                    <th className="px-3 py-1.5 text-right font-medium">VK</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {KOSTENARTEN.map((a) => (
+                    <tr key={a}>
+                      <td className="px-3 py-1.5">{KOSTENART_NAMEN[a]}</td>
+                      <td className="px-3 py-1.5 text-right tabular-nums">{formatBetrag(kErgebnis.ek[a])}</td>
+                      <td className="px-3 py-1.5 text-right tabular-nums">{formatZahl(a === "lohn" ? (gruppe ? lohnZuschlagProzent(gruppe) : 0) : kalkulation.zuschlaege[a])} %</td>
+                      <td className="px-3 py-1.5 text-right tabular-nums">{formatBetrag(kErgebnis.vk[a])}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot className="border-t bg-muted/30 font-semibold">
+                  <tr>
+                    <td className="px-3 py-2">Summe</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{formatBetrag(kErgebnis.ekGesamt)}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{formatZahl(kErgebnis.zuschlagProzent)} %</td>
+                    <td className="px-3 py-2 text-right tabular-nums" role="status" aria-live="polite">{formatBetrag(kErgebnis.vkGespeichert)}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">{kPruefung.success ? "" : ersteMeldung(kPruefung.error)}</p>
+          )}
+          <p className="text-sm text-muted-foreground">
+            Gespeichert werden die Kosten (Summe der Einkaufswerte) und der Zuschlag, mit dem der Verkaufspreis auf den kalkulierten Preis kommt.
+            {kErgebnis && kErgebnis.vkGespeichert !== kErgebnis.vkGesamt && ` Bei Kosten über 100 € je Einheit kann er um einige Cent abweichen (kalkuliert ${formatBetrag(kErgebnis.vkGesamt)}).`}
+          </p>
+        </fieldset>
+      ) : (
+        <fieldset className="flex flex-col gap-3 rounded-xl border p-4">
+          <legend className="px-1 text-base font-medium">Preis</legend>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Feld label={istMaterial ? "Einkaufspreis (€)" : "Kosten (€)"} htmlFor="preis" hinweis="bis 4 Nachkommastellen, z. B. 12,50">
+              <Input id="preis" inputMode="decimal" placeholder="0,00" {...f("preis")} className="h-11 text-base" />
+            </Feld>
+            <Feld label="Zuschlag (%)" htmlFor="zuschlag" hinweis="z. B. 25 oder 12,5">
+              <Input id="zuschlag" inputMode="decimal" placeholder="0" {...f("zuschlag")} className="h-11 text-base" />
+            </Feld>
+            <div className="flex flex-col gap-2">
+              <p className="text-base font-medium">Verkaufspreis (VK)</p>
+              <p className="flex h-11 items-center rounded-lg bg-muted px-3 text-lg font-semibold tabular-nums" role="status" aria-live="polite">
+                {vk != null ? formatBetrag(vk) : "–"}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {vk != null && ek != null ? `Aufschlag ${formatBetrag(Math.round((vk - ek) * 100) / 100)}` : "wird berechnet"}
+              </p>
+            </div>
+          </div>
+          <p className="text-sm text-muted-foreground">Der Verkaufspreis ist immer Einkaufspreis × (1 + Zuschlag) und wird auf Cent gerundet.</p>
+        </fieldset>
+      )}
 
       <div className="flex flex-wrap items-center gap-3">
         <Button type="submit" size="lg" disabled={laeuft || archiviert}>

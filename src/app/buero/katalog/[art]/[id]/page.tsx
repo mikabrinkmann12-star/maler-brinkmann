@@ -5,6 +5,8 @@ import { ArrowLeftIcon } from "lucide-react";
 import { requireRole } from "@/lib/auth";
 import { formatDatumZeit } from "@/lib/format";
 import { istKatalogArt, preisFuerFeld, ordnerPfadText } from "@/lib/katalog";
+import { kalkulationAusJson } from "@/lib/kalkulation";
+import { kalkulationLaden } from "@/lib/kalkulation-daten";
 import { ordnerLaden } from "@/lib/katalog-daten";
 import { BUERO_ROLLEN } from "@/lib/rollen";
 import { createClient } from "@/lib/supabase/server";
@@ -23,6 +25,7 @@ export default async function KatalogEintragSeite({ params }: PageProps<"/buero/
   let start: KatalogStart;
   let archiviertAm: string | null;
   let geaendert: string;
+  let kalkulationStart: ReturnType<typeof kalkulationAusJson> = null;
 
   if (art === "material") {
     const { data: m } = await supabase.from("materials")
@@ -36,7 +39,7 @@ export default async function KatalogEintragSeite({ params }: PageProps<"/buero/
     geaendert = m.updated_at;
   } else {
     const { data: s } = await supabase.from("services")
-      .select("folder_id, nummer, name, langtext, einheit, kosten, zuschlag_prozent, archiviert_am, updated_at").eq("id", id).maybeSingle();
+      .select("folder_id, nummer, name, langtext, einheit, kosten, zuschlag_prozent, kalkulation, archiviert_am, updated_at").eq("id", id).maybeSingle();
     if (!s) notFound();
     start = {
       folderId: s.folder_id ?? "", nummer: s.nummer ?? "", name: s.name, text: s.langtext ?? "", lieferant: "",
@@ -44,6 +47,7 @@ export default async function KatalogEintragSeite({ params }: PageProps<"/buero/
     };
     archiviertAm = s.archiviert_am;
     geaendert = s.updated_at;
+    kalkulationStart = kalkulationAusJson(s.kalkulation);
   }
 
   const alle = await ordnerLaden(art);
@@ -64,7 +68,7 @@ export default async function KatalogEintragSeite({ params }: PageProps<"/buero/
           {ordnerPfadText(alle, start.folderId || null) || "Ohne Ordner"} · zuletzt geändert am {formatDatumZeit(geaendert)}
         </p>
       </div>
-      <KatalogFormular art={art} id={id} start={start} ordner={ordner} archiviert={archiviertAm != null} />
+      <KatalogFormular art={art} id={id} start={start} ordner={ordner} archiviert={archiviertAm != null} kalkulation={art === "leistung" ? await kalkulationLaden() : undefined} kalkulationStart={kalkulationStart} />
     </div>
   );
 }

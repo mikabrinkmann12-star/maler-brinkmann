@@ -6,8 +6,10 @@ import { SuchFeld } from "@/components/listen/such-feld";
 import { buttonVariants } from "@/components/ui/button";
 import { requireRole } from "@/lib/auth";
 import { KATALOG_ART_NAMEN, istKatalogArt, ordnerBaum, ordnerMitNachfahren, ordnerOptionen, ordnerPfadText, type KatalogArt } from "@/lib/katalog";
+import { kalkulationLaden } from "@/lib/kalkulation-daten";
 import { MAX_ZEILEN, eintraegeLaden, ordnerLaden, ordnerZaehler } from "@/lib/katalog-daten";
 import { BUERO_ROLLEN } from "@/lib/rollen";
+import { KalkulationFenster } from "./kalkulation-fenster";
 import { KatalogTabelle } from "./katalog-tabelle";
 import { OrdnerBaum } from "./ordner-baum";
 import { OrdnerZeile } from "./ordner-aktionen";
@@ -24,7 +26,7 @@ export default async function KatalogSeite({ searchParams }: PageProps<"/buero/k
   const q = wert("q").trim();
   const archiv = wert("archiv") === "1";
 
-  const [alleOrdner, zaehler] = await Promise.all([ordnerLaden(art), ordnerZaehler(art)]);
+  const [alleOrdner, zaehler, kalkulation] = await Promise.all([ordnerLaden(art), ordnerZaehler(art), kalkulationLaden()]);
   const aktive = alleOrdner.filter((o) => !o.archiviert);
   // Ungültige oder archivierte Ordner-ID: zeige alles
   const ordnerId = UUID.test(wert("ordner")) && aktive.some((o) => o.id === wert("ordner")) ? wert("ordner") : null;
@@ -52,6 +54,7 @@ export default async function KatalogSeite({ searchParams }: PageProps<"/buero/k
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-semibold">Stammdaten</h1>
         <div className="flex flex-wrap items-center gap-2">
+          <KalkulationFenster einstellungen={kalkulation} istAdmin={nutzer.rolle === "admin"} />
           {nutzer.rolle === "admin" && (
             <Link href={`/buero/katalog/import?art=${art}`} className={buttonVariants({ variant: "outline", className: "h-8 px-3 text-[13px]" })}>
               <UploadIcon className="size-3.5" /> Import

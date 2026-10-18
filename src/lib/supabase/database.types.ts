@@ -665,6 +665,41 @@ export type Database = {
           },
         ]
       }
+      kalkulation_einstellungen: {
+        Row: {
+          einzig: boolean
+          id: string
+          lohngruppen: Json
+          updated_at: string
+          updated_by: string | null
+          zuschlaege: Json
+        }
+        Insert: {
+          einzig?: boolean
+          id?: string
+          lohngruppen: Json
+          updated_at?: string
+          updated_by?: string | null
+          zuschlaege: Json
+        }
+        Update: {
+          einzig?: boolean
+          id?: string
+          lohngruppen?: Json
+          updated_at?: string
+          updated_by?: string | null
+          zuschlaege?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kalkulation_einstellungen_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leave_requests: {
         Row: {
           antwort: string | null
@@ -1705,6 +1740,7 @@ export type Database = {
           einheit: string
           folder_id: string | null
           id: string
+          kalkulation: Json | null
           kosten: number
           langtext: string | null
           name: string
@@ -1720,6 +1756,7 @@ export type Database = {
           einheit: string
           folder_id?: string | null
           id?: string
+          kalkulation?: Json | null
           kosten?: number
           langtext?: string | null
           name: string
@@ -1735,6 +1772,7 @@ export type Database = {
           einheit?: string
           folder_id?: string | null
           id?: string
+          kalkulation?: Json | null
           kosten?: number
           langtext?: string | null
           name?: string

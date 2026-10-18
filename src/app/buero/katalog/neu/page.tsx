@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowLeftIcon } from "lucide-react";
 import { requireRole } from "@/lib/auth";
 import { istKatalogArt, type KatalogArt } from "@/lib/katalog";
+import { kalkulationLaden } from "@/lib/kalkulation-daten";
 import { ordnerLaden } from "@/lib/katalog-daten";
 import { BUERO_ROLLEN } from "@/lib/rollen";
 import { KatalogFormular } from "../katalog-formular";
@@ -12,7 +13,7 @@ export const metadata: Metadata = { title: "Neuer Katalog-Eintrag" };
 export default async function KatalogNeuSeite({ searchParams }: PageProps<"/buero/katalog/neu">) {
   await requireRole(BUERO_ROLLEN);
   const params = await searchParams;
-  const art: KatalogArt = istKatalogArt(params.art) ? params.art : "material";
+  const art: KatalogArt = istKatalogArt(params.art) ? params.art : "leistung";
   const aktive = (await ordnerLaden(art)).filter((o) => !o.archiviert);
   const ordner = typeof params.ordner === "string" && aktive.some((o) => o.id === params.ordner) ? params.ordner : "";
 
@@ -28,6 +29,8 @@ export default async function KatalogNeuSeite({ searchParams }: PageProps<"/buer
         id={null}
         archiviert={false}
         ordner={aktive}
+        kalkulation={art === "leistung" ? await kalkulationLaden() : undefined}
+        kalkulationStart={null}
         start={{ folderId: ordner, nummer: "", name: "", text: "", lieferant: "", einheit: art === "material" ? "Stk" : "m²", preis: "", zuschlag: "" }}
       />
     </div>
