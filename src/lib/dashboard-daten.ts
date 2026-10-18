@@ -1,6 +1,6 @@
 import "server-only";
 import { angeboteLaden } from "@/lib/angebot-daten";
-import { chatSumme, forderungen, projekteNachStatus } from "@/lib/dashboard";
+import { FORDERUNGS_STANDARD, chatSumme, forderungsBereich, forderungsUebersicht, projekteNachStatus, type ForderungsZeitraum } from "@/lib/dashboard";
 import { kollegenLaden } from "@/lib/mitarbeiter-daten";
 import { kontaktName } from "@/lib/projekt";
 import { createClient } from "@/lib/supabase/server";
@@ -19,7 +19,7 @@ const ABWESENHEIT: Record<string, string> = {
  * Zahlen für die Büro-Startseite. Alles mit den Rechten des eingeloggten Nutzers (RLS); der Aufrufer hat requireRole(BUERO_ROLLEN) geprüft.
  * Die Forderungen zeigen den Stand vom letzten Abgleich mit Lexware.
  */
-export async function dashboardLaden(heute: string) {
+export async function dashboardLaden(heute: string, forderungsZeitraum: ForderungsZeitraum = FORDERUNGS_STANDARD) {
   const supabase = await createClient();
   const [projekte, zuletzt, einsaetze, urlaubHeute, kranke, urlaubOffen, rechnungen, rechnungsEntwuerfe, versendet, angebotsEntwuerfe, chat, kollegen] = await Promise.all([
     supabase.from("projects").select("status_id, project_statuses(name, farbe, sortierung)").is("archiviert_am", null).limit(1000),
@@ -68,7 +68,7 @@ export async function dashboardLaden(heute: string) {
     ...(kranke.data ?? []).map((k) => ({ name: name(k.user_id), grund: "Krank" })),
   ].sort((a, b) => a.name.localeCompare(b.name, "de"));
 
-  const geld = forderungen(
+  const geld = forderungsUebersicht(
     (rechnungen.data ?? []).map((r) => ({
       status: r.status,
       lexwareStatus: r.lexware_status ?? "",
@@ -77,6 +77,7 @@ export async function dashboardLaden(heute: string) {
       brutto: r.brutto == null ? null : Number(r.brutto),
     })),
     heute,
+    forderungsBereich(forderungsZeitraum, heute),
   );
   const offeneAngebote = versendet.zeilen.filter((a) => !a.archiviert);
 
@@ -97,7 +98,7 @@ export async function dashboardLaden(heute: string) {
       offenNetto: Math.round(offeneAngebote.reduce((s, a) => s + a.netto * 100, 0)) / 100,
       entwuerfe: angebotsEntwuerfe.count ?? 0,
     },
-    rechnungen: { ...geld, entwuerfe: rechnungsEntwuerfe.count ?? 0 },
+    rechnungen: { forderungen: geld, entwuerfe: rechnungsEntwuerfe.count ?? 0 },
     aufgaben: { urlaubsantraege: urlaubOffen.count ?? 0, chat: chatSumme(chat.data) },
   };
 }

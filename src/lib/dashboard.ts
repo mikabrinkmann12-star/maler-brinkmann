@@ -1,5 +1,5 @@
 // Dashboard fürs Büro: reine Rechenhilfen (Fälligkeit, Summen, Zählungen). Die Abfragen stehen in dashboard-daten.ts.
-import { tageVerschieben } from "@/lib/datum";
+import { monatVerschieben, monatsGrenzen, tageVerschieben } from "@/lib/datum";
 
 /** Fälligkeitsdatum einer Rechnung: Rechnungsdatum + Zahlungsziel in Tagen. Ohne Zahlungsziel gibt es keine Fälligkeit (null). */
 export function faelligAm(rechnungsdatum: string, zahlungszielTage: number | null): string | null {
@@ -37,7 +37,58 @@ export function forderungen(rechnungen: OffeneRechnung[], heute: string) {
   };
 }
 
-export type StatusAnzahl = { id: string; name: string; farbe: string; sortierung: number; anzahl: number };
+// ---------------------------------------------------------------------------
+// „Offene Forderungen“ wie in Plancraft: eine große Summe, darunter Offen / Überfällig, wählbarer Zeitraum (nach Rechnungsdatum)
+// ---------------------------------------------------------------------------
+
+export const FORDERUNGS_ZEITRAEUME = [
+  ["90_tage", "Letzte 90 Tage"],
+  ["monat", "Aktueller Monat"],
+  ["letzter_monat", "Letzter Monat"],
+  ["jahr", "Aktuelles Jahr"],
+  ["letztes_jahr", "Letztes Jahr"],
+] as const;
+export type ForderungsZeitraum = (typeof FORDERUNGS_ZEITRAEUME)[number][0];
+export const FORDERUNGS_STANDARD: ForderungsZeitraum = "90_tage";
+
+export function istForderungsZeitraum(wert: unknown): wert is ForderungsZeitraum {
+  return FORDERUNGS_ZEITRAEUME.some(([id]) => id === wert);
+}
+
+/** Von–bis (inklusive) für einen Zeitraum der Forderungsübersicht. */
+export function forderungsBereich(zeitraum: ForderungsZeitraum, heute: string): { von: string; bis: string } {
+  const jahr = Number(heute.slice(0, 4));
+  switch (zeitraum) {
+    case "90_tage":
+      return { von: tageVerschieben(heute, -89), bis: heute };
+    case "monat": {
+      const g = monatsGrenzen(heute.slice(0, 7));
+      return { von: g.erster, bis: g.letzter };
+    }
+    case "letzter_monat": {
+      const g = monatsGrenzen(monatVerschieben(heute.slice(0, 7), -1));
+      return { von: g.erster, bis: g.letzter };
+    }
+    case "jahr":
+      return { von: `${jahr}-01-01`, bis: `${jahr}-12-31` };
+    case "letztes_jahr":
+      return { von: `${jahr - 1}-01-01`, bis: `${jahr - 1}-12-31` };
+  }
+}
+
+/** Gesamtsumme der offenen Forderungen, aufgeteilt in „noch nicht fällig“ (Offen) und „Überfällig“. Nur Rechnungen im Zeitraum zählen. */
+export function forderungsUebersicht(rechnungen: OffeneRechnung[], heute: string, bereich: { von: string; bis: string }) {
+  const imZeitraum = rechnungen.filter((r) => r.rechnungsdatum >= bereich.von && r.rechnungsdatum <= bereich.bis);
+  const f = forderungen(imZeitraum, heute);
+  const offenCent = Math.round(f.offen.summe * 100) - Math.round(f.ueberfaellig.summe * 100);
+  return {
+    gesamt: f.offen,
+    offen: { anzahl: f.offen.anzahl - f.ueberfaellig.anzahl, summe: offenCent / 100 },
+    ueberfaellig: f.ueberfaellig,
+  };
+}
+
+export type StatusAnzahl ={ id: string; name: string; farbe: string; sortierung: number; anzahl: number };
 
 /** Nicht archivierte Projekte je Status zählen (nur Status mit mindestens einem Projekt), in der Reihenfolge der Einstellungen. */
 export function projekteNachStatus(

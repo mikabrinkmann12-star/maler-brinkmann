@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { chatSumme, faelligAm, forderungen, projekteNachStatus, type OffeneRechnung } from "./dashboard";
+import { chatSumme, faelligAm, forderungen, forderungsBereich, forderungsUebersicht, istForderungsZeitraum, projekteNachStatus, type OffeneRechnung } from "./dashboard";
 
 const r = (teil: Partial<OffeneRechnung>): OffeneRechnung => ({
   status: "uebertragen", lexwareStatus: "open", rechnungsdatum: "2026-10-01", zahlungszielTage: 14, brutto: 100, ...teil,
@@ -32,6 +32,29 @@ describe("forderungen", () => {
   });
   it("rechnet ohne Kommafehler (Cent)", () => {
     expect(forderungen([r({ brutto: 0.1 }), r({ brutto: 0.2 })], "2026-10-10").offen.summe).toBe(0.3);
+  });
+});
+
+describe("Forderungsübersicht mit Zeitraum", () => {
+  const heute = "2026-10-18";
+  it("Zeiträume", () => {
+    expect(forderungsBereich("90_tage", heute)).toEqual({ von: "2026-07-21", bis: "2026-10-18" });
+    expect(forderungsBereich("monat", heute)).toEqual({ von: "2026-10-01", bis: "2026-10-31" });
+    expect(forderungsBereich("letzter_monat", heute)).toEqual({ von: "2026-09-01", bis: "2026-09-30" });
+    expect(forderungsBereich("jahr", heute)).toEqual({ von: "2026-01-01", bis: "2026-12-31" });
+    expect(forderungsBereich("letztes_jahr", heute)).toEqual({ von: "2025-01-01", bis: "2025-12-31" });
+    expect(forderungsBereich("letzter_monat", "2026-01-05")).toEqual({ von: "2025-12-01", bis: "2025-12-31" });
+    expect(istForderungsZeitraum("monat")).toBe(true);
+    expect(istForderungsZeitraum("quatsch")).toBe(false);
+  });
+  it("trennt Offen und Überfällig und zählt nur Rechnungen im Zeitraum", () => {
+    const r = (rechnungsdatum: string, brutto: number): OffeneRechnung => ({ status: "uebertragen", lexwareStatus: "open", rechnungsdatum, zahlungszielTage: 14, brutto });
+    const liste = [r("2026-10-10", 119), r("2026-10-01", 238), r("2026-09-01", 100), r("2025-12-01", 50)];
+    const u = forderungsUebersicht(liste, heute, forderungsBereich("90_tage", heute));
+    expect(u.gesamt).toEqual({ anzahl: 3, summe: 457 });
+    expect(u.ueberfaellig).toEqual({ anzahl: 2, summe: 338 }); // 01.10. (fällig 15.10.) und 01.09.
+    expect(u.offen).toEqual({ anzahl: 1, summe: 119 });
+    expect(forderungsUebersicht(liste, heute, forderungsBereich("monat", heute)).gesamt.anzahl).toBe(2);
   });
 });
 
