@@ -17,10 +17,10 @@ export function NutzerBereich({
   onNavigiert?: () => void;
 }) {
   return (
-    <div className="flex flex-col gap-1 border-t pt-3">
+    <div className="flex flex-col gap-1 border-t border-sidebar-border pt-3">
       <div className="px-3 pb-2">
         <p className="truncate text-sm font-medium">{name}</p>
-        <p className="text-xs text-muted-foreground">{ROLLEN_NAMEN[rolle]}</p>
+        <p className="text-xs text-sidebar-foreground/60">{ROLLEN_NAMEN[rolle]}</p>
       </div>
       <Link href="/heute" onClick={onNavigiert} className={KNOPF}>
         <HardHatIcon className="size-5" />

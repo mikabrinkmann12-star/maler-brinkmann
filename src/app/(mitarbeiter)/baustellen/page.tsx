@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArchiveIcon, ChevronRightIcon, MessageCircleIcon } from "lucide-react";
+import { StatusPille } from "@/components/status-pille";
 import { requireUser } from "@/lib/auth";
 import { ungelesenKarte, zaehlerText } from "@/lib/chat";
 import { heuteIso } from "@/lib/datum";
@@ -53,16 +54,15 @@ export default async function BaustellenSeite() {
         {projekte.map((p) => (
           <li key={p.id}>
             <Link href={`/baustellen/${p.id}`} className="flex items-center gap-3 rounded-xl border p-4 transition-colors hover:bg-muted">
-              <span className="size-3 shrink-0 rounded-full" style={{ backgroundColor: p.project_statuses?.farbe ?? "#94a3b8" }} />
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-lg font-medium">{p.name}</span>
                 <span className="block truncate text-sm text-muted-foreground">
                   {adresseText({ strasse: p.baustelle_strasse, plz: p.baustelle_plz, ort: p.baustelle_ort }) || "Keine Adresse"}
                 </span>
-                <span className="block text-sm text-muted-foreground">
-                  {p.project_statuses?.name}
-                  {heuteIds.has(p.id) && <span className="font-medium text-foreground"> · heute</span>}
-                  {p.start_datum && ` · ${formatDatum(p.start_datum)}–${formatDatum(p.end_datum)}`}
+                <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+                  {p.project_statuses && <StatusPille name={p.project_statuses.name} farbe={p.project_statuses.farbe} />}
+                  {heuteIds.has(p.id) && <span className="font-medium text-foreground">heute</span>}
+                  {p.start_datum && <span>{formatDatum(p.start_datum)}–{formatDatum(p.end_datum)}</span>}
                 </span>
               </span>
               {(chatNeu.get(p.id) ?? 0) > 0 && (

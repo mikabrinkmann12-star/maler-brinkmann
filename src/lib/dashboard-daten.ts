@@ -2,9 +2,11 @@ import "server-only";
 import { angeboteLaden } from "@/lib/angebot-daten";
 import { chatSumme, forderungen, projekteNachStatus } from "@/lib/dashboard";
 import { kollegenLaden } from "@/lib/mitarbeiter-daten";
+import { kontaktName } from "@/lib/projekt";
 import { createClient } from "@/lib/supabase/server";
 
 export type EinsatzHeute = { id: string; auto: string; baustellen: { id: string; name: string }[]; team: string[] };
+export type ZuletztProjekt = { id: string; name: string; projektnummer: string; kunde: string; bearbeitet: string; status: { name: string; farbe: string } | null };
 export type AbwesendHeute = { name: string; grund: string };
 
 const ABWESENHEIT: Record<string, string> = {
@@ -19,8 +21,14 @@ const ABWESENHEIT: Record<string, string> = {
  */
 export async function dashboardLaden(heute: string) {
   const supabase = await createClient();
-  const [projekte, einsaetze, urlaubHeute, kranke, urlaubOffen, rechnungen, rechnungsEntwuerfe, versendet, angebotsEntwuerfe, chat, kollegen] = await Promise.all([
+  const [projekte, zuletzt, einsaetze, urlaubHeute, kranke, urlaubOffen, rechnungen, rechnungsEntwuerfe, versendet, angebotsEntwuerfe, chat, kollegen] = await Promise.all([
     supabase.from("projects").select("status_id, project_statuses(name, farbe, sortierung)").is("archiviert_am", null).limit(1000),
+    supabase
+      .from("projects")
+      .select("id, name, projektnummer, updated_at, project_statuses(name, farbe), contacts(firmenname, vorname, nachname)")
+      .is("archiviert_am", null)
+      .order("updated_at", { ascending: false })
+      .limit(5),
     supabase
       .from("assignments")
       .select("id, vehicles(name, kennzeichen), assignment_stops(sortierung, projects(id, name)), assignment_members(user_id)")
@@ -74,6 +82,14 @@ export async function dashboardLaden(heute: string) {
 
   return {
     projekte: projekteNachStatus(projekte.data ?? []),
+    zuletzt: (zuletzt.data ?? []).map((p): ZuletztProjekt => ({
+      id: p.id,
+      name: p.name,
+      projektnummer: p.projektnummer,
+      kunde: kontaktName(p.contacts),
+      bearbeitet: p.updated_at,
+      status: p.project_statuses ? { name: p.project_statuses.name, farbe: p.project_statuses.farbe } : null,
+    })),
     heuteImEinsatz,
     abwesend,
     angebote: {

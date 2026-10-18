@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeftIcon, ChevronRightIcon, MessageCircleIcon, FileTextIcon, ClipboardListIcon, FolderOpenIcon, PackageCheckIcon, PencilIcon, ClockIcon, NavigationIcon, PackageIcon, RulerIcon, StickyNoteIcon } from "lucide-react";
 import { cn } from "cn";
 import { AnrufLink } from "@/components/anruf-link";
+import { StatusPille } from "@/components/status-pille";
 import { buttonVariants } from "@/components/ui/button";
 import { requireUser } from "@/lib/auth";
 import { EINHEIT_NAMEN, aufmassSummen } from "@/lib/aufmass";
@@ -139,11 +140,10 @@ export default async function BaustelleSeite({ params }: { params: Promise<{ id:
       </Link>
 
       <div className="flex flex-col gap-2">
-        <p className="flex items-center gap-2 text-sm text-muted-foreground">
-          <span className="size-3 rounded-full" style={{ backgroundColor: p.project_statuses?.farbe ?? "#94a3b8" }} />
-          {p.project_statuses?.name}
-          {p.start_datum && ` · ${formatDatum(p.start_datum)}–${formatDatum(p.end_datum)}`}
-          {p.archiviert_am && " · archiviert"}
+        <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+          {p.project_statuses && <StatusPille name={p.project_statuses.name} farbe={p.project_statuses.farbe} />}
+          {p.start_datum && <span>{formatDatum(p.start_datum)}–{formatDatum(p.end_datum)}</span>}
+          {p.archiviert_am && <span>archiviert</span>}
         </p>
         <h1 className="text-2xl font-semibold leading-tight">{p.name}</h1>
         {adresseText(anschrift) && <p className="text-lg">{adresseText(anschrift)}</p>}

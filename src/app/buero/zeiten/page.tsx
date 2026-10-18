@@ -236,7 +236,7 @@ export default async function BueroZeitenSeite({ searchParams }: PageProps<"/bue
                     <td className="px-3 py-2 whitespace-nowrap">{ZEIT_ART_NAMEN[t.art]}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{formatStunden(t.stunden)}</td>
                     <td className="px-4 py-2 text-right">
-                      <Link href={`/buero/zeiten/${t.id}`} className="font-medium text-primary hover:underline">Ändern</Link>
+                      <Link href={`/buero/zeiten/${t.id}`} className="font-medium underline-offset-4 hover:underline">Ändern</Link>
                     </td>
                   </tr>
                 ))}

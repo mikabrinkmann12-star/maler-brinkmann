@@ -23,8 +23,8 @@ export function BueroMobilMenue({ name, rolle }: { name: string; rolle: Rolle })
           <MenuIcon />
         </SheetTrigger>
         <SheetContent side="left" className="flex w-72 flex-col gap-4 bg-sidebar p-3">
-          <div className="px-1 pt-1">
-            <AppLogo className="w-44" />
+          <div className="rounded-lg bg-white p-2">
+            <AppLogo className="mx-auto w-40" />
             <SheetTitle className="sr-only">Maler Brinkmann</SheetTitle>
           </div>
           <div className="flex-1 overflow-y-auto">

@@ -63,7 +63,7 @@ function Adresse({ adresse }: { adresse: string }) {
   if (!adresse) return <p className="px-1 text-xs text-muted-foreground">Keine Adresse hinterlegt</p>;
   return (
     <a href={mapsLink({ strasse: adresse }) ?? undefined} target="_blank" rel="noopener noreferrer"
-      className="flex w-fit items-center gap-1 px-1 text-sm text-primary underline-offset-4 hover:underline">
+      className="flex w-fit items-center gap-1 px-1 text-sm text-foreground underline underline-offset-4 hover:underline">
       <MapPinIcon className="size-4 shrink-0" />
       {adresse}
       <span className="text-xs text-muted-foreground no-underline">· in Google Maps öffnen</span>

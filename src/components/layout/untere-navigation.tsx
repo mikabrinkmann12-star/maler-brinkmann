@@ -30,10 +30,11 @@ export function UntereNavigation() {
                 href={href}
                 aria-current={aktiv ? "page" : undefined}
                 className={cn(
-                  "flex h-16 flex-col items-center justify-center gap-1 text-xs font-medium transition-colors",
-                  aktiv ? "text-primary" : "text-muted-foreground hover:text-foreground",
+                  "relative flex h-16 flex-col items-center justify-center gap-1 text-xs font-medium transition-colors",
+                  aktiv ? "text-foreground" : "text-muted-foreground hover:text-foreground",
                 )}
               >
+                {aktiv && <span aria-hidden className="absolute top-0 h-1 w-10 rounded-b-full bg-primary" />}
                 <Icon className={cn("size-6", aktiv && "stroke-[2.5]")} />
                 {name}
               </Link>

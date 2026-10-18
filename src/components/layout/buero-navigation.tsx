@@ -64,7 +64,7 @@ export function BueroNavigation({
                       : "text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
                   )}
                 >
-                  <Icon className="size-5" />
+                  <Icon className={cn("size-5", aktiv && "text-sidebar-primary")} />
                   {name}
                 </Link>
               </li>

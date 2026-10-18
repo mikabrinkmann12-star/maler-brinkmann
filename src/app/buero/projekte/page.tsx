@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ChevronRightIcon, MessageCircleIcon, PlusIcon, SearchIcon } from "lucide-react";
 import { cn } from "cn";
+import { StatusPille } from "@/components/status-pille";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { requireRole } from "@/lib/auth";
 import { ungelesenKarte, zaehlerText } from "@/lib/chat";
@@ -75,16 +76,15 @@ export default async function ProjekteSeite({ searchParams }: PageProps<"/buero/
         {projekte.map((p) => (
           <li key={p.id}>
             <Link href={`/baustellen/${p.id}`} className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted">
-              <span className="size-3 shrink-0 rounded-full" style={{ backgroundColor: p.status?.farbe ?? "#94a3b8" }} title={p.status?.name} />
               <span className="min-w-0 flex-1">
                 <span className="block truncate font-medium">{p.name}</span>
                 <span className="block truncate text-sm text-muted-foreground">
                   {[p.kunde, adresseText({ strasse: p.baustelle_strasse, plz: p.baustelle_plz, ort: p.baustelle_ort })].filter(Boolean).join(" · ") || "Kein Kunde, keine Adresse"}
                 </span>
               </span>
-              <span className="hidden shrink-0 text-right text-sm text-muted-foreground sm:block">
-                <span className="block">{p.status?.name}</span>
-                <span className="block text-xs">{p.projektnummer}{p.start_datum && ` · ${formatDatum(p.start_datum)}`}</span>
+              <span className="hidden shrink-0 flex-col items-end gap-1 text-right sm:flex">
+                {p.status && <StatusPille name={p.status.name} farbe={p.status.farbe} />}
+                <span className="text-xs text-muted-foreground">{p.projektnummer}{p.start_datum && ` · ${formatDatum(p.start_datum)}`}</span>
               </span>
               {(chatNeu.get(p.id) ?? 0) > 0 && (
                 <span aria-label={`${chatNeu.get(p.id)} neue Chat-Nachrichten`} className="flex shrink-0 items-center gap-1 rounded-full bg-red-600 px-2 text-sm font-semibold leading-6 text-white">

@@ -12,9 +12,9 @@ export default async function BueroLayout({ children }: LayoutProps<"/buero">) {
 
   return (
     <div className="flex min-h-dvh flex-1">
-      <aside className="fixed inset-y-0 left-0 hidden w-64 flex-col gap-6 border-r bg-sidebar p-3 md:flex">
-        <div className="px-1 pt-1">
-          <AppLogo className="w-44" />
+      <aside className="fixed inset-y-0 left-0 hidden w-64 flex-col gap-6 border-r border-sidebar-border bg-sidebar p-3 text-sidebar-foreground md:flex">
+        <div className="rounded-lg bg-white p-2">
+          <AppLogo className="mx-auto w-40" />
         </div>
         <div className="flex-1 overflow-y-auto">
           <BueroNavigation istAdmin={nutzer.rolle === "admin"} />
