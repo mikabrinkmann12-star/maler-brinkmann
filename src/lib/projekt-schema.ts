@@ -19,6 +19,7 @@ export const projektSchema = z
     strasse: text(120, "Die Straße ist zu lang."),
     plz: text(10, "Die PLZ ist zu lang."),
     ort: text(80, "Der Ort ist zu lang."),
+    land: z.string().trim().max(60, "Das Land ist zu lang.").default("").transform((l) => l || "Deutschland"),
     startDatum: datum,
     endDatum: datum,
     beschreibung: text(2000, "Die Beschreibung ist zu lang (höchstens 2.000 Zeichen)."),

@@ -26,14 +26,19 @@ const SEITE = 1000; // so viele Zeilen liefert die Datenbank höchstens pro Abfr
 
 /** Alle nicht gelöschten (archivierten) Zeiten eines Monats. */
 export async function monatsEintraege(monat: string): Promise<AuswertungEintrag[]> {
-  const supabase = await createClient();
   const { erster, letzter } = monatsGrenzen(monat);
+  return zeitraumEintraege(erster, letzter);
+}
+
+/** Alle nicht archivierten Zeiten zwischen zwei Tagen (einschließlich), mit Zeitpunkt der letzten Änderung. */
+export async function zeitraumEintraege(erster: string, letzter: string): Promise<AuswertungEintrag[]> {
+  const supabase = await createClient();
   const ergebnis: AuswertungEintrag[] = [];
 
   for (let von = 0; ; von += SEITE) {
     const { data, error } = await supabase
       .from("time_entries")
-      .select("id, user_id, datum, von, bis, pause_min, stunden, art, beschreibung, project_id, projects(name, projektnummer)")
+      .select("id, user_id, datum, von, bis, pause_min, stunden, art, beschreibung, project_id, updated_at, bearbeitet_von, projects(name, projektnummer)")
       .is("archiviert_am", null)
       .gte("datum", erster)
       .lte("datum", letzter)
@@ -56,6 +61,8 @@ export async function monatsEintraege(monat: string): Promise<AuswertungEintrag[
         projektName: t.projects?.name ?? "",
         projektNummer: t.projects?.projektnummer ?? "",
         beschreibung: t.beschreibung ?? "",
+        bearbeitetAm: t.updated_at,
+        bearbeitetVon: t.bearbeitet_von ?? undefined,
       });
     }
     if (data.length < SEITE) return ergebnis;

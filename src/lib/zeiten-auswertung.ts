@@ -16,6 +16,9 @@ export type AuswertungEintrag = {
   projektName: string;
   projektNummer: string;
   beschreibung: string;
+  /** Zeitpunkt und Person der letzten Änderung (nur in der Büro-Liste gefüllt) */
+  bearbeitetAm?: string;
+  bearbeitetVon?: string;
 };
 
 export type ZeitFilter = {
@@ -165,4 +168,98 @@ export function einzelCsv(eintraege: AuswertungEintrag[], namen: Map<string, str
     csvText(e.beschreibung),
   ]);
   return csvZusammensetzen([kopf.map(csvText), ...zeilen]);
+}
+
+// ---------------------------------------------------------------------------
+// Zeiten-Seite im Stil von Plancraft: Mehrfachfilter, Kennzahlen, Tagessummen
+// ---------------------------------------------------------------------------
+
+/** Kleines Symbol je Zeitart in Listen und Filtern (wie die Symbole in Plancraft). */
+export const ZEIT_ART_EMOJI: Record<ZeitArt, string> = {
+  arbeitszeit: "🛠️",
+  fahrtzeit: "🚗",
+  bildung: "📚",
+  schlechtwetter: "🌧️",
+  sonstiges: "🟣",
+  urlaub: "🌴",
+  unbezahlter_urlaub: "🌵",
+  krank: "🤒",
+  kurzarbeit: "⏳",
+  feiertag: "🎉",
+  ueberstundenabbau: "😎",
+};
+
+export type ZeitenFilter = {
+  personIds: string[];
+  projektIds: string[];
+  arten: ZeitArt[];
+  q: string;
+};
+
+/** Mehrfachfilter plus Suche über Name, Projekt, Projektnummer und Beschreibung. Leere Listen filtern nicht. */
+export function zeitenFiltern(eintraege: AuswertungEintrag[], f: ZeitenFilter, namen: Map<string, string>): AuswertungEintrag[] {
+  const q = f.q.trim().toLowerCase();
+  return eintraege.filter((e) => {
+    if (f.personIds.length && !f.personIds.includes(e.userId)) return false;
+    if (f.projektIds.length && !(e.projektId && f.projektIds.includes(e.projektId))) return false;
+    if (f.arten.length && !f.arten.includes(e.art)) return false;
+    if (!q) return true;
+    return [namen.get(e.userId) ?? "", e.projektName, e.projektNummer, e.beschreibung, ZEIT_ART_NAMEN[e.art]].some((t) => t.toLowerCase().includes(q));
+  });
+}
+
+export type Kennzahlen = {
+  jeArt: Partial<Record<ZeitArt, { stunden: number; tage: number }>>;
+  gesamtStunden: number;
+  gesamtPause: number;
+};
+
+/** Stunden und Tage (je Person und Tag einmal gezählt) pro Zeitart, dazu Gesamtstunden und Gesamtpause in Stunden. */
+export function kennzahlen(eintraege: AuswertungEintrag[]): Kennzahlen {
+  const jeArt: Kennzahlen["jeArt"] = {};
+  const tage = new Map<ZeitArt, Set<string>>();
+  let gesamtStunden = 0;
+  let pauseMin = 0;
+  for (const e of eintraege) {
+    const k = (jeArt[e.art] ??= { stunden: 0, tage: 0 });
+    k.stunden = addiere(k.stunden, e.stunden);
+    const set = tage.get(e.art) ?? new Set<string>();
+    set.add(`${e.userId}|${e.datum}`);
+    tage.set(e.art, set);
+    k.tage = set.size;
+    gesamtStunden = addiere(gesamtStunden, e.stunden);
+    pauseMin += e.von ? e.pauseMin : 0;
+  }
+  return { jeArt, gesamtStunden, gesamtPause: Math.round((pauseMin / 60) * 100) / 100 };
+}
+
+export type TagesGruppe = { schluessel: string; eintraege: AuswertungEintrag[]; summe: { stunden: number; pauseMin: number } | null };
+
+/**
+ * Einträge nach Person und Tag gruppieren (Reihenfolge der Eingabe bleibt). Eine Summenzeile gibt es nur,
+ * wenn jemand an einem Tag mehr als einen Eintrag hat (wie in Plancraft).
+ */
+export function nachTagGruppieren(eintraege: AuswertungEintrag[]): TagesGruppe[] {
+  const gruppen: TagesGruppe[] = [];
+  for (const e of eintraege) {
+    const schluessel = `${e.datum}|${e.userId}`;
+    const letzte = gruppen[gruppen.length - 1];
+    if (letzte && letzte.schluessel === schluessel) letzte.eintraege.push(e);
+    else gruppen.push({ schluessel, eintraege: [e], summe: null });
+  }
+  for (const g of gruppen) {
+    if (g.eintraege.length > 1) {
+      g.summe = {
+        stunden: g.eintraege.reduce((s, e) => addiere(s, e.stunden), 0),
+        pauseMin: g.eintraege.reduce((s, e) => s + (e.von ? e.pauseMin : 0), 0),
+      };
+    }
+  }
+  return gruppen;
+}
+
+/** Pause als „0:45“ (Stunden:Minuten), 0 oder fehlend als „–“. */
+export function pauseText(minuten: number | null | undefined): string {
+  if (!minuten || minuten <= 0) return "–";
+  return `${Math.floor(minuten / 60)}:${String(minuten % 60).padStart(2, "0")}`;
 }

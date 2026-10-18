@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { ZEIT_ARTEN } from "./zeiten";
 import {
+  ZEIT_ART_EMOJI,
   csvStunden,
   csvText,
   eintraegeFiltern,
@@ -7,9 +9,13 @@ import {
   einzelCsv,
   filterLesen,
   gesamtSumme,
+  kennzahlen,
+  nachTagGruppieren,
+  pauseText,
   summenCsv,
   summenJePerson,
   vorkommendeArten,
+  zeitenFiltern,
   type AuswertungEintrag,
 } from "./zeiten-auswertung";
 
@@ -163,5 +169,58 @@ describe("CSV", () => {
     expect(zeilen[0]).toBe("Datum;Mitarbeiter;Art;Von;Bis;Pause (Min);Stunden;Projektnummer;Projekt;Beschreibung");
     expect(zeilen[1]).toBe('05.10.2026;Anna Muster;Arbeitszeit;06:30;15:45;45;8,50;P-(2600)001;Musterstraße 1;"Wand; Decke"');
     expect(zeilen[2]).toBe("05.10.2026;Anna Muster;Krank;;;;8,50;;;");
+  });
+});
+
+describe("Zeiten-Seite wie Plancraft", () => {
+  const e = (teil: Partial<AuswertungEintrag>): AuswertungEintrag => ({
+    id: Math.random().toString(36).slice(2), userId: "u1", datum: "2026-10-16", von: "06:30:00", bis: "15:45:00", pauseMin: 45, stunden: 8.5,
+    art: "arbeitszeit", projektId: "p1", projektName: "Neubau 5", projektNummer: "P-(2400)351", beschreibung: "Streichen", ...teil,
+  });
+  const namen = new Map([["u1", "Mika Brinkmann"], ["u2", "Carmen Bronn"]]);
+  const leer = { personIds: [], projektIds: [], arten: [], q: "" };
+
+  it("zeitenFiltern: Mehrfachfilter und Suche", () => {
+    const liste = [e({}), e({ userId: "u2", art: "krank", projektId: null, projektName: "", projektNummer: "", beschreibung: "" })];
+    expect(zeitenFiltern(liste, leer, namen)).toHaveLength(2);
+    expect(zeitenFiltern(liste, { ...leer, personIds: ["u2"] }, namen)).toHaveLength(1);
+    expect(zeitenFiltern(liste, { ...leer, arten: ["krank", "urlaub"] }, namen)).toHaveLength(1);
+    expect(zeitenFiltern(liste, { ...leer, projektIds: ["p1"] }, namen)).toHaveLength(1);
+    expect(zeitenFiltern(liste, { ...leer, q: "carmen" }, namen)).toHaveLength(1);
+    expect(zeitenFiltern(liste, { ...leer, q: "streichen" }, namen)).toHaveLength(1);
+    expect(zeitenFiltern(liste, { ...leer, q: "krank" }, namen)).toHaveLength(1);
+  });
+
+  it("kennzahlen: Stunden je Art, Tage je Person und Tag einmal, Pause in Stunden", () => {
+    const k = kennzahlen([
+      e({ stunden: 6, pauseMin: 15 }),
+      e({ stunden: 1.5, pauseMin: 15, von: "07:00:00" }), // gleicher Tag, gleiche Person
+      e({ art: "krank", stunden: 6, von: null, bis: null, pauseMin: 0 }),
+      e({ art: "krank", stunden: 6, datum: "2026-10-17", von: null, bis: null, pauseMin: 0 }),
+    ]);
+    expect(k.jeArt.arbeitszeit).toEqual({ stunden: 7.5, tage: 1 });
+    expect(k.jeArt.krank).toEqual({ stunden: 12, tage: 2 });
+    expect(k.gesamtStunden).toBe(19.5);
+    expect(k.gesamtPause).toBe(0.5);
+  });
+
+  it("nachTagGruppieren: Summenzeile nur bei mehreren Einträgen einer Person am Tag", () => {
+    const g = nachTagGruppieren([
+      e({ stunden: 1.5, pauseMin: 15 }),
+      e({ stunden: 6.25, pauseMin: 15 }),
+      e({ userId: "u2", stunden: 8.5 }),
+      e({ datum: "2026-10-15", stunden: 8.5 }),
+    ]);
+    expect(g).toHaveLength(3);
+    expect(g[0].summe).toEqual({ stunden: 7.75, pauseMin: 30 });
+    expect(g[1].summe).toBeNull();
+    expect(g[2].summe).toBeNull();
+  });
+
+  it("pauseText und Symbole", () => {
+    expect(pauseText(45)).toBe("0:45");
+    expect(pauseText(75)).toBe("1:15");
+    expect(pauseText(0)).toBe("–");
+    expect(Object.keys(ZEIT_ART_EMOJI)).toHaveLength(ZEIT_ARTEN.length);
   });
 });

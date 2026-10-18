@@ -30,6 +30,7 @@ export async function projektSpeichern(id: string | null, eingabe: unknown): Pro
     baustelle_strasse: p.strasse || null,
     baustelle_plz: p.plz || null,
     baustelle_ort: p.ort || null,
+    land: p.land,
     start_datum: p.startDatum || null,
     end_datum: p.endDatum || null,
     beschreibung: p.beschreibung || null,
@@ -81,7 +82,7 @@ export async function projektnummerVorschlagen(): Promise<{ nummer?: string; feh
   }
 }
 
-export type KundeTreffer = { id: string; name: string; kundennummer: string; strasse: string; plz: string; ort: string };
+export type KundeTreffer = { id: string; name: string; kundennummer: string; strasse: string; plz: string; ort: string; land: string };
 
 /** Kunden für die Auswahl im Projektformular suchen (höchstens 12 Treffer, nur nicht archivierte). */
 export async function kundenFinden(suche: string): Promise<KundeTreffer[]> {
@@ -92,7 +93,7 @@ export async function kundenFinden(suche: string): Promise<KundeTreffer[]> {
   const felder = ["firmenname", "vorname", "nachname", "kundennummer", "ort", "strasse"];
   const { data } = await supabase
     .from("contacts")
-    .select("id, firmenname, vorname, nachname, kundennummer, strasse, plz, ort")
+    .select("id, firmenname, vorname, nachname, kundennummer, strasse, plz, ort, land")
     .is("archiviert_am", null)
     .or(felder.map((f) => `${f}.ilike.%${q}%`).join(","))
     .limit(12);
@@ -103,6 +104,7 @@ export async function kundenFinden(suche: string): Promise<KundeTreffer[]> {
     strasse: k.strasse ?? "",
     plz: k.plz ?? "",
     ort: k.ort ?? "",
+    land: k.land ?? "Deutschland",
   }));
 }
 

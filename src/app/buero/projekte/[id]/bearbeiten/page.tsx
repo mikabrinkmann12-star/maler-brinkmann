@@ -19,7 +19,7 @@ export default async function ProjektBearbeitenSeite({ params }: PageProps<"/bue
   const [{ data: p }, { data: status }, { data: buero }, { data: mitglieder }, kollegen] = await Promise.all([
     supabase
       .from("projects")
-      .select("*, contacts(id, firmenname, vorname, nachname, kundennummer, strasse, plz, ort)")
+      .select("*, contacts(id, firmenname, vorname, nachname, kundennummer, strasse, plz, ort, land)")
       .eq("id", id)
       .maybeSingle(),
     supabase.from("project_statuses").select("id, name, farbe").eq("aktiv", true).order("sortierung"),
@@ -53,11 +53,11 @@ export default async function ProjektBearbeitenSeite({ params }: PageProps<"/bue
           ? {
               id: k.id,
               name: k.firmenname || [k.vorname, k.nachname].filter(Boolean).join(" ") || "Ohne Namen",
-              kundennummer: k.kundennummer ?? "", strasse: k.strasse ?? "", plz: k.plz ?? "", ort: k.ort ?? "",
+              kundennummer: k.kundennummer ?? "", strasse: k.strasse ?? "", plz: k.plz ?? "", ort: k.ort ?? "", land: k.land ?? "Deutschland",
             }
           : null,
         statusId: p.status_id,
-        strasse: p.baustelle_strasse ?? "", plz: p.baustelle_plz ?? "", ort: p.baustelle_ort ?? "",
+        strasse: p.baustelle_strasse ?? "", plz: p.baustelle_plz ?? "", ort: p.baustelle_ort ?? "", land: p.land ?? "Deutschland",
         startDatum: p.start_datum ?? "", endDatum: p.end_datum ?? "", beschreibung: p.beschreibung ?? "",
         bueroAnsprechpartnerId: p.buero_ansprechpartner_id ?? "",
         mitarbeiterIds: (mitglieder ?? []).map((m) => m.user_id),

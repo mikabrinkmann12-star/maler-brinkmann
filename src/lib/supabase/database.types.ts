@@ -382,6 +382,7 @@ export type Database = {
           firmenname: string | null
           id: string
           kundennummer: string | null
+          land: string
           leitweg_id: string | null
           lexware_contact_id: string | null
           mobil: string | null
@@ -411,6 +412,7 @@ export type Database = {
           firmenname?: string | null
           id?: string
           kundennummer?: string | null
+          land?: string
           leitweg_id?: string | null
           lexware_contact_id?: string | null
           mobil?: string | null
@@ -440,6 +442,7 @@ export type Database = {
           firmenname?: string | null
           id?: string
           kundennummer?: string | null
+          land?: string
           leitweg_id?: string | null
           lexware_contact_id?: string | null
           mobil?: string | null
@@ -1427,6 +1430,7 @@ export type Database = {
           created_by: string | null
           end_datum: string | null
           id: string
+          land: string
           name: string
           projektnummer: string
           start_datum: string | null
@@ -1446,6 +1450,7 @@ export type Database = {
           created_by?: string | null
           end_datum?: string | null
           id?: string
+          land?: string
           name: string
           projektnummer: string
           start_datum?: string | null
@@ -1465,6 +1470,7 @@ export type Database = {
           created_by?: string | null
           end_datum?: string | null
           id?: string
+          land?: string
           name?: string
           projektnummer?: string
           start_datum?: string | null

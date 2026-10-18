@@ -30,7 +30,7 @@ export default async function NeuesProjektSeite() {
       heute={heuteIso()}
       zurueck="/buero/projekte"
       start={{
-        projektnummer: "", name: "", kunde: null, statusId: status?.[0]?.id ?? "", strasse: "", plz: "", ort: "",
+        projektnummer: "", name: "", kunde: null, statusId: status?.[0]?.id ?? "", strasse: "", plz: "", ort: "", land: "Deutschland",
         startDatum: "", endDatum: "", beschreibung: "", bueroAnsprechpartnerId: "",
         mitarbeiterIds: [nutzer.id], // wie in Plancraft: wer das Projekt anlegt, ist zuerst eingetragen
       }}

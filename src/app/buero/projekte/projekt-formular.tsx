@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeftIcon, ChevronDownIcon, SearchIcon, XIcon } from "lucide-react";
 import { cn } from "cn";
+import { AdressFelder } from "@/components/formular/adress-felder";
+import { Abschnitt, EINGABE, Zeile } from "@/components/formular/zeile";
 import { DatumWahl } from "@/components/listen/datum-wahl";
 import { MehrfachListe } from "@/components/listen/mehrfach-liste";
 import { StatusPille } from "@/components/status-pille";
@@ -21,39 +23,13 @@ export type ProjektFormWerte = {
   strasse: string;
   plz: string;
   ort: string;
+  land: string;
   startDatum: string;
   endDatum: string;
   beschreibung: string;
   bueroAnsprechpartnerId: string;
   mitarbeiterIds: string[];
 };
-
-const EINGABE =
-  "h-8 w-full rounded-md border border-border bg-white px-2.5 text-[13px] outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30";
-
-/** Abschnitt mit Überschrift und feiner Linie daneben (wie in Plancraft). */
-function Abschnitt({ titel, zusatz, children }: { titel: string; zusatz?: React.ReactNode; children: React.ReactNode }) {
-  return (
-    <section className="flex flex-col gap-3.5">
-      <h2 className="flex items-center gap-3 text-[15px] font-semibold">
-        <span className="flex items-center gap-1.5 whitespace-nowrap">{titel}{zusatz}</span>
-        <span className="h-px flex-1 bg-border" />
-      </h2>
-      {children}
-    </section>
-  );
-}
-
-/** Zeile: Beschriftung links, Feld rechts. */
-function Zeile({ label, htmlFor, hinweis, children }: { label: string; htmlFor?: string; hinweis?: React.ReactNode; children: React.ReactNode }) {
-  return (
-    <div className="grid items-start gap-x-4 gap-y-1 sm:grid-cols-[8rem_minmax(0,18rem)_1fr]">
-      <label htmlFor={htmlFor} className="pt-1.5 text-[13px]">{label}</label>
-      <div>{children}</div>
-      {hinweis && <div className="pt-1.5 text-[13px] sm:col-start-3">{hinweis}</div>}
-    </div>
-  );
-}
 
 /**
  * Projekt anlegen und bearbeiten im Aufbau von Plancraft (Mika, 18.10.2026): Kopfzeile mit Abbrechen und „Projekt erstellen“,
@@ -86,7 +62,7 @@ export function ProjektFormular({
   const [suche, setSuche] = useState("");
   const [treffer, setTreffer] = useState<KundeTreffer[]>([]);
 
-  const feld = (name: keyof Omit<ProjektFormWerte, "kunde" | "mitarbeiterIds">) => ({
+  const feld = (name: keyof Omit<ProjektFormWerte, "kunde" | "mitarbeiterIds" | "land">) => ({
     value: w[name],
     onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
       setW((alt) => ({ ...alt, [name]: e.target.value }));
@@ -110,7 +86,7 @@ export function ProjektFormular({
 
   function kundeWaehlen(k: KundeTreffer) {
     const adresseLeer = !w.strasse && !w.plz && !w.ort;
-    setW((alt) => ({ ...alt, kunde: k, ...(adresseLeer ? { strasse: k.strasse, plz: k.plz, ort: k.ort } : {}) }));
+    setW((alt) => ({ ...alt, kunde: k, ...(adresseLeer ? { strasse: k.strasse, plz: k.plz, ort: k.ort, land: k.land } : {}) }));
     sucheAendern("");
     setFehler(null);
   }
@@ -127,6 +103,7 @@ export function ProjektFormular({
         strasse: w.strasse,
         plz: w.plz,
         ort: w.ort,
+        land: w.land,
         startDatum: w.startDatum,
         endDatum: w.endDatum,
         beschreibung: w.beschreibung,
@@ -276,12 +253,10 @@ export function ProjektFormular({
       </Abschnitt>
 
       <Abschnitt titel="Baustellenadresse" zusatz={<span className="font-normal text-muted-foreground">(Leistungsort)</span>}>
-        <Zeile label="Straße & Nr." htmlFor="strasse"><input id="strasse" {...feld("strasse")} maxLength={120} placeholder="Straße & Nr." className={EINGABE} /></Zeile>
-        <Zeile label="PLZ" htmlFor="plz"><input id="plz" {...feld("plz")} inputMode="numeric" maxLength={10} placeholder="PLZ" className={EINGABE} /></Zeile>
-        <Zeile label="Stadt" htmlFor="ort"><input id="ort" {...feld("ort")} maxLength={80} placeholder="Stadt" className={EINGABE} /></Zeile>
+        <AdressFelder werte={{ strasse: w.strasse, plz: w.plz, ort: w.ort, land: w.land }} onChange={(a) => { setW((alt) => ({ ...alt, ...a })); setFehler(null); }} />
         {w.kunde && (w.kunde.strasse || w.kunde.ort) && (
           <div className="sm:pl-36">
-            <Button type="button" variant="outline" className="h-8 px-3 text-[13px]" onClick={() => setW((alt) => ({ ...alt, strasse: w.kunde!.strasse, plz: w.kunde!.plz, ort: w.kunde!.ort }))}>
+            <Button type="button" variant="outline" className="h-8 px-3 text-[13px]" onClick={() => setW((alt) => ({ ...alt, strasse: w.kunde!.strasse, plz: w.kunde!.plz, ort: w.kunde!.ort, land: w.kunde!.land }))}>
               Adresse vom Kunden übernehmen
             </Button>
           </div>
