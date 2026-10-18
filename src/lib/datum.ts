@@ -22,6 +22,11 @@ export function tageVerschieben(iso: string, tage: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+/** Anzahl Tage von `von` bis `bis` (negativ, wenn `bis` davor liegt). */
+export function tageZwischen(von: string, bis: string): number {
+  return Math.round((new Date(`${bis}T12:00:00Z`).getTime() - new Date(`${von}T12:00:00Z`).getTime()) / 86_400_000);
+}
+
 // Monate als "JJJJ-MM"
 const MONAT = /^\d{4}-(0[1-9]|1[0-2])$/;
 

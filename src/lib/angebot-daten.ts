@@ -145,7 +145,12 @@ export type AngebotListenZeile = {
   projektId: string;
   projektName: string;
   projektnummer: string;
+  projektArchiviert: boolean;
   kunde: string;
+  versendetAm: string | null;
+  brutto: number;
+  /** Zuletzt bearbeitet (für die Sortierung bei gleichem Datum) */
+  erstelltAm: string;
 };
 
 export const MAX_ANGEBOTE = 300;
@@ -156,12 +161,14 @@ export async function angeboteLaden(opts: {
   status?: AngebotStatus | "";
   archiv?: boolean;
   projektId?: string;
+  /** Höchstzahl der Zeilen; die Listenseite filtert danach noch selbst und lädt deshalb alle (1000) */
+  limit?: number;
 }): Promise<{ zeilen: AngebotListenZeile[]; gesamt: number }> {
   const supabase = await createClient();
   let abfrage = supabase
     .from("quotes")
     .select(
-      "id, project_id, betreff, datum, status, steuersatz, reverse_charge, rabatt_prozent, archiviert_am, created_at, projects(name, projektnummer, contacts(firmenname, vorname, nachname)), quote_items(typ, menge, einzelpreis)",
+      "id, project_id, betreff, datum, status, versendet_am, steuersatz, reverse_charge, rabatt_prozent, archiviert_am, created_at, projects(name, projektnummer, archiviert_am, contacts(firmenname, vorname, nachname)), quote_items(typ, menge, einzelpreis)",
     );
   abfrage = opts.archiv ? abfrage.not("archiviert_am", "is", null) : abfrage.is("archiviert_am", null);
   if (opts.status) abfrage = abfrage.eq("status", opts.status);
@@ -187,7 +194,11 @@ export async function angeboteLaden(opts: {
       projektId: q.project_id,
       projektName: q.projects?.name ?? "",
       projektnummer: q.projects?.projektnummer ?? "",
+      projektArchiviert: q.projects?.archiviert_am != null,
       kunde: kontaktName(q.projects?.contacts),
+      versendetAm: q.versendet_am,
+      brutto: rechnung.brutto,
+      erstelltAm: q.created_at,
     };
   });
 
@@ -195,7 +206,7 @@ export async function angeboteLaden(opts: {
   const gefiltert = suche
     ? zeilen.filter((z) => [z.betreff, z.projektName, z.projektnummer, z.kunde].some((t) => t.toLowerCase().includes(suche)))
     : zeilen;
-  return { zeilen: gefiltert.slice(0, MAX_ANGEBOTE), gesamt: gefiltert.length };
+  return { zeilen: gefiltert.slice(0, opts.limit ?? MAX_ANGEBOTE), gesamt: gefiltert.length };
 }
 
 /** Projekte, für die man ein Angebot anlegen kann (nicht archiviert), mit Kunde. */

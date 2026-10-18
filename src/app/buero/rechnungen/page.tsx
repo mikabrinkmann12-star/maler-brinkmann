@@ -1,18 +1,31 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { SearchIcon } from "lucide-react";
 import { cn } from "cn";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { BelegFilter } from "@/components/listen/beleg-filter";
+import type { ListenOption } from "@/components/listen/mehrfach-liste";
+import { StatusPille } from "@/components/status-pille";
+import { summe } from "@/lib/angebot-liste";
 import { requireRole } from "@/lib/auth";
+import { heuteIso } from "@/lib/datum";
 import { formatBetrag, formatDatum } from "@/lib/format";
-import { RECHNUNG_STATUS_NAMEN, type RechnungStatus } from "@/lib/rechnung";
-import { MAX_RECHNUNGEN, rechnungenLaden } from "@/lib/rechnung-daten";
+import {
+  RECHNUNG_ANZEIGE_FARBEN,
+  RECHNUNG_ANZEIGE_NAMEN,
+  anzeigeStatus,
+  faelligText,
+  istRechnungAnzeigeStatus,
+  offenerBetrag,
+  rechnungenFiltern,
+  type RechnungAnzeigeStatus,
+} from "@/lib/rechnung-liste";
+import { rechnungenLaden } from "@/lib/rechnung-daten";
 import { BUERO_ROLLEN } from "@/lib/rollen";
-import { RechnungStatusBadge } from "./status-badge";
+import { istTag } from "@/lib/zeitraum";
 
 export const metadata: Metadata = { title: "Rechnungen" };
 
-const STATUS: RechnungStatus[] = ["entwurf", "uebertragen"];
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const FILTER_STATUS: RechnungAnzeigeStatus[] = ["entwurf", "offen", "ueberfaellig", "bezahlt", "storniert"];
 
 export default async function RechnungsListe({ searchParams }: PageProps<"/buero/rechnungen">) {
   await requireRole(BUERO_ROLLEN);
@@ -20,87 +33,105 @@ export default async function RechnungsListe({ searchParams }: PageProps<"/buero
   const wert = (n: string) => (typeof params[n] === "string" ? (params[n] as string) : "");
   const q = wert("q").trim();
   const archiv = wert("archiv") === "1";
-  const status: RechnungStatus | "" = STATUS.includes(wert("status") as RechnungStatus) ? (wert("status") as RechnungStatus) : "";
+  const netto = wert("netto") === "1";
+  const status = wert("status").split(",").filter(istRechnungAnzeigeStatus);
+  const projektIds = wert("projekt").split(",").filter((x) => UUID.test(x));
+  const zeitraum = istTag(wert("von")) && istTag(wert("bis")) ? { von: wert("von"), bis: wert("bis") } : null;
+  const heute = heuteIso();
 
-  const { zeilen, gesamt } = await rechnungenLaden({ q, status, archiv });
+  const { zeilen: alle } = await rechnungenLaden({ q, archiv, limit: 1000 });
+  const mitStatus = alle.map((z) => ({ ...z, anzeige: anzeigeStatus(z, heute) }));
+  const zeilen = rechnungenFiltern(mitStatus, { von: zeitraum?.von, bis: zeitraum?.bis, status, projektIds });
+  const betrag = (z: (typeof zeilen)[number]) => (netto ? z.netto : z.brutto);
+  // „Offen“ rechnet immer vom Bruttobetrag aus; bei Netto-Ansicht den Nettoanteil nehmen
+  const offen = (z: (typeof zeilen)[number]) => offenerBetrag({ brutto: betrag(z) }, z.anzeige);
 
-  const adresse = (teil: Record<string, string>) => {
-    const p = new URLSearchParams();
-    for (const [k, v] of Object.entries({ q, status, archiv: archiv ? "1" : "", ...teil })) if (v) p.set(k, v);
-    return `/buero/rechnungen${p.size ? `?${p}` : ""}`;
-  };
+  const projektOptionen: ListenOption[] = [...new Map(alle.map((z) => [z.projektId, z])).values()]
+    .sort((a, b) => a.projektName.localeCompare(b.projektName, "de"))
+    .map((z) => ({ id: z.projektId, text: [z.projektnummer, z.projektName].filter(Boolean).join(" - ") }));
+  const statusOptionen: ListenOption[] = FILTER_STATUS.map((s) => ({
+    id: s,
+    text: RECHNUNG_ANZEIGE_NAMEN[s],
+    anzeige: <StatusPille name={RECHNUNG_ANZEIGE_NAMEN[s]} farbe={RECHNUNG_ANZEIGE_FARBEN[s]} />,
+  }));
+  const bezahlt = summe(zeilen.filter((z) => z.anzeige === "bezahlt").map(betrag));
 
   return (
-    <div className="flex max-w-6xl flex-col gap-5">
+    <div className="flex flex-col gap-4">
       <div>
-        <h1 className="text-2xl font-semibold">Rechnungen</h1>
-        <p className="text-sm text-muted-foreground">
-          Eine Rechnung entsteht aus einem Angebot („Rechnung erstellen“ im Angebot). Die Rechnungsnummer und das PDF kommen von Lexware Office.
+        <h1 className="text-xl font-semibold">Rechnungen</h1>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          Eine Rechnung entsteht aus einem Angebot („Rechnung erstellen“ im Angebot). Nummer und Datei kommen von Lexware Office, Status und Fälligkeit vom letzten Abgleich.
         </p>
       </div>
 
-      <form className="flex flex-wrap items-center gap-2" role="search">
-        {status && <input type="hidden" name="status" value={status} />}
-        {archiv && <input type="hidden" name="archiv" value="1" />}
-        <div className="relative min-w-60 flex-1">
-          <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-          <input name="q" defaultValue={q} aria-label="Suchen" placeholder="Rechnungsnummer, Betreff, Projekt, Kunde …"
-            className="h-11 w-full rounded-lg border border-input bg-transparent pr-3 pl-9 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50" />
-        </div>
-        <Button type="submit" size="lg">Suchen</Button>
-        <Link href={adresse({ archiv: archiv ? "" : "1" })} className={buttonVariants({ variant: "ghost", size: "lg" })}>{archiv ? "Archiv schließen" : "Archiv"}</Link>
-      </form>
+      <BelegFilter
+        q={q}
+        platzhalter="Suche nach Nummer, Kunde, Projekt, …"
+        zeitraum={zeitraum}
+        heute={heute}
+        status={status}
+        statusOptionen={statusOptionen}
+        projektIds={projektIds}
+        projekte={projektOptionen}
+        netto={netto}
+        archiv={archiv}
+      />
 
-      <div className="flex flex-wrap gap-2 text-sm" role="tablist" aria-label="Status">
-        {[["", "Alle"], ...STATUS.map((s) => [s, s === "uebertragen" ? "Bei Lexware" : RECHNUNG_STATUS_NAMEN[s]])].map(([s, name]) => (
-          <Link key={s} href={adresse({ status: s })} role="tab" aria-selected={s === status}
-            className={cn("flex h-9 items-center rounded-full border px-4", s === status ? "border-primary bg-primary text-primary-foreground" : "hover:bg-muted")}>
-            {name}
-          </Link>
-        ))}
-      </div>
-
-      <section aria-labelledby="rechnungen-titel" className="flex flex-col gap-2">
-        <h2 id="rechnungen-titel" className="text-lg font-semibold">
-          {archiv ? "Archivierte Rechnungen" : "Rechnungen"}
-          <span className="ml-2 text-sm font-normal text-muted-foreground">{gesamt} {gesamt === 1 ? "Eintrag" : "Einträge"}</span>
-        </h2>
-        {zeilen.length === 0 ? (
-          <p className="rounded-xl border border-dashed p-6 text-muted-foreground">
-            {q || status || archiv ? "Nichts gefunden." : "Noch keine Rechnung. Öffne ein Angebot und tippe auf „Rechnung erstellen“."}
-          </p>
-        ) : (
-          <div className="overflow-x-auto rounded-xl border">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-muted/50 text-muted-foreground">
-                <tr>
-                  <th scope="col" className="px-4 py-2 font-medium">Nummer</th>
-                  <th scope="col" className="px-3 py-2 font-medium">Betreff</th>
-                  <th scope="col" className="px-3 py-2 font-medium">Projekt</th>
-                  <th scope="col" className="px-3 py-2 font-medium">Kunde</th>
-                  <th scope="col" className="px-3 py-2 font-medium">Datum</th>
-                  <th scope="col" className="px-3 py-2 font-medium">Status</th>
-                  <th scope="col" className="px-4 py-2 text-right font-medium">Brutto</th>
+      <div className="overflow-x-auto rounded-lg border bg-white">
+        <table className="w-full border-collapse text-[13px]">
+          <thead>
+            <tr className="border-b text-left text-xs font-semibold">
+              <th className="px-3 py-2.5">Re.-Nr.</th>
+              <th className="px-3 py-2.5">Rechnung</th>
+              <th className="hidden px-3 py-2.5 md:table-cell">Empfänger</th>
+              <th className="hidden px-3 py-2.5 sm:table-cell">Datum</th>
+              <th className="px-3 py-2.5">Status</th>
+              <th className="hidden px-3 py-2.5 lg:table-cell">Fällig</th>
+              <th className="px-3 py-2.5 text-right">Betrag {netto ? "netto" : "brutto"} €</th>
+              <th className="hidden px-3 py-2.5 text-right lg:table-cell">Offen €</th>
+            </tr>
+          </thead>
+          <tbody>
+            {zeilen.length === 0 && (
+              <tr><td colSpan={8} className="px-3 py-10 text-center text-muted-foreground">{alle.length ? "Keine Rechnungen mit diesen Filtern." : "Noch keine Rechnung. Öffne ein Angebot und tippe auf „Rechnung erstellen“."}</td></tr>
+            )}
+            {zeilen.map((z) => {
+              const faellig = faelligText(z, z.anzeige, heute);
+              const o = offen(z);
+              return (
+                <tr key={z.id} className="relative border-b last:border-b-0 hover:bg-muted/40">
+                  <td className="px-3 py-2.5 whitespace-nowrap">
+                    <Link href={`/buero/rechnungen/${z.id}`} className="font-semibold after:absolute after:inset-0 after:content-['']">{z.rechnungsnummer || "Entwurf"}</Link>
+                  </td>
+                  <td className="max-w-72 px-3 py-2.5">
+                    <span className="block truncate font-medium">{z.betreff}</span>
+                    <span className="block truncate text-xs text-muted-foreground">Rechnung · {[z.projektnummer, z.projektName].filter(Boolean).join(" · ")}</span>
+                  </td>
+                  <td className="hidden max-w-44 truncate px-3 py-2.5 md:table-cell">{z.kunde || "–"}</td>
+                  <td className="hidden px-3 py-2.5 whitespace-nowrap sm:table-cell">{formatDatum(z.rechnungsdatum)}</td>
+                  <td className="px-3 py-2.5"><StatusPille name={RECHNUNG_ANZEIGE_NAMEN[z.anzeige]} farbe={RECHNUNG_ANZEIGE_FARBEN[z.anzeige]} /></td>
+                  <td className={cn("hidden px-3 py-2.5 whitespace-nowrap lg:table-cell", faellig.startsWith("-") && "font-medium text-destructive")}>{faellig || "–"}</td>
+                  <td className="px-3 py-2.5 text-right font-semibold tabular-nums">{formatBetrag(betrag(z))}</td>
+                  <td className={cn("hidden px-3 py-2.5 text-right tabular-nums lg:table-cell", z.anzeige === "ueberfaellig" && "font-semibold text-destructive")}>{o ? formatBetrag(o) : "–"}</td>
                 </tr>
-              </thead>
-              <tbody className="divide-y">
-                {zeilen.map((z) => (
-                  <tr key={z.id} className="hover:bg-muted/40">
-                    <td className="px-4 py-2 whitespace-nowrap"><Link href={`/buero/rechnungen/${z.id}`} className="font-medium hover:underline">{z.rechnungsnummer || "Entwurf"}</Link></td>
-                    <td className="max-w-64 truncate px-3 py-2">{z.betreff}</td>
-                    <td className="max-w-48 px-3 py-2"><Link href={`/baustellen/${z.projektId}`} className="block truncate hover:underline">{z.projektnummer}</Link><span className="block truncate text-xs text-muted-foreground">{z.projektName}</span></td>
-                    <td className="max-w-48 truncate px-3 py-2">{z.kunde || "–"}</td>
-                    <td className="px-3 py-2 whitespace-nowrap">{formatDatum(z.rechnungsdatum)}</td>
-                    <td className="px-3 py-2"><RechnungStatusBadge status={z.status} lexwareStatus={z.lexwareStatus} /></td>
-                    <td className="px-4 py-2 text-right font-semibold tabular-nums">{formatBetrag(z.brutto)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-        {gesamt > MAX_RECHNUNGEN && <p className="text-sm text-muted-foreground">Es werden die ersten {MAX_RECHNUNGEN} gezeigt. Bitte genauer suchen.</p>}
-      </section>
+              );
+            })}
+          </tbody>
+          {zeilen.length > 0 && (
+            <tfoot>
+              <tr className="border-t text-xs">
+                <td colSpan={6} className="px-3 py-2.5 text-muted-foreground">
+                  {zeilen.length} {zeilen.length === 1 ? "Rechnung" : "Rechnungen"}
+                  {bezahlt > 0 && <span> · Bezahlt {formatBetrag(bezahlt)}</span>}
+                </td>
+                <td className="px-3 py-2.5 text-right font-semibold tabular-nums">{formatBetrag(summe(zeilen.map(betrag)))}</td>
+                <td className="hidden px-3 py-2.5 text-right font-semibold tabular-nums lg:table-cell">{formatBetrag(summe(zeilen.map(offen)))}</td>
+              </tr>
+            </tfoot>
+          )}
+        </table>
+      </div>
     </div>
   );
 }

@@ -136,6 +136,8 @@ export type RechnungListenZeile = {
   projektnummer: string;
   projektName: string;
   kunde: string;
+  zahlungszielTage: number | null;
+  abgeglichenAm: string | null;
 };
 
 export const MAX_RECHNUNGEN = 300;
@@ -146,12 +148,14 @@ export async function rechnungenLaden(opts: {
   status?: RechnungStatus | "";
   archiv?: boolean;
   projektId?: string;
+  /** Höchstzahl der Zeilen; die Listenseite filtert danach noch selbst und lädt deshalb alle (1000) */
+  limit?: number;
 }): Promise<{ zeilen: RechnungListenZeile[]; gesamt: number }> {
   const supabase = await createClient();
   let abfrage = supabase
     .from("invoices")
     .select(
-      "id, project_id, betreff, rechnungsdatum, status, rechnungsnummer, lexware_status, steuersatz, reverse_charge, rabatt_prozent, netto, brutto, archiviert_am, created_at, projects(name, projektnummer), contacts(firmenname, vorname, nachname), invoice_items(typ, kurztext, langtext, menge, einheit, einzelpreis)",
+      "id, project_id, betreff, rechnungsdatum, status, rechnungsnummer, lexware_status, zahlungsziel_tage, abgeglichen_am, steuersatz, reverse_charge, rabatt_prozent, netto, brutto, archiviert_am, created_at, projects(name, projektnummer), contacts(firmenname, vorname, nachname), invoice_items(typ, kurztext, langtext, menge, einheit, einzelpreis)",
     );
   abfrage = opts.archiv ? abfrage.not("archiviert_am", "is", null) : abfrage.is("archiviert_am", null);
   if (opts.status) abfrage = abfrage.eq("status", opts.status);
@@ -182,6 +186,8 @@ export async function rechnungenLaden(opts: {
       projektnummer: r.projects?.projektnummer ?? "",
       projektName: r.projects?.name ?? "",
       kunde: kontaktName(r.contacts),
+      zahlungszielTage: r.zahlungsziel_tage,
+      abgeglichenAm: r.abgeglichen_am,
     };
   });
 
@@ -189,5 +195,5 @@ export async function rechnungenLaden(opts: {
   const gefiltert = suche
     ? zeilen.filter((z) => [z.betreff, z.rechnungsnummer, z.projektName, z.projektnummer, z.kunde].some((t) => t.toLowerCase().includes(suche)))
     : zeilen;
-  return { zeilen: gefiltert.slice(0, MAX_RECHNUNGEN), gesamt: gefiltert.length };
+  return { zeilen: gefiltert.slice(0, opts.limit ?? MAX_RECHNUNGEN), gesamt: gefiltert.length };
 }

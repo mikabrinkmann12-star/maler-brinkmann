@@ -186,6 +186,27 @@ export async function angebotStatusSetzen(id: string, status: string): Promise<A
   return { id };
 }
 
+/**
+ * Annahmestatus aus der Angebotsliste ändern (wie in Plancraft: Ausstehend / Angenommen / Abgelehnt).
+ * „Ausstehend“ führt zurück zu „Versendet“, wenn das Angebot schon verschickt wurde, sonst zu „Entwurf“.
+ */
+export async function angebotAnnahmeSetzen(id: string, annahme: string): Promise<AngebotErgebnis> {
+  await requireRole(BUERO_ROLLEN);
+  if (!uuid.safeParse(id).success || !["ausstehend", "angenommen", "abgelehnt"].includes(annahme)) return { fehler: "Ungültige Eingabe." };
+  const supabase = await createClient();
+  let status: AngebotStatus = annahme as AngebotStatus;
+  if (annahme === "ausstehend") {
+    const { data: q } = await supabase.from("quotes").select("versendet_am").eq("id", id).maybeSingle();
+    if (!q) return { fehler: "Angebot nicht gefunden." };
+    status = q.versendet_am ? "versendet" : "entwurf";
+  }
+  const { data, error } = await supabase.from("quotes").update({ status }).eq("id", id).select("id");
+  if (error) return { fehler: dbMeldung(error) };
+  if (!data?.length) return { fehler: "Angebot nicht gefunden." };
+  aktualisieren(id);
+  return { id };
+}
+
 export async function angebotArchivieren(id: string, archivieren: boolean): Promise<AngebotErgebnis> {
   await requireRole(BUERO_ROLLEN);
   if (!uuid.safeParse(id).success) return { fehler: "Ungültiges Angebot." };
