@@ -6,71 +6,91 @@ import {
   CalendarDaysIcon,
   ClockIcon,
   FileTextIcon,
-  FolderKanbanIcon,
+  FolderIcon,
+  HouseIcon,
+  LayersIcon,
+  PlusIcon,
   ReceiptTextIcon,
-  LibraryIcon,
-  LayoutDashboardIcon,
-  SettingsIcon,
   TreePalmIcon,
   UsersIcon,
 } from "lucide-react";
 import { cn } from "cn";
 
-const EINTRAEGE = [
-  { href: "/buero", name: "Übersicht", icon: LayoutDashboardIcon, nurAdmin: false },
-  { href: "/buero/plantafel", name: "Einteilung", icon: CalendarDaysIcon, nurAdmin: false },
-  { href: "/buero/projekte", name: "Projekte", icon: FolderKanbanIcon, nurAdmin: false },
-  { href: "/buero/angebote", name: "Angebote", icon: FileTextIcon, nurAdmin: false },
-  { href: "/buero/rechnungen", name: "Rechnungen", icon: ReceiptTextIcon, nurAdmin: false },
-  { href: "/buero/kontakte", name: "Kontakte", icon: UsersIcon, nurAdmin: false },
-  { href: "/buero/katalog", name: "Katalog", icon: LibraryIcon, nurAdmin: false },
-  { href: "/buero/zeiten", name: "Zeiten", icon: ClockIcon, nurAdmin: false },
-  { href: "/buero/urlaub", name: "Urlaub", icon: TreePalmIcon, nurAdmin: false },
-  { href: "/buero/einstellungen", name: "Einstellungen", icon: SettingsIcon, nurAdmin: true },
-] as const;
+type Eintrag = {
+  href: string;
+  name: string;
+  icon: typeof HouseIcon;
+  /** Kleines „+“ rechts beim Darüberfahren (wie in Plancraft): legt direkt etwas Neues an. */
+  plus?: { href: string; titel: string };
+  neu?: boolean;
+};
+
+// Reihenfolge wie in Plancraft: Übersicht, Plantafel („Einteilung“), Projekte, Angebote, Rechnungen, Zeiten, Stammdaten, Kontakte.
+const EINTRAEGE: Eintrag[] = [
+  { href: "/buero", name: "Übersicht", icon: HouseIcon },
+  { href: "/buero/plantafel", name: "Einteilung", icon: CalendarDaysIcon },
+  { href: "/buero/projekte", name: "Projekte", icon: FolderIcon, plus: { href: "/buero/projekte/neu", titel: "Neues Projekt" } },
+  { href: "/buero/angebote", name: "Angebote", icon: FileTextIcon },
+  { href: "/buero/rechnungen", name: "Rechnungen", icon: ReceiptTextIcon },
+  { href: "/buero/zeiten", name: "Zeiten", icon: ClockIcon, plus: { href: "/buero/zeiten/neu", titel: "Neue Zeit" } },
+  { href: "/buero/urlaub", name: "Urlaub", icon: TreePalmIcon },
+  { href: "/buero/katalog", name: "Stammdaten", icon: LayersIcon, neu: true },
+  { href: "/buero/kontakte", name: "Kontakte", icon: UsersIcon, plus: { href: "/buero/kontakte/neu", titel: "Neuer Kontakt" } },
+];
 
 /**
- * Menü der Büro-Ansicht. „Einstellungen“ wird nur dem Admin angezeigt.
- * Das ist reine Bequemlichkeit: Der Zugriff selbst wird serverseitig geprüft.
+ * Menü der Büro-Ansicht (Aufbau und Verhalten wie Plancraft: aktiver Eintrag fett und weiß, beim Darüberfahren heller Grund
+ * und bei Projekten, Zeiten und Kontakten ein „+“ zum direkten Anlegen). Eingeklappt bleiben nur die Symbole.
  */
 export function BueroNavigation({
-  istAdmin,
+  eingeklappt = false,
   onNavigiert,
 }: {
-  istAdmin: boolean;
+  eingeklappt?: boolean;
   onNavigiert?: () => void;
 }) {
   const pfad = usePathname();
 
   return (
     <nav aria-label="Büro-Navigation">
-      <ul className="flex flex-col gap-1">
-        {EINTRAEGE.filter((e) => istAdmin || !e.nurAdmin).map(
-          ({ href, name, icon: Icon }) => {
-            const aktiv =
-              href === "/buero"
-                ? pfad === href
-                : pfad === href || pfad.startsWith(`${href}/`);
-            return (
-              <li key={href}>
+      <ul className="flex flex-col gap-0.5">
+        {EINTRAEGE.map(({ href, name, icon: Icon, plus, neu }) => {
+          const aktiv = href === "/buero" ? pfad === href : pfad === href || pfad.startsWith(`${href}/`);
+          return (
+            <li key={href} className="group/eintrag relative">
+              <Link
+                href={href}
+                onClick={onNavigiert}
+                title={eingeklappt ? name : undefined}
+                aria-current={aktiv ? "page" : undefined}
+                className={cn(
+                  "flex h-9 items-center gap-3 rounded-md px-2.5 text-[13px] transition-colors",
+                  eingeklappt && "justify-center px-0",
+                  aktiv ? "font-semibold text-white" : "text-white/65 hover:bg-white/7 hover:text-white",
+                )}
+              >
+                <Icon className={cn("size-[18px] shrink-0", aktiv && "stroke-[2.4]")} />
+                {!eingeklappt && (
+                  <>
+                    <span className="truncate">{name}</span>
+                    {neu && <span className="rounded-full bg-blue-400/25 px-1.5 text-[10px] font-medium text-blue-200">Neu</span>}
+                  </>
+                )}
+              </Link>
+              {plus && !eingeklappt && (
                 <Link
-                  href={href}
+                  href={plus.href}
                   onClick={onNavigiert}
-                  aria-current={aktiv ? "page" : undefined}
-                  className={cn(
-                    "flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-colors",
-                    aktiv
-                      ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                      : "text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
-                  )}
+                  aria-label={plus.titel}
+                  title={plus.titel}
+                  className="absolute top-1/2 right-1.5 flex size-6 -translate-y-1/2 items-center justify-center rounded text-white/70 opacity-0 transition-opacity group-hover/eintrag:opacity-100 hover:bg-white/10 hover:text-white focus-visible:opacity-100"
                 >
-                  <Icon className={cn("size-5", aktiv && "text-sidebar-primary")} />
-                  {name}
+                  <PlusIcon className="size-4" />
                 </Link>
-              </li>
-            );
-          },
-        )}
+              )}
+            </li>
+          );
+        })}
       </ul>
     </nav>
   );
