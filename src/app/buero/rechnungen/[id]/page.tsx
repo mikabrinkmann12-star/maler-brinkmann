@@ -13,6 +13,8 @@ import { BUERO_ROLLEN } from "@/lib/rollen";
 import { RechnungStatusBadge } from "../status-badge";
 import { LexwareLeiste } from "./lexware-leiste";
 import { MahnungKarte } from "./mahnung-karte";
+import { mahnungsHinweis } from "@/lib/rechnung-einstellungen";
+import { rechnungsEinstellungenLaden } from "@/lib/rechnung-einstellungen-daten";
 import { PositionenEditor } from "./positionen-editor";
 import { RechnungKopf } from "./rechnung-kopf";
 
@@ -35,11 +37,13 @@ export default async function RechnungSeite({ params }: PageProps<"/buero/rechnu
   const brutto = r.brutto ?? rechnung.brutto;
   const abweichung = r.netto !== null && Math.abs(r.netto - rechnung.nettoNachRabatt) > 0.01;
   const festgehangen = r.status === "wird_uebertragen";
+  const vorgaben = await rechnungsEinstellungenLaden();
+  const mahnHinweise = Object.fromEntries([1, 2, 3].map((n) => [n, mahnungsHinweis(vorgaben, n) ?? ""]).filter(([, t]) => t));
 
   return (
     <div className="flex max-w-4xl flex-col gap-5">
       <Link href="/buero/rechnungen" className="flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeftIcon className="size-4" /> Rechnungen
+        <ArrowLeftIcon className="size-4" /> Ausgangsrechnungen
       </Link>
 
       <div className="flex flex-col gap-2">
@@ -74,7 +78,7 @@ export default async function RechnungSeite({ params }: PageProps<"/buero/rechnu
       />
 
       {r.status === "uebertragen" && r.lexwareStatus === "open" && (
-        <MahnungKarte rechnungId={r.id} stufe={r.mahnstufe} angemahntAm={r.angemahntAm} />
+        <MahnungKarte rechnungId={r.id} stufe={r.mahnstufe} angemahntAm={r.angemahntAm} hinweise={mahnHinweise} />
       )}
 
       {gesperrt && (

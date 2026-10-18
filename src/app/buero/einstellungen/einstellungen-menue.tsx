@@ -10,6 +10,7 @@ import {
   FileStackIcon,
   FileTextIcon,
   HashIcon,
+  ReceiptTextIcon,
   InboxIcon,
   PlugIcon,
   RulerIcon,
@@ -45,7 +46,10 @@ const GRUPPEN: { titel: string; eintraege: Eintrag[] }[] = [
   },
   {
     titel: "Buchhaltung & Rechnungswesen",
-    eintraege: [{ href: "/buero/einstellungen/nummernkreise", name: "Nummernkreise", icon: HashIcon }],
+    eintraege: [
+      { href: "/buero/einstellungen/nummernkreise", name: "Nummernkreise", icon: HashIcon },
+      { href: "/buero/einstellungen/rechnungen", name: "Rechnungen – Vorgaben", icon: ReceiptTextIcon },
+    ],
   },
   {
     titel: "Kalkulation",

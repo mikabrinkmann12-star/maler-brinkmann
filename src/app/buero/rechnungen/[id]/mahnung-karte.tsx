@@ -11,7 +11,7 @@ import { MAHNSTUFEN, mahnstufeName } from "@/lib/mahnung";
 import { rechnungMahnstufeSetzen } from "../actions";
 
 /** Vermerk „angemahnt“ bei einer offenen Rechnung. Die Mahnung selbst schreibt das Büro in Lexware; hier steht nur, wie weit gemahnt wurde. */
-export function MahnungKarte({ rechnungId, stufe, angemahntAm }: { rechnungId: string; stufe: number; angemahntAm: string | null }) {
+export function MahnungKarte({ rechnungId, stufe, angemahntAm, hinweise }: { rechnungId: string; stufe: number; angemahntAm: string | null; hinweise: Record<number, string> }) {
   const router = useRouter();
   const [neu, setNeu] = useState(stufe);
   const [fehler, setFehler] = useState<string | null>(null);
@@ -37,6 +37,7 @@ export function MahnungKarte({ rechnungId, stufe, angemahntAm }: { rechnungId: s
         Mahnungen schreibst du in Lexware. Hier vermerkst du nur, wie weit gemahnt wurde, damit die Rechnung auf der Übersicht bei „Angemahnt“ (rot) steht.
       </p>
       {fehler && <FormularMeldung>{fehler}</FormularMeldung>}
+      {hinweise[neu] && <p className="text-sm">{hinweise[neu]}</p>}
       <div className="flex flex-wrap items-center gap-2">
         <select value={neu} onChange={(e) => setNeu(Number(e.target.value))} aria-label="Mahnstufe" className="h-9 rounded-lg border border-input bg-transparent px-2 text-sm">
           {MAHNSTUFEN.map((m) => <option key={m.stufe} value={m.stufe}>{m.name}</option>)}

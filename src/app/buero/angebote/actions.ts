@@ -13,6 +13,7 @@ import {
   type BausteinEingabe,
 } from "@/lib/angebot-schema";
 import { angebotEinstellungenLaden } from "@/lib/firma-daten";
+import { rechnungsEinstellungenLaden } from "@/lib/rechnung-einstellungen-daten";
 import { heuteIso, tageVerschieben } from "@/lib/datum";
 import { istKatalogArt, ordnerPfad, unterordner } from "@/lib/katalog";
 import { ordnerLaden } from "@/lib/katalog-daten";
@@ -80,6 +81,7 @@ export async function angebotAnlegen(projektId: string, eingabe: unknown): Promi
   const leistungsort = pruefung.data.leistungsort
     || adresseText({ strasse: projekt.baustelle_strasse, plz: projekt.baustelle_plz, ort: projekt.baustelle_ort });
 
+  const firmenZiel = await rechnungsEinstellungenLaden();
   const { data, error } = await supabase
     .from("quotes")
     .insert({
@@ -87,9 +89,9 @@ export async function angebotAnlegen(projektId: string, eingabe: unknown): Promi
       betreff: pruefung.data.betreff,
       leistungsort: leistungsort || null,
       datum: heuteIso(),
-      zahlungsziel_tage: kunde?.zahlungsziel_tage ?? null,
-      skonto_prozent: kunde?.skonto_prozent && kunde.skonto_tage ? kunde.skonto_prozent : null,
-      skonto_tage: kunde?.skonto_prozent && kunde.skonto_tage ? kunde.skonto_tage : null,
+      zahlungsziel_tage: kunde?.zahlungsziel_tage ?? firmenZiel.zahlungszielTage,
+      skonto_prozent: kunde?.zahlungsziel_tage != null ? (kunde.skonto_prozent && kunde.skonto_tage ? kunde.skonto_prozent : null) : firmenZiel.skontoProzent,
+      skonto_tage: kunde?.zahlungsziel_tage != null ? (kunde.skonto_prozent && kunde.skonto_tage ? kunde.skonto_tage : null) : firmenZiel.skontoTage,
       gueltig_bis: vorgaben.gueltigkeit_tage > 0 ? tageVerschieben(heuteIso(), vorgaben.gueltigkeit_tage) : null,
       empfaenger: kunde ? briefanschrift(kunde).join("\n") || null : null,
       einleitung: (standardVorlage(vorlagen, "einleitung")?.inhalt ?? vorgaben.einleitung) || null,

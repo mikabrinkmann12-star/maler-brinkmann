@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireRole } from "@/lib/auth";
+import { rechnungsEinstellungenLaden } from "@/lib/rechnung-einstellungen-daten";
 import { steuerAusAuswahl } from "@/lib/angebot-schema";
 import { angebotLaden } from "@/lib/angebot-daten";
 import { heuteIso } from "@/lib/datum";
@@ -83,6 +84,7 @@ export async function rechnungAusAngebotErstellen(angebotId: string): Promise<Re
   const bis = p.end_datum && p.end_datum >= von ? p.end_datum : heute > von ? heute : von;
   const kunde = p.contacts;
 
+  const firmenZiel = await rechnungsEinstellungenLaden();
   const { data: neu, error } = await supabase
     .from("invoices")
     .insert({
@@ -94,9 +96,11 @@ export async function rechnungAusAngebotErstellen(angebotId: string): Promise<Re
       leistung_von: von,
       leistung_bis: bis,
       // Zahlungsbedingungen des Angebots gelten weiter; hat es keine, nimmt die Rechnung die des Kunden (sonst 14 Tage)
-      zahlungsziel_tage: a.zahlungszielTage ?? kunde?.zahlungsziel_tage ?? 14,
-      skonto_prozent: a.zahlungszielTage != null ? a.skontoProzent : kunde?.skonto_prozent ?? null,
-      skonto_tage: a.zahlungszielTage != null ? a.skontoTage : kunde?.skonto_prozent ? kunde.skonto_tage : null,
+      zahlungsziel_tage: a.zahlungszielTage ?? kunde?.zahlungsziel_tage ?? firmenZiel.zahlungszielTage ?? 14,
+      skonto_prozent:
+        a.zahlungszielTage != null ? a.skontoProzent : kunde?.zahlungsziel_tage != null ? kunde.skonto_prozent ?? null : firmenZiel.skontoProzent,
+      skonto_tage:
+        a.zahlungszielTage != null ? a.skontoTage : kunde?.zahlungsziel_tage != null ? (kunde.skonto_prozent ? kunde.skonto_tage : null) : firmenZiel.skontoTage,
       steuersatz: a.steuersatz,
       reverse_charge: a.reverseCharge,
       rabatt_prozent: a.rabattProzent,
