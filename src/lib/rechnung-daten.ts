@@ -34,6 +34,8 @@ export type RechnungKopf = {
   abgeglichenAm: string | null;
   pdfPfad: string | null;
   archiviert: boolean;
+  mahnstufe: number;
+  angemahntAm: string | null;
 };
 
 export type RechnungDetail = {
@@ -49,7 +51,7 @@ export async function rechnungLaden(id: string): Promise<RechnungDetail | null> 
   const { data: r, error } = await supabase
     .from("invoices")
     .select(
-      "id, project_id, quote_id, contact_id, status, betreff, rechnungsdatum, leistung_von, leistung_bis, zahlungsziel_tage, skonto_prozent, skonto_tage, steuersatz, reverse_charge, rabatt_prozent, einleitung, schlusstext, lexware_id, rechnungsnummer, lexware_status, netto, brutto, uebertragen_am, abgeglichen_am, pdf_pfad, archiviert_am, projects(id, name, projektnummer, baustelle_strasse, baustelle_plz, baustelle_ort), contacts(id, kundennummer, firmenname, vorname, nachname, lexware_contact_id, leitweg_id), quotes(id, betreff)",
+      "id, project_id, quote_id, contact_id, status, betreff, rechnungsdatum, leistung_von, leistung_bis, zahlungsziel_tage, skonto_prozent, skonto_tage, steuersatz, reverse_charge, rabatt_prozent, einleitung, schlusstext, lexware_id, rechnungsnummer, lexware_status, netto, brutto, uebertragen_am, abgeglichen_am, pdf_pfad, archiviert_am, mahnstufe, angemahnt_am, projects(id, name, projektnummer, baustelle_strasse, baustelle_plz, baustelle_ort), contacts(id, kundennummer, firmenname, vorname, nachname, lexware_contact_id, leitweg_id), quotes(id, betreff)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -95,6 +97,8 @@ export async function rechnungLaden(id: string): Promise<RechnungDetail | null> 
       abgeglichenAm: r.abgeglichen_am,
       pdfPfad: r.pdf_pfad,
       archiviert: r.archiviert_am != null,
+      mahnstufe: r.mahnstufe,
+      angemahntAm: r.angemahnt_am,
     },
     bausteine: items.map((i) => ({
       id: i.id,
@@ -138,6 +142,7 @@ export type RechnungListenZeile = {
   kunde: string;
   zahlungszielTage: number | null;
   abgeglichenAm: string | null;
+  mahnstufe: number;
 };
 
 export const MAX_RECHNUNGEN = 300;
@@ -155,7 +160,7 @@ export async function rechnungenLaden(opts: {
   let abfrage = supabase
     .from("invoices")
     .select(
-      "id, project_id, betreff, rechnungsdatum, status, rechnungsnummer, lexware_status, zahlungsziel_tage, abgeglichen_am, steuersatz, reverse_charge, rabatt_prozent, netto, brutto, archiviert_am, created_at, projects(name, projektnummer), contacts(firmenname, vorname, nachname), invoice_items(typ, kurztext, langtext, menge, einheit, einzelpreis)",
+      "id, project_id, betreff, rechnungsdatum, status, rechnungsnummer, lexware_status, zahlungsziel_tage, abgeglichen_am, mahnstufe, steuersatz, reverse_charge, rabatt_prozent, netto, brutto, archiviert_am, created_at, projects(name, projektnummer), contacts(firmenname, vorname, nachname), invoice_items(typ, kurztext, langtext, menge, einheit, einzelpreis)",
     );
   abfrage = opts.archiv ? abfrage.not("archiviert_am", "is", null) : abfrage.is("archiviert_am", null);
   if (opts.status) abfrage = abfrage.eq("status", opts.status);
@@ -188,6 +193,7 @@ export async function rechnungenLaden(opts: {
       kunde: kontaktName(r.contacts),
       zahlungszielTage: r.zahlungsziel_tage,
       abgeglichenAm: r.abgeglichen_am,
+      mahnstufe: r.mahnstufe,
     };
   });
 

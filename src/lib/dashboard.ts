@@ -13,6 +13,8 @@ export type OffeneRechnung = {
   rechnungsdatum: string;
   zahlungszielTage: number | null;
   brutto: number | null;
+  /** 0 = nicht gemahnt, sonst Stufe der Mahnung (vom Büro vermerkt) */
+  mahnstufe?: number;
 };
 
 const cent = (euro: number) => Math.round(euro * 100);
@@ -76,15 +78,23 @@ export function forderungsBereich(zeitraum: ForderungsZeitraum, heute: string): 
   }
 }
 
-/** Gesamtsumme der offenen Forderungen, aufgeteilt in „noch nicht fällig“ (Offen) und „Überfällig“. Nur Rechnungen im Zeitraum zählen. */
+/**
+ * Gesamtsumme der offenen Forderungen, aufgeteilt in drei Gruppen ohne Überschneidung: „Angemahnt“ (Mahnung vermerkt, rot),
+ * „Überfällig“ (Zahlungsziel überschritten, nicht gemahnt) und „Offen“ (noch nicht fällig). Nur Rechnungen im Zeitraum zählen.
+ */
 export function forderungsUebersicht(rechnungen: OffeneRechnung[], heute: string, bereich: { von: string; bis: string }) {
   const imZeitraum = rechnungen.filter((r) => r.rechnungsdatum >= bereich.von && r.rechnungsdatum <= bereich.bis);
-  const f = forderungen(imZeitraum, heute);
+  const istOffen = (r: OffeneRechnung) => r.status === "uebertragen" && r.lexwareStatus === "open";
+  const gemahnt = imZeitraum.filter((r) => istOffen(r) && (r.mahnstufe ?? 0) > 0);
+  const uebrige = imZeitraum.filter((r) => !gemahnt.includes(r));
+  const f = forderungen(uebrige, heute);
+  const angemahntCent = gemahnt.reduce((s, r) => s + (r.brutto == null ? 0 : cent(r.brutto)), 0);
   const offenCent = Math.round(f.offen.summe * 100) - Math.round(f.ueberfaellig.summe * 100);
   return {
-    gesamt: f.offen,
+    gesamt: { anzahl: f.offen.anzahl + gemahnt.length, summe: (Math.round(f.offen.summe * 100) + angemahntCent) / 100 },
     offen: { anzahl: f.offen.anzahl - f.ueberfaellig.anzahl, summe: offenCent / 100 },
     ueberfaellig: f.ueberfaellig,
+    angemahnt: { anzahl: gemahnt.length, summe: angemahntCent / 100 },
   };
 }
 

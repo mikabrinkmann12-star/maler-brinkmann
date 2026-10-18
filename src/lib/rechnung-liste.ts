@@ -4,23 +4,25 @@
 import { tageZwischen } from "@/lib/datum";
 import { faelligAm } from "@/lib/dashboard";
 
-export type RechnungAnzeigeStatus = "entwurf" | "uebertragung" | "offen" | "ueberfaellig" | "bezahlt" | "storniert";
+export type RechnungAnzeigeStatus = "entwurf" | "uebertragung" | "offen" | "ueberfaellig" | "angemahnt" | "bezahlt" | "storniert";
 
 export const RECHNUNG_ANZEIGE_NAMEN: Record<RechnungAnzeigeStatus, string> = {
   entwurf: "Entwurf",
   uebertragung: "Wird übertragen",
   offen: "Offen",
   ueberfaellig: "Überfällig",
+  angemahnt: "Angemahnt",
   bezahlt: "Bezahlt",
   storniert: "Storniert",
 };
 
-/** Farben wie in Plancraft: Offen blau, Bezahlt grün, Überfällig gelb. */
+/** Farben wie in Plancraft: Offen blau, Bezahlt grün, Überfällig gelb, Angemahnt rot. */
 export const RECHNUNG_ANZEIGE_FARBEN: Record<RechnungAnzeigeStatus, string> = {
   entwurf: "#6b7280",
   uebertragung: "#d99a1c",
   offen: "#3b82f6",
   ueberfaellig: "#d99a1c",
+  angemahnt: "#e5484d",
   bezahlt: "#3fa66a",
   storniert: "#e5484d",
 };
@@ -35,14 +37,17 @@ export type RechnungZeile = {
   rechnungsdatum: string;
   zahlungszielTage: number | null;
   brutto: number;
+  /** 0 = nicht gemahnt, 1 = Zahlungserinnerung, 2 = 1. Mahnung, 3 = 2. Mahnung (vom Büro vermerkt) */
+  mahnstufe?: number;
 };
 
-export function anzeigeStatus(r: Pick<RechnungZeile, "status" | "lexwareStatus" | "rechnungsdatum" | "zahlungszielTage">, heute: string): RechnungAnzeigeStatus {
+export function anzeigeStatus(r: Pick<RechnungZeile, "status" | "lexwareStatus" | "rechnungsdatum" | "zahlungszielTage" | "mahnstufe">, heute: string): RechnungAnzeigeStatus {
   if (r.status === "entwurf") return "entwurf";
   if (r.status === "wird_uebertragen") return "uebertragung";
   if (r.lexwareStatus === "paid" || r.lexwareStatus === "paidoff") return "bezahlt";
   if (r.lexwareStatus === "voided") return "storniert";
   if (r.lexwareStatus === "draft") return "entwurf";
+  if ((r.mahnstufe ?? 0) > 0) return "angemahnt";
   const faellig = faelligAm(r.rechnungsdatum, r.zahlungszielTage);
   return faellig && faellig < heute ? "ueberfaellig" : "offen";
 }
@@ -62,7 +67,7 @@ export function rechnungenFiltern<T extends { rechnungsdatum: string; projektId:
 
 /** Fälligkeit für offene und überfällige Rechnungen: „8 Tage“, „Heute“, „-1 Tag“; sonst leer. */
 export function faelligText(r: Pick<RechnungZeile, "rechnungsdatum" | "zahlungszielTage">, status: RechnungAnzeigeStatus, heute: string): string {
-  if (status !== "offen" && status !== "ueberfaellig") return "";
+  if (status !== "offen" && status !== "ueberfaellig" && status !== "angemahnt") return "";
   const faellig = faelligAm(r.rechnungsdatum, r.zahlungszielTage);
   if (!faellig) return "";
   const tage = tageZwischen(heute, faellig);
@@ -72,5 +77,5 @@ export function faelligText(r: Pick<RechnungZeile, "rechnungsdatum" | "zahlungsz
 
 /** Offener Betrag: nur bei offenen und überfälligen Rechnungen der volle Bruttobetrag. */
 export function offenerBetrag(r: Pick<RechnungZeile, "brutto">, status: RechnungAnzeigeStatus): number {
-  return status === "offen" || status === "ueberfaellig" ? r.brutto : 0;
+  return status === "offen" || status === "ueberfaellig" || status === "angemahnt" ? r.brutto : 0;
 }

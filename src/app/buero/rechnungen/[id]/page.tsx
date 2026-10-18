@@ -12,6 +12,7 @@ import { kopfStart } from "@/lib/rechnung-formular";
 import { BUERO_ROLLEN } from "@/lib/rollen";
 import { RechnungStatusBadge } from "../status-badge";
 import { LexwareLeiste } from "./lexware-leiste";
+import { MahnungKarte } from "./mahnung-karte";
 import { PositionenEditor } from "./positionen-editor";
 import { RechnungKopf } from "./rechnung-kopf";
 
@@ -71,6 +72,10 @@ export default async function RechnungSeite({ params }: PageProps<"/buero/rechnu
         finalisieren={lexwareFinalisieren()}
         festgehangen={festgehangen}
       />
+
+      {r.status === "uebertragen" && r.lexwareStatus === "open" && (
+        <MahnungKarte rechnungId={r.id} stufe={r.mahnstufe} angemahntAm={r.angemahntAm} />
+      )}
 
       {gesperrt && (
         <p className="flex items-center gap-2 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900">

@@ -7,6 +7,7 @@ import { steuerAusAuswahl } from "@/lib/angebot-schema";
 import { angebotLaden } from "@/lib/angebot-daten";
 import { heuteIso } from "@/lib/datum";
 import { lexwareClient, lexwareFinalisieren } from "@/lib/lexware";
+import { istMahnstufe } from "@/lib/mahnung";
 import { LexwareFehler } from "@/lib/lexware-client";
 import { ersteMeldung } from "@/lib/nutzer-schema";
 import {
@@ -435,5 +436,23 @@ export async function rechnungWiederFreigeben(id: string): Promise<RechnungErgeb
   if (error) return { fehler: dbMeldung(error) };
   if (!data?.length) return { fehler: "Die Rechnung lässt sich noch nicht freigeben (sie wird vielleicht gerade übertragen, bitte fünf Minuten warten)." };
   aktualisieren(id, data[0].project_id);
+  return { id };
+}
+
+/**
+ * Vermerkt, wie weit eine offene Rechnung gemahnt wurde (0 = nicht gemahnt, 1 = Zahlungserinnerung, 2 = 1. Mahnung, 3 = 2. Mahnung).
+ * Die Mahnung selbst schreibt das Büro in Lexware; hier steht nur der Vermerk, der in den offenen Forderungen als „Angemahnt“ erscheint.
+ */
+export async function rechnungMahnstufeSetzen(id: string, stufe: number): Promise<RechnungErgebnis> {
+  await requireRole(BUERO_ROLLEN);
+  if (!uuid.safeParse(id).success || !istMahnstufe(stufe)) return { fehler: "Ungültige Eingabe." };
+  const supabase = await createClient();
+  const { data: r } = await supabase.from("invoices").select("status, lexware_status, project_id").eq("id", id).maybeSingle();
+  if (!r) return { fehler: "Rechnung nicht gefunden." };
+  if (r.status !== "uebertragen" || r.lexware_status !== "open") return { fehler: "Eine Mahnung lässt sich nur bei einer offenen, an Lexware übertragenen Rechnung vermerken." };
+  const { error } = await supabase.from("invoices").update({ mahnstufe: stufe, angemahnt_am: stufe > 0 ? heuteIso() : null }).eq("id", id);
+  if (error) return { fehler: dbMeldung(error) };
+  aktualisieren(id, r.project_id);
+  revalidatePath("/buero");
   return { id };
 }

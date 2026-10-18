@@ -16,6 +16,8 @@ describe("anzeigeStatus", () => {
     expect(anzeigeStatus(r({ rechnungsdatum: "2026-10-01" }), heute)).toBe("ueberfaellig"); // fällig am 15.10.
     expect(anzeigeStatus(r({ rechnungsdatum: "2026-10-04" }), heute)).toBe("offen"); // fällig genau heute: noch nicht überfällig
     expect(anzeigeStatus(r({ zahlungszielTage: null, rechnungsdatum: "2020-01-01" }), heute)).toBe("offen"); // ohne Ziel nie überfällig
+    expect(anzeigeStatus(r({ mahnstufe: 1 }), heute)).toBe("angemahnt");
+    expect(anzeigeStatus(r({ mahnstufe: 2, lexwareStatus: "paid" }), heute)).toBe("bezahlt"); // bezahlt geht vor
     expect(anzeigeStatus(r({ lexwareStatus: "paid" }), heute)).toBe("bezahlt");
     expect(anzeigeStatus(r({ lexwareStatus: "paidoff" }), heute)).toBe("bezahlt");
     expect(anzeigeStatus(r({ lexwareStatus: "voided" }), heute)).toBe("storniert");
@@ -46,6 +48,7 @@ describe("faelligText und offenerBetrag", () => {
   it("offen ist nur, was noch nicht bezahlt ist", () => {
     expect(offenerBetrag({ brutto: 119 }, "offen")).toBe(119);
     expect(offenerBetrag({ brutto: 119 }, "ueberfaellig")).toBe(119);
+    expect(offenerBetrag({ brutto: 119 }, "angemahnt")).toBe(119);
     expect(offenerBetrag({ brutto: 119 }, "bezahlt")).toBe(0);
     expect(offenerBetrag({ brutto: 119 }, "entwurf")).toBe(0);
   });

@@ -25,7 +25,7 @@ import { istTag } from "@/lib/zeitraum";
 export const metadata: Metadata = { title: "Rechnungen" };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const FILTER_STATUS: RechnungAnzeigeStatus[] = ["entwurf", "offen", "ueberfaellig", "bezahlt", "storniert"];
+const FILTER_STATUS: RechnungAnzeigeStatus[] = ["entwurf", "offen", "ueberfaellig", "angemahnt", "bezahlt", "storniert"];
 
 export default async function RechnungsListe({ searchParams }: PageProps<"/buero/rechnungen">) {
   await requireRole(BUERO_ROLLEN);
@@ -113,7 +113,7 @@ export default async function RechnungsListe({ searchParams }: PageProps<"/buero
                   <td className="px-3 py-2.5"><StatusPille name={RECHNUNG_ANZEIGE_NAMEN[z.anzeige]} farbe={RECHNUNG_ANZEIGE_FARBEN[z.anzeige]} /></td>
                   <td className={cn("hidden px-3 py-2.5 whitespace-nowrap lg:table-cell", faellig.startsWith("-") && "font-medium text-destructive")}>{faellig || "–"}</td>
                   <td className="px-3 py-2.5 text-right font-semibold tabular-nums">{formatBetrag(betrag(z))}</td>
-                  <td className={cn("hidden px-3 py-2.5 text-right tabular-nums lg:table-cell", z.anzeige === "ueberfaellig" && "font-semibold text-destructive")}>{o ? formatBetrag(o) : "–"}</td>
+                  <td className={cn("hidden px-3 py-2.5 text-right tabular-nums lg:table-cell", (z.anzeige === "ueberfaellig" || z.anzeige === "angemahnt") && "font-semibold text-destructive")}>{o ? formatBetrag(o) : "–"}</td>
                 </tr>
               );
             })}

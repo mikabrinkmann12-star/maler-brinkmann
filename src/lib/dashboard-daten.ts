@@ -38,7 +38,7 @@ export async function dashboardLaden(heute: string, forderungsZeitraum: Forderun
     supabase.from("leave_requests").select("id", { count: "exact", head: true }).eq("status", "offen"),
     supabase
       .from("invoices")
-      .select("status, lexware_status, rechnungsdatum, zahlungsziel_tage, brutto")
+      .select("status, lexware_status, rechnungsdatum, zahlungsziel_tage, brutto, mahnstufe")
       .eq("status", "uebertragen")
       .is("archiviert_am", null)
       .limit(1000),
@@ -75,6 +75,7 @@ export async function dashboardLaden(heute: string, forderungsZeitraum: Forderun
       rechnungsdatum: r.rechnungsdatum,
       zahlungszielTage: r.zahlungsziel_tage,
       brutto: r.brutto == null ? null : Number(r.brutto),
+      mahnstufe: r.mahnstufe,
     })),
     heute,
     forderungsBereich(forderungsZeitraum, heute),

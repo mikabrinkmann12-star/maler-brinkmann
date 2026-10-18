@@ -55,6 +55,19 @@ describe("Forderungsübersicht mit Zeitraum", () => {
     expect(u.ueberfaellig).toEqual({ anzahl: 2, summe: 338 }); // 01.10. (fällig 15.10.) und 01.09.
     expect(u.offen).toEqual({ anzahl: 1, summe: 119 });
     expect(forderungsUebersicht(liste, heute, forderungsBereich("monat", heute)).gesamt.anzahl).toBe(2);
+    expect(u.angemahnt).toEqual({ anzahl: 0, summe: 0 });
+  });
+  it("angemahnte Rechnungen stehen für sich (rot) und zählen nicht doppelt als überfällig", () => {
+    const r = (rechnungsdatum: string, brutto: number, mahnstufe = 0): OffeneRechnung => ({ status: "uebertragen", lexwareStatus: "open", rechnungsdatum, zahlungszielTage: 14, brutto, mahnstufe });
+    const liste = [r("2026-10-10", 119), r("2026-10-01", 238), r("2026-09-01", 100, 2), r("2026-09-05", 50, 1)];
+    const u = forderungsUebersicht(liste, heute, forderungsBereich("90_tage", heute));
+    expect(u.angemahnt).toEqual({ anzahl: 2, summe: 150 });
+    expect(u.ueberfaellig).toEqual({ anzahl: 1, summe: 238 });
+    expect(u.offen).toEqual({ anzahl: 1, summe: 119 });
+    expect(u.gesamt).toEqual({ anzahl: 4, summe: 507 });
+    // bezahlte Rechnungen mit Mahnvermerk zählen nicht
+    const bezahlt: OffeneRechnung = { ...r("2026-09-01", 80, 2), lexwareStatus: "paid" };
+    expect(forderungsUebersicht([bezahlt], heute, forderungsBereich("90_tage", heute)).gesamt).toEqual({ anzahl: 0, summe: 0 });
   });
 });
 

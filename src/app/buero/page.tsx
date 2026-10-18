@@ -68,7 +68,9 @@ export default async function BueroUebersicht({ searchParams }: PageProps<"/buer
   ].filter((a) => a.zahl > 0);
 
   const f = d.rechnungen.forderungen;
-  const anteilUeberfaellig = f.gesamt.summe > 0 ? Math.round((f.ueberfaellig.summe / f.gesamt.summe) * 100) : 0;
+  const prozent = (teil: number) => (f.gesamt.summe > 0 ? Math.round((teil / f.gesamt.summe) * 100) : 0);
+  const anteilAngemahnt = prozent(f.angemahnt.summe);
+  const anteilUeberfaellig = prozent(f.ueberfaellig.summe);
 
   const widgets: Record<WidgetId, ReactNode> = {
     zuletzt: (
@@ -105,24 +107,26 @@ export default async function BueroUebersicht({ searchParams }: PageProps<"/buer
           <ForderungenZeitraum aktuell={zeitraum} />
         </div>
         <p className="text-3xl font-semibold tabular-nums">{formatBetrag(f.gesamt.summe)}</p>
-        <div className="flex h-2 overflow-hidden rounded-full bg-muted" role="img" aria-label={`${anteilUeberfaellig} % der offenen Forderungen sind überfällig`}>
-          <div className="h-full bg-blue-500" style={{ width: `${f.gesamt.summe > 0 ? 100 - anteilUeberfaellig : 0}%` }} />
+        <div className="flex h-2 overflow-hidden rounded-full bg-muted" role="img" aria-label={`${anteilUeberfaellig} % der offenen Forderungen sind überfällig, ${anteilAngemahnt} % angemahnt`}>
+          <div className="h-full bg-blue-500" style={{ width: `${f.gesamt.summe > 0 ? 100 - anteilUeberfaellig - anteilAngemahnt : 0}%` }} />
           <div className="h-full bg-amber-400" style={{ width: `${anteilUeberfaellig}%` }} />
+          <div className="h-full bg-red-500" style={{ width: `${anteilAngemahnt}%` }} />
         </div>
         <ul className="flex flex-col gap-1.5 text-sm">
           {[
-            { name: "Offen", punkt: "bg-blue-500", summe: f.offen.summe, anzahl: f.offen.anzahl },
-            { name: "Überfällig", punkt: "bg-amber-400", summe: f.ueberfaellig.summe, anzahl: f.ueberfaellig.anzahl },
+            { name: "Offen", punkt: "bg-blue-500", rot: false, summe: f.offen.summe, anzahl: f.offen.anzahl },
+            { name: "Überfällig", punkt: "bg-amber-400", rot: false, summe: f.ueberfaellig.summe, anzahl: f.ueberfaellig.anzahl },
+            { name: "Angemahnt", punkt: "bg-red-500", rot: true, summe: f.angemahnt.summe, anzahl: f.angemahnt.anzahl },
           ].map((z) => (
-            <li key={z.name} className="flex items-center gap-2">
+            <li key={z.name} className={`flex items-center gap-2 ${z.rot && z.anzahl > 0 ? "text-red-600" : ""}`}>
               <span className={`size-2.5 rounded-full ${z.punkt}`} />
-              <span className="flex-1">{z.name}</span>
+              <span className={`flex-1 ${z.rot ? "font-medium" : ""}`}>{z.name}</span>
               <span className="font-semibold tabular-nums">{formatBetrag(z.summe)}</span>
-              <span className="flex size-5 items-center justify-center rounded-full bg-muted text-[11px] font-medium">{z.anzahl}</span>
+              <span className={`flex size-5 items-center justify-center rounded-full text-[11px] font-medium ${z.rot && z.anzahl > 0 ? "bg-red-100 text-red-700" : "bg-muted"}`}>{z.anzahl}</span>
             </li>
           ))}
         </ul>
-        <p className="text-xs text-muted-foreground">Brutto, nach Rechnungsdatum im gewählten Zeitraum. Stand vom letzten Abgleich mit Lexware. Mahnungen laufen in Lexware.</p>
+        <p className="text-xs text-muted-foreground">Brutto, nach Rechnungsdatum im gewählten Zeitraum. Stand vom letzten Abgleich mit Lexware. „Angemahnt“ vermerkt das Büro in der Rechnung (die Mahnungen selbst laufen in Lexware).</p>
         <Link href="/buero/rechnungen" className="flex w-fit items-center gap-1 text-sm text-muted-foreground hover:underline">
           Alle Rechnungen anzeigen <ChevronRightIcon className="size-4" />
         </Link>

@@ -537,6 +537,7 @@ export type Database = {
       invoices: {
         Row: {
           abgeglichen_am: string | null
+          angemahnt_am: string | null
           archiviert_am: string | null
           betreff: string
           brutto: number | null
@@ -549,6 +550,7 @@ export type Database = {
           leistung_von: string
           lexware_id: string | null
           lexware_status: string | null
+          mahnstufe: number
           netto: number | null
           pdf_pfad: string | null
           project_id: string
@@ -568,6 +570,7 @@ export type Database = {
         }
         Insert: {
           abgeglichen_am?: string | null
+          angemahnt_am?: string | null
           archiviert_am?: string | null
           betreff: string
           brutto?: number | null
@@ -580,6 +583,7 @@ export type Database = {
           leistung_von?: string
           lexware_id?: string | null
           lexware_status?: string | null
+          mahnstufe?: number
           netto?: number | null
           pdf_pfad?: string | null
           project_id: string
@@ -599,6 +603,7 @@ export type Database = {
         }
         Update: {
           abgeglichen_am?: string | null
+          angemahnt_am?: string | null
           archiviert_am?: string | null
           betreff?: string
           brutto?: number | null
@@ -611,6 +616,7 @@ export type Database = {
           leistung_von?: string
           lexware_id?: string | null
           lexware_status?: string | null
+          mahnstufe?: number
           netto?: number | null
           pdf_pfad?: string | null
           project_id?: string
