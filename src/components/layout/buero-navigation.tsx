@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  BellIcon,
+  SearchIcon,
   CalendarDaysIcon,
   ClockIcon,
   FileTextIcon,
@@ -14,6 +16,7 @@ import {
   UsersIcon,
 } from "lucide-react";
 import { cn } from "cn";
+import { BENACHRICHTIGUNGEN_OEFFNEN, SUCHE_OEFFNEN, useBuero } from "./buero-kontext";
 
 type Eintrag = {
   href: string;
@@ -51,9 +54,51 @@ export function BueroNavigation({
 }) {
   const pfad = usePathname();
 
+  const { ungelesen } = useBuero();
+
+  /** „Suchen“ und „Benachrichtigungen“ stehen wie in Plancraft ganz oben und öffnen ein Fenster statt einer Seite. */
+  const fensterKnopf = (ereignis: string, name: string, Icon: typeof HouseIcon, zusatz?: React.ReactNode) => (
+    <li key={ereignis}>
+      <button
+        type="button"
+        onClick={() => {
+          onNavigiert?.();
+          window.dispatchEvent(new Event(ereignis));
+        }}
+        title={eingeklappt ? name : undefined}
+        className={cn(
+          "flex h-9 w-full items-center gap-3 rounded-md px-2.5 text-[13px] text-white/65 transition-colors hover:bg-white/7 hover:text-white",
+          eingeklappt && "justify-center px-0",
+        )}
+      >
+        <span className="relative">
+          <Icon className="size-[18px] shrink-0" />
+          {ungelesen > 0 && ereignis === BENACHRICHTIGUNGEN_OEFFNEN && (
+            <span className="absolute -top-1.5 -right-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-semibold text-primary-foreground">
+              {ungelesen > 99 ? "99+" : ungelesen}
+            </span>
+          )}
+        </span>
+        {!eingeklappt && (
+          <>
+            <span className="truncate">{name}</span>
+            {zusatz}
+          </>
+        )}
+      </button>
+    </li>
+  );
+
   return (
     <nav aria-label="Büro-Navigation">
       <ul className="flex flex-col gap-0.5">
+        {fensterKnopf(SUCHE_OEFFNEN, "Suchen", SearchIcon, <kbd className="ml-auto rounded border border-white/20 px-1 text-[10px] font-normal text-white/45">Strg K</kbd>)}
+        {fensterKnopf(
+          BENACHRICHTIGUNGEN_OEFFNEN,
+          "Benachrichtigungen",
+          BellIcon,
+        )}
+        <li aria-hidden className="my-1 h-px bg-sidebar-border" />
         {EINTRAEGE.map(({ href, name, icon: Icon, plus, neu, auch = [] }) => {
           const aktiv =
             href === "/buero"
