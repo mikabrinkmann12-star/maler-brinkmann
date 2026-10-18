@@ -1,16 +1,16 @@
+import Image from "next/image";
 import { cn } from "cn";
 
-/** Platzhalter-Logo „MB“, bis das echte Firmenlogo da ist. */
+/** Firmenlogo (public/logo.png, erzeugt mit `npm run icons`). Die Breite bestimmt die Größe, z. B. className="w-40". */
 export function AppLogo({ className }: { className?: string }) {
   return (
-    <div
-      aria-hidden
-      className={cn(
-        "flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary text-sm font-bold text-primary-foreground",
-        className,
-      )}
-    >
-      MB
-    </div>
+    <Image
+      src="/logo.png"
+      alt="Maler Brinkmann"
+      width={700}
+      height={382}
+      priority
+      className={cn("h-auto w-36 shrink-0", className)}
+    />
   );
 }

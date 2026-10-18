@@ -27,7 +27,7 @@ export default async function LoginSeite({ searchParams }: PageProps<"/login">) 
     <main className="flex flex-1 items-center justify-center px-4 py-10">
       <div className="flex w-full max-w-sm flex-col gap-8">
         <div className="flex flex-col items-center gap-3 text-center">
-          <AppLogo className="size-14 text-lg" />
+          <AppLogo className="w-56" />
           <div>
             <h1 className="text-2xl font-semibold">Maler Brinkmann</h1>
             <p className="text-muted-foreground">Bitte melde dich an.</p>
