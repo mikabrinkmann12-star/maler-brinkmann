@@ -52,7 +52,7 @@ export default async function AngebotSeite({ params }: PageProps<"/buero/angebot
   }
 
   return (
-    <div className="flex max-w-4xl flex-col gap-5">
+    <div className="flex max-w-7xl flex-col gap-5">
       <Link href="/buero/angebote" className="flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeftIcon className="size-4" /> Angebote
       </Link>
@@ -72,7 +72,6 @@ export default async function AngebotSeite({ params }: PageProps<"/buero/angebot
         </p>
       </div>
 
-      <AktionenLeiste angebotId={a.id} status={a.status} archiviert={a.archiviert} />
 
       {gesperrt && (
         <p className="flex items-center gap-2 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900">
@@ -83,17 +82,8 @@ export default async function AngebotSeite({ params }: PageProps<"/buero/angebot
         </p>
       )}
 
-      {!a.archiviert && (
-        <MailPanel
-          key={`mail:${a.versendetAm}`}
-          angebotId={a.id}
-          bereit={smtpKonfiguration() !== null}
-          istEntwurf={a.status === "entwurf"}
-          start={{ an: kunde?.email ?? "", betreff: mailPlatzhalter(vorgaben.mail_betreff, mailWerte), text: mailPlatzhalter(vorgaben.mail_text, mailWerte) }}
-          zuletzt={a.versendetAm ? { am: a.versendetAm, an: a.versendetAn } : null}
-        />
-      )}
-
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
+        <div className="flex min-w-0 flex-col gap-5">
       <KopfFormular
         key={`kopf:${a.betreff}|${a.datum}|${a.leistungsort}|${a.empfaenger}|${a.einleitung}`}
         angebotId={a.id}
@@ -109,7 +99,19 @@ export default async function AngebotSeite({ params }: PageProps<"/buero/angebot
         <BausteineEditor angebotId={a.id} projektId={projekt.id} zeilen={rechnung.zeilen} bildUrls={bildUrls} gesperrt={gesperrt} />
       </section>
 
-      <section aria-labelledby="summen-titel" className="ml-auto flex w-full max-w-md flex-col gap-1 rounded-xl border p-4">
+      <AbschlussFormular
+        key={`abschluss:${a.schlusstext}|${a.steuersatz}|${a.reverseCharge}|${a.rabattProzent}|${a.zahlungszielTage}|${a.skontoProzent}|${a.skontoTage}|${a.gueltigBis}`}
+        angebotId={a.id}
+        start={{
+          schlusstext: a.schlusstext, steuer: auswahlAusSteuer(a.steuersatz, a.reverseCharge), rabatt: a.rabattProzent,
+          zahlungsziel: a.zahlungszielTage, skontoProzent: a.skontoProzent, skontoTage: a.skontoTage, gueltigBis: a.gueltigBis,
+        }}
+        gesperrt={gesperrt}
+        vorlagen={vorlagenDerArt(vorlagen, "schlusstext")}
+      />
+        </div>
+      <div className="flex flex-col gap-4 xl:sticky xl:top-4 xl:self-start">
+      <section aria-labelledby="summen-titel" className="flex w-full flex-col gap-1 rounded-xl border bg-white p-4">
         <h2 id="summen-titel" className="sr-only">Summen</h2>
         <SummenZeile label="Nettosumme" wert={rechnung.netto} />
         {rechnung.rabattProzent > 0 && (
@@ -130,16 +132,21 @@ export default async function AngebotSeite({ params }: PageProps<"/buero/angebot
         )}
       </section>
 
-      <AbschlussFormular
-        key={`abschluss:${a.schlusstext}|${a.steuersatz}|${a.reverseCharge}|${a.rabattProzent}|${a.zahlungszielTage}|${a.skontoProzent}|${a.skontoTage}|${a.gueltigBis}`}
-        angebotId={a.id}
-        start={{
-          schlusstext: a.schlusstext, steuer: auswahlAusSteuer(a.steuersatz, a.reverseCharge), rabatt: a.rabattProzent,
-          zahlungsziel: a.zahlungszielTage, skontoProzent: a.skontoProzent, skontoTage: a.skontoTage, gueltigBis: a.gueltigBis,
-        }}
-        gesperrt={gesperrt}
-        vorlagen={vorlagenDerArt(vorlagen, "schlusstext")}
-      />
+      <AktionenLeiste angebotId={a.id} status={a.status} archiviert={a.archiviert} />
+
+      {!a.archiviert && (
+        <MailPanel
+          key={`mail:${a.versendetAm}`}
+          angebotId={a.id}
+          bereit={smtpKonfiguration() !== null}
+          istEntwurf={a.status === "entwurf"}
+          start={{ an: kunde?.email ?? "", betreff: mailPlatzhalter(vorgaben.mail_betreff, mailWerte), text: mailPlatzhalter(vorgaben.mail_text, mailWerte) }}
+          zuletzt={a.versendetAm ? { am: a.versendetAm, an: a.versendetAn } : null}
+        />
+      )}
+
+      </div>
+      </div>
     </div>
   );
 }

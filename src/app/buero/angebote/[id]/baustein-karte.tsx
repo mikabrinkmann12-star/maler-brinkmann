@@ -156,26 +156,29 @@ export function BausteinKarte({
 
       {typ === "position" && (
         <>
-          <Input aria-label="Kurztext" placeholder="Kurztext, z. B. „Wandflächen weiß streichen“" maxLength={200} className="h-11 text-base" {...feld("kurztext")} />
-          <Textarea aria-label="Langtext" placeholder="Langtext (optional): was genau gemacht wird" rows={3} maxLength={5000} {...feld("langtext")} />
           <div className="flex flex-wrap items-end gap-3">
+            <label className="flex min-w-64 flex-1 flex-col gap-1 text-sm text-muted-foreground">
+              Kurztext
+              <Input aria-label="Kurztext" placeholder="z. B. „Wandflächen weiß streichen“" maxLength={200} className="h-11 text-base font-medium text-foreground lg:h-10" {...feld("kurztext")} />
+            </label>
             <label className="flex flex-col gap-1 text-sm text-muted-foreground">
               Menge
-              <Input inputMode="decimal" placeholder="0" className="h-11 w-28 text-right text-base" {...feld("menge")} />
+              <Input inputMode="decimal" placeholder="0" className="h-11 w-24 text-right text-base lg:h-10" {...feld("menge")} />
             </label>
             <label className="flex flex-col gap-1 text-sm text-muted-foreground">
               Einheit
-              <Input list="einheiten-liste" maxLength={20} placeholder="m²" className="h-11 w-28 text-base" {...feld("einheit")} />
+              <Input list="einheiten-liste" maxLength={20} placeholder="m²" className="h-11 w-24 text-base lg:h-10" {...feld("einheit")} />
             </label>
             <label className="flex flex-col gap-1 text-sm text-muted-foreground">
               Preis (€)
-              <Input inputMode="decimal" placeholder="0,00" className="h-11 w-32 text-right text-base" {...feld("einzelpreis")} />
+              <Input inputMode="decimal" placeholder="0,00" className="h-11 w-28 text-right text-base lg:h-10" {...feld("einzelpreis")} />
             </label>
-            <div className="ml-auto flex flex-col items-end text-sm text-muted-foreground">
+            <div className="flex min-w-24 flex-col items-end text-sm text-muted-foreground">
               Gesamt
-              <span className="text-lg font-semibold text-foreground tabular-nums">{gesamt === null ? "–" : formatBetrag(gesamt)}</span>
+              <span className="text-lg font-semibold text-foreground tabular-nums lg:leading-10">{gesamt === null ? "–" : formatBetrag(gesamt)}</span>
             </div>
           </div>
+          <Textarea aria-label="Langtext" placeholder="Langtext (optional): was genau gemacht wird" rows={2} maxLength={5000} {...feld("langtext")} />
           <AufmassWahl projektId={projektId} positionsText={`${w.kurztext} ${w.langtext}`} gesperrt={gesperrt}
             onWahl={(menge, einheit) => { setW((alt) => ({ ...alt, menge: zahlFuerFeld(menge), einheit })); setFehler(null); }} />
           <datalist id="einheiten-liste">{einheiten.liste.map((e) => <option key={e} value={e} />)}</datalist>
