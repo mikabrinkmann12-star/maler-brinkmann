@@ -2,51 +2,13 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { ArchiveIcon, ArchiveRestoreIcon, CheckIcon, FolderIcon, FolderPlusIcon, PencilIcon, XIcon } from "lucide-react";
+import { ArchiveIcon, ArchiveRestoreIcon, CheckIcon, FolderIcon, PencilIcon, XIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Auswahl } from "@/components/feld";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ordnerOptionen, type KatalogArt, type OrdnerEintrag } from "@/lib/katalog";
 import { ordnerArchivieren, ordnerSpeichern } from "./actions";
-
-/** „Neuer Ordner“ im aktuellen Ordner (oder auf oberster Ebene). */
-export function NeuerOrdner({ art, parentId }: { art: KatalogArt; parentId: string | null }) {
-  const [offen, setOffen] = useState(false);
-  const [name, setName] = useState("");
-  const [fehler, setFehler] = useState<string | null>(null);
-  const [laeuft, starte] = useTransition();
-
-  function speichern(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    if (laeuft) return;
-    starte(async () => {
-      const r = await ordnerSpeichern(art, null, { name, parentId: parentId ?? "" });
-      if (r.fehler) return setFehler(r.fehler);
-      toast.success(`Ordner „${name.trim()}“ angelegt.`);
-      setName("");
-      setFehler(null);
-      setOffen(false);
-    });
-  }
-
-  if (!offen) {
-    return (
-      <Button type="button" variant="outline" onClick={() => setOffen(true)}>
-        <FolderPlusIcon /> Neuer Ordner
-      </Button>
-    );
-  }
-  return (
-    <form onSubmit={speichern} className="flex flex-wrap items-center gap-2">
-      <Input aria-label="Name des neuen Ordners" value={name} autoFocus maxLength={100} placeholder="Name des Ordners"
-        onChange={(e) => { setName(e.target.value); setFehler(null); }} className="h-9 w-56" />
-      <Button type="submit" disabled={laeuft || !name.trim()}><CheckIcon /> Anlegen</Button>
-      <Button type="button" variant="ghost" onClick={() => { setOffen(false); setFehler(null); }}><XIcon /> Abbrechen</Button>
-      {fehler && <p role="alert" className="w-full text-sm text-destructive">{fehler}</p>}
-    </form>
-  );
-}
 
 /** Ein Unterordner in der Liste: öffnen, umbenennen/verschieben, archivieren bzw. wiederherstellen. */
 export function OrdnerZeile({

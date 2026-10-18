@@ -189,6 +189,44 @@ export async function eintragArchivieren(art: string, id: string, archivieren: b
 }
 
 // ---------------------------------------------------------------------------
+// Mehrere Einträge auf einmal (Auswahl in der Liste: „Verschieben“ und „Archivieren“)
+// ---------------------------------------------------------------------------
+const idListe = z.array(z.uuid()).min(1, "Bitte mindestens einen Eintrag wählen.").max(500, "Höchstens 500 Einträge auf einmal.");
+
+/** Ausgewählte Einträge in einen Ordner verschieben (`folderId` leer = ohne Ordner). */
+export async function eintraegeVerschieben(art: string, ids: unknown, folderId: string): Promise<KatalogErgebnis & { anzahl?: number }> {
+  await requireRole(BUERO_ROLLEN);
+  if (!istKatalogArt(art)) return { fehler: "Ungültige Art." };
+  const liste = idListe.safeParse(ids);
+  if (!liste.success) return { fehler: ersteMeldung(liste.error) };
+  if (folderId && !uuid.safeParse(folderId).success) return { fehler: "Ungültiger Ordner." };
+
+  const supabase = await createClient();
+  if (folderId) {
+    const { data } = await supabase.from("catalog_folders").select("archiviert_am").eq("id", folderId).maybeSingle();
+    if (!data) return { fehler: "Der Ordner existiert nicht." };
+    if (data.archiviert_am) return { fehler: "Der Ordner ist archiviert." };
+  }
+  const { data, error } = await supabase.from(tabelle(art)).update({ folder_id: folderId || null }).in("id", liste.data).select("id");
+  if (error) return { fehler: dbMeldung(error) };
+  aktualisieren();
+  return { anzahl: data?.length ?? 0 };
+}
+
+/** Ausgewählte Einträge archivieren (nichts wird gelöscht; im Archiv lassen sie sich wiederherstellen). */
+export async function eintraegeArchivierenMehrere(art: string, ids: unknown): Promise<KatalogErgebnis & { anzahl?: number }> {
+  await requireRole(BUERO_ROLLEN);
+  if (!istKatalogArt(art)) return { fehler: "Ungültige Art." };
+  const liste = idListe.safeParse(ids);
+  if (!liste.success) return { fehler: ersteMeldung(liste.error) };
+  const supabase = await createClient();
+  const { data, error } = await supabase.from(tabelle(art)).update({ archiviert_am: new Date().toISOString() }).in("id", liste.data).is("archiviert_am", null).select("id");
+  if (error) return { fehler: dbMeldung(error) };
+  aktualisieren();
+  return { anzahl: data?.length ?? 0 };
+}
+
+// ---------------------------------------------------------------------------
 // Import aus CSV (nur Admin). Importiert wird nur, was neu ist; nichts wird überschrieben.
 // ---------------------------------------------------------------------------
 export type KatalogImportErgebnis = {

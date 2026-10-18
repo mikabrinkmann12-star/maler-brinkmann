@@ -36,17 +36,42 @@ export type KatalogZeile = {
   vk: number;
   lieferant: string;
   archiviert: boolean;
+  /** Zuletzt geändert (Zeitpunkt) */
+  aktualisiert: string;
+  beschreibung: string;
 };
 
-export const MAX_ZEILEN = 300;
+export const MAX_ZEILEN = 500;
+
+/** Anzahl nicht archivierter Einträge je Ordner (direkt) plus die Gesamtzahl der Art; Einträge ohne Ordner zählen nur zur Gesamtzahl. */
+export async function ordnerZaehler(art: KatalogArt): Promise<{ jeOrdner: Map<string, number>; gesamt: number }> {
+  const supabase = await createClient();
+  const jeOrdner = new Map<string, number>();
+  let gesamt = 0;
+  const SEITE = 1000;
+  for (let von = 0; ; von += SEITE) {
+    const { data, error } = await supabase
+      .from(art === "material" ? "materials" : "services")
+      .select("folder_id")
+      .is("archiviert_am", null)
+      .order("id")
+      .range(von, von + SEITE - 1);
+    if (error) throw new Error("Die Einträge konnten nicht gezählt werden.");
+    for (const z of data) {
+      gesamt++;
+      if (z.folder_id) jeOrdner.set(z.folder_id, (jeOrdner.get(z.folder_id) ?? 0) + 1);
+    }
+    if (data.length < SEITE) return { jeOrdner, gesamt };
+  }
+}
 
 /**
- * Einträge laden: in einem Ordner (`ordnerId`, null = ohne Ordner), per Suche über alle Ordner (`q`)
- * oder im Archiv (`archiv`). Höchstens 300 Zeilen, `gesamt` ist die echte Anzahl.
+ * Einträge laden: alle (`ordnerIds` null) oder die in den genannten Ordnern (ein Ordner samt Unterordnern), danach gefiltert
+ * mit der Suche (`q`); `archiv` zeigt die archivierten. Höchstens 500 Zeilen, `gesamt` ist die echte Anzahl.
  */
 export async function eintraegeLaden(
   art: KatalogArt,
-  opts: { ordnerId: string | null; q: string; archiv: boolean },
+  opts: { ordnerIds: string[] | null; q: string; archiv: boolean },
 ): Promise<{ zeilen: KatalogZeile[]; gesamt: number }> {
   const supabase = await createClient();
   const q = suchtext(opts.q);
@@ -54,13 +79,10 @@ export async function eintraegeLaden(
   if (art === "material") {
     let abfrage = supabase
       .from("materials")
-      .select("id, folder_id, artikelnr, name, einheit, ek, zuschlag_prozent, vk, lieferant, archiviert_am", { count: "exact" });
+      .select("id, folder_id, artikelnr, name, einheit, ek, zuschlag_prozent, vk, lieferant, beschreibung, updated_at, archiviert_am", { count: "exact" });
     abfrage = opts.archiv ? abfrage.not("archiviert_am", "is", null) : abfrage.is("archiviert_am", null);
-    if (q) {
-      abfrage = abfrage.or(["name", "artikelnr", "lieferant", "beschreibung"].map((f) => `${f}.ilike.%${q}%`).join(","));
-    } else if (!opts.archiv) {
-      abfrage = opts.ordnerId ? abfrage.eq("folder_id", opts.ordnerId) : abfrage.is("folder_id", null);
-    }
+    if (opts.ordnerIds && !opts.archiv) abfrage = abfrage.in("folder_id", opts.ordnerIds);
+    if (q) abfrage = abfrage.or(["name", "artikelnr", "lieferant", "beschreibung"].map((f) => `${f}.ilike.%${q}%`).join(","));
     const { data, error, count } = await abfrage.order("name").limit(MAX_ZEILEN);
     if (error) throw new Error("Die Materialien konnten nicht geladen werden.");
     return {
@@ -69,19 +91,17 @@ export async function eintraegeLaden(
         id: m.id, folderId: m.folder_id, nummer: m.artikelnr ?? "", name: m.name, einheit: m.einheit,
         preis: Number(m.ek), zuschlag: Number(m.zuschlag_prozent), vk: Number(m.vk),
         lieferant: m.lieferant ?? "", archiviert: m.archiviert_am != null,
+        aktualisiert: m.updated_at, beschreibung: m.beschreibung ?? "",
       })),
     };
   }
 
   let abfrage = supabase
     .from("services")
-    .select("id, folder_id, nummer, name, einheit, kosten, zuschlag_prozent, vk, archiviert_am", { count: "exact" });
+    .select("id, folder_id, nummer, name, einheit, kosten, zuschlag_prozent, vk, langtext, updated_at, archiviert_am", { count: "exact" });
   abfrage = opts.archiv ? abfrage.not("archiviert_am", "is", null) : abfrage.is("archiviert_am", null);
-  if (q) {
-    abfrage = abfrage.or(["name", "nummer", "langtext"].map((f) => `${f}.ilike.%${q}%`).join(","));
-  } else if (!opts.archiv) {
-    abfrage = opts.ordnerId ? abfrage.eq("folder_id", opts.ordnerId) : abfrage.is("folder_id", null);
-  }
+  if (opts.ordnerIds && !opts.archiv) abfrage = abfrage.in("folder_id", opts.ordnerIds);
+  if (q) abfrage = abfrage.or(["name", "nummer", "langtext"].map((f) => `${f}.ilike.%${q}%`).join(","));
   const { data, error, count } = await abfrage.order("name").limit(MAX_ZEILEN);
   if (error) throw new Error("Die Leistungen konnten nicht geladen werden.");
   return {
@@ -90,6 +110,7 @@ export async function eintraegeLaden(
       id: s.id, folderId: s.folder_id, nummer: s.nummer ?? "", name: s.name, einheit: s.einheit,
       preis: Number(s.kosten), zuschlag: Number(s.zuschlag_prozent), vk: Number(s.vk),
       lieferant: "", archiviert: s.archiviert_am != null,
+      aktualisiert: s.updated_at, beschreibung: s.langtext ?? "",
     })),
   };
 }

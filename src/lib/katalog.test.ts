@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   nachfahrenIds,
+  ordnerBaum,
+  ordnerMitNachfahren,
   ordnerOptionen,
   ordnerPfad,
   ordnerPfadText,
@@ -104,6 +106,18 @@ describe("Ordner", () => {
   it("nachfahrenIds: alle Ebenen, ohne den Ordner selbst", () => {
     expect(nachfahrenIds(ordner, "farben").sort()).toEqual(["disp", "lack", "weiss"]);
     expect(nachfahrenIds(ordner, "tapeten")).toEqual([]);
+  });
+
+  it("ordnerBaum: Zahl eines Ordners schließt die Unterordner ein", () => {
+    const baum = ordnerBaum(ordner, new Map([["farben", 1], ["disp", 2], ["weiss", 4], ["tapeten", 3]]));
+    expect(baum.map((k) => [k.name, k.eigene, k.gesamt])).toEqual([["Farben", 1, 7], ["Tapeten", 3, 3]]);
+    expect(baum[0].kinder.map((k) => [k.name, k.gesamt])).toEqual([["Dispersion", 6], ["Lacke", 0]]);
+    expect(baum[0].kinder[0].kinder.map((k) => k.name)).toEqual(["Weiß"]);
+  });
+
+  it("ordnerMitNachfahren: der Ordner selbst und alles darunter", () => {
+    expect(ordnerMitNachfahren(ordner, "disp").sort()).toEqual(["disp", "weiss"]);
+    expect(ordnerMitNachfahren(ordner, "tapeten")).toEqual(["tapeten"]);
   });
 
   it("ordnerOptionen: nach Pfad sortiert; beim Verschieben fehlen der Ordner und seine Unterordner", () => {

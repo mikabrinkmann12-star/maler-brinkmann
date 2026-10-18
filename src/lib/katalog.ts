@@ -127,6 +127,38 @@ export function nachfahrenIds(ordner: OrdnerEintrag[], id: string): string[] {
   return ergebnis;
 }
 
+export type BaumKnoten = {
+  id: string;
+  name: string;
+  parentId: string | null;
+  /** Einträge direkt in diesem Ordner */
+  eigene: number;
+  /** Einträge in diesem Ordner und allen Unterordnern (diese Zahl steht in der Ordnerliste) */
+  gesamt: number;
+  kinder: BaumKnoten[];
+};
+
+/**
+ * Ordnerbaum für die Liste links (wie in Plancraft mit Anzahl je Ordner). `zaehler` = Einträge je Ordner-ID (direkt).
+ * Alphabetisch sortiert; die Zahl eines Ordners schließt seine Unterordner ein.
+ */
+export function ordnerBaum(ordner: OrdnerEintrag[], zaehler: ReadonlyMap<string, number>): BaumKnoten[] {
+  const bau = (parentId: string | null, tiefe: number): BaumKnoten[] =>
+    tiefe > 50
+      ? []
+      : unterordner(ordner, parentId).map((o) => {
+          const kinder = bau(o.id, tiefe + 1);
+          const eigene = zaehler.get(o.id) ?? 0;
+          return { id: o.id, name: o.name, parentId: o.parentId, eigene, gesamt: eigene + kinder.reduce((s, k) => s + k.gesamt, 0), kinder };
+        });
+  return bau(null, 0);
+}
+
+/** Ordner und alle seine Unterordner (für „zeige alles in diesem Ordner“). */
+export function ordnerMitNachfahren(ordner: OrdnerEintrag[], id: string): string[] {
+  return [id, ...nachfahrenIds(ordner, id)];
+}
+
 /**
  * Auswahlliste aller Ordner als „Farben › Dispersion“, nach Pfad sortiert.
  * `ausser`: dieser Ordner und seine Unterordner fehlen (zum Verschieben, sonst gäbe es Schleifen).
