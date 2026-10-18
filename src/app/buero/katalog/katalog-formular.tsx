@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ArchiveIcon, ArchiveRestoreIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Auswahl, Feld } from "@/components/feld";
+import { useEinheiten } from "@/components/einheiten-kontext";
 import { FormularMeldung } from "@/components/formular-meldung";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,7 +21,6 @@ import {
 } from "@/lib/kalkulation";
 import { kalkulationEingabeSchema } from "@/lib/kalkulation-schema";
 import {
-  EINHEITEN,
   MAX_PREIS,
   ordnerOptionen,
   preisFuerFeld,
@@ -78,6 +78,7 @@ export function KatalogFormular({
   const [fehler, setFehler] = useState<string | null>(null);
   const [laeuft, starte] = useTransition();
   const optionen = ordnerOptionen(ordner);
+  const einheiten = useEinheiten();
 
   // Kalkulation (nur Leistungen)
   const kannKalkulieren = !istMaterial && kalkulation != null;
@@ -185,7 +186,7 @@ export function KatalogFormular({
         </Feld>
         <Feld label="Einheit" htmlFor="einheit" hinweis="z. B. Stk, m², Std. Eigene Einheiten sind möglich.">
           <Input id="einheit" required maxLength={20} list="einheiten" {...f("einheit")} className="h-11 text-base" />
-          <datalist id="einheiten">{EINHEITEN[art].map((e) => <option key={e} value={e} />)}</datalist>
+          <datalist id="einheiten">{einheiten.liste.map((e) => <option key={e} value={e} />)}</datalist>
         </Feld>
       </div>
 

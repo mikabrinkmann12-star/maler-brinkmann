@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowLeftIcon, ChevronRightIcon, PlusIcon } from "lucide-react";
+import { ChevronRightIcon, PlusIcon } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { requireRole } from "@/lib/auth";
 import { formatDatumZeit } from "@/lib/format";
@@ -34,16 +34,9 @@ export default async function BenutzerSeite() {
   return (
     <div className="flex max-w-4xl flex-col gap-6">
       <div className="flex flex-col gap-3">
-        <Link
-          href="/buero/einstellungen"
-          className="flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeftIcon className="size-4" />
-          Einstellungen
-        </Link>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-semibold">Benutzer & Rollen</h1>
+            <h1 className="text-xl font-semibold">Mitarbeiter</h1>
             <p className="text-sm text-muted-foreground">
               {anzahlAktiv} aktiv
               {anzahlGesperrt > 0 && ` · ${anzahlGesperrt} gesperrt`}

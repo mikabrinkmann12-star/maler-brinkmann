@@ -9,22 +9,21 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { einzelpreisLesen, mengeLesen, positionGesamt, zahlFuerFeld } from "@/lib/angebot";
 import { formatBetrag } from "@/lib/format";
-import { EINHEITEN } from "@/lib/katalog";
+import { useEinheiten } from "@/components/einheiten-kontext";
 import type { RechnungsBaustein } from "@/lib/rechnung";
 import { AufmassWahl } from "../../aufmass-wahl";
 import { rechnungBausteinLoeschen, rechnungBausteinSpeichern, rechnungBausteinVerschieben } from "../actions";
 
-const EINHEITEN_LISTE = [...new Set([...EINHEITEN.leistung, ...EINHEITEN.material, "Lfm", "Pkg"])];
 
 type Werte = { kurztext: string; langtext: string; menge: string; einheit: string; einzelpreis: string };
 type Baustein = RechnungsBaustein & { id: string };
 
-function startWerte(b: RechnungsBaustein | null, typ: "position" | "text"): Werte {
+function startWerte(b: RechnungsBaustein | null, typ: "position" | "text", einheitStandard: string): Werte {
   return {
     kurztext: b?.kurztext ?? "",
     langtext: b?.langtext ?? "",
     menge: b?.menge == null ? (typ === "position" ? "1" : "") : zahlFuerFeld(b.menge),
-    einheit: b?.einheit ?? "",
+    einheit: b?.einheit ?? (typ === "position" ? einheitStandard : ""),
     einzelpreis: b?.einzelpreis == null ? "" : zahlFuerFeld(b.einzelpreis, 2),
   };
 }
@@ -44,7 +43,8 @@ function Zeile({
 }) {
   const router = useRouter();
   const typ = baustein?.typ ?? neuTyp ?? "position";
-  const start = startWerte(baustein, typ);
+  const einheiten = useEinheiten();
+  const start = startWerte(baustein, typ, einheiten.position);
   const [w, setW] = useState(start);
   const [fehler, setFehler] = useState<string | null>(null);
   const [frage, setFrage] = useState(false);
@@ -120,6 +120,7 @@ function Zeile({
 
 /** Positionen der Rechnung: Mengen und Preise ändern (z. B. nach dem Aufmaß), Zeilen hinzufügen, verschieben, löschen. */
 export function PositionenEditor({ rechnungId, projektId, bausteine, gesperrt }: { rechnungId: string; projektId: string; bausteine: Baustein[]; gesperrt: boolean }) {
+  const einheiten = useEinheiten();
   const [neu, setNeu] = useState<"position" | "text" | null>(null);
   const nummern = bausteine.reduce<string[]>((acc, b) => {
     acc.push(b.typ === "position" ? `${acc.filter((x) => x !== "·").length + 1}.` : "·");
@@ -127,7 +128,7 @@ export function PositionenEditor({ rechnungId, projektId, bausteine, gesperrt }:
   }, []);
   return (
     <div className="flex flex-col gap-3">
-      <datalist id="rechnung-einheiten">{EINHEITEN_LISTE.map((e) => <option key={e} value={e} />)}</datalist>
+      <datalist id="rechnung-einheiten">{einheiten.liste.map((e) => <option key={e} value={e} />)}</datalist>
       {bausteine.length === 0 && <p className="rounded-xl border border-dashed p-6 text-muted-foreground">Noch keine Positionen.</p>}
       {bausteine.map((b, i) => (
         <Zeile key={`${b.id}:${b.kurztext}|${b.langtext}|${b.menge}|${b.einheit}|${b.einzelpreis}`} rechnungId={rechnungId} projektId={projektId} baustein={b}

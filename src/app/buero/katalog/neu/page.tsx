@@ -4,6 +4,7 @@ import { ArrowLeftIcon } from "lucide-react";
 import { requireRole } from "@/lib/auth";
 import { istKatalogArt, type KatalogArt } from "@/lib/katalog";
 import { kalkulationLaden } from "@/lib/kalkulation-daten";
+import { einheitenLaden } from "@/lib/einheiten-daten";
 import { ordnerLaden } from "@/lib/katalog-daten";
 import { BUERO_ROLLEN } from "@/lib/rollen";
 import { KatalogFormular } from "../katalog-formular";
@@ -14,7 +15,8 @@ export default async function KatalogNeuSeite({ searchParams }: PageProps<"/buer
   await requireRole(BUERO_ROLLEN);
   const params = await searchParams;
   const art: KatalogArt = istKatalogArt(params.art) ? params.art : "leistung";
-  const aktive = (await ordnerLaden(art)).filter((o) => !o.archiviert);
+  const [alleOrdner, einheiten] = await Promise.all([ordnerLaden(art), einheitenLaden()]);
+  const aktive = alleOrdner.filter((o) => !o.archiviert);
   const ordner = typeof params.ordner === "string" && aktive.some((o) => o.id === params.ordner) ? params.ordner : "";
 
   return (
@@ -31,7 +33,7 @@ export default async function KatalogNeuSeite({ searchParams }: PageProps<"/buer
         ordner={aktive}
         kalkulation={art === "leistung" ? await kalkulationLaden() : undefined}
         kalkulationStart={null}
-        start={{ folderId: ordner, nummer: "", name: "", text: "", lieferant: "", einheit: art === "material" ? "Stk" : "m²", preis: "", zuschlag: "" }}
+        start={{ folderId: ordner, nummer: "", name: "", text: "", lieferant: "", einheit: art === "material" ? einheiten.material : einheiten.position, preis: "", zuschlag: "" }}
       />
     </div>
   );

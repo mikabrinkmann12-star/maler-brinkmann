@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useSyncExternalStore } from "react";
+import { EinheitenKontext } from "@/components/einheiten-kontext";
+import { STANDARD_EINHEITEN, type EinheitenEinstellungen } from "@/lib/einheiten";
 import type { Rolle } from "@/lib/rollen";
 import { BenachrichtigungenPanel } from "./benachrichtigungen-panel";
 import { BueroKontext } from "./buero-kontext";
@@ -34,6 +36,7 @@ export function BueroRahmen({
   name,
   rolle,
   ungelesen: ungelesenStart = 0,
+  einheiten,
   children,
 }: {
   firmenname: string;
@@ -41,6 +44,8 @@ export function BueroRahmen({
   rolle: Rolle;
   /** Ungelesene Benachrichtigungen beim Laden der Seite */
   ungelesen?: number;
+  /** Einheiten aus den Einstellungen (Vorschläge und Vorauswahl in den Eingabefeldern) */
+  einheiten?: EinheitenEinstellungen;
   children: React.ReactNode;
 }) {
   const [ungelesen, setUngelesen] = useState(ungelesenStart);
@@ -64,6 +69,7 @@ export function BueroRahmen({
 
   return (
     <BueroKontext.Provider value={{ ungelesen, setUngelesen }}>
+    <EinheitenKontext.Provider value={einheiten ?? STANDARD_EINHEITEN}>
     <div className="flex min-h-dvh flex-1" style={{ "--seitenleiste": eingeklappt ? "3.75rem" : "13rem" } as React.CSSProperties}>
       <SucheDialog />
       <BenachrichtigungenPanel />
@@ -75,6 +81,7 @@ export function BueroRahmen({
         <main className="flex-1 p-4 md:px-8 md:py-6">{children}</main>
       </div>
     </div>
+    </EinheitenKontext.Provider>
     </BueroKontext.Provider>
   );
 }

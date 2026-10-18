@@ -18,20 +18,19 @@ import {
   type BausteinTyp,
 } from "@/lib/angebot";
 import { formatBetrag } from "@/lib/format";
-import { EINHEITEN } from "@/lib/katalog";
+import { useEinheiten } from "@/components/einheiten-kontext";
 import { AufmassWahl } from "../../aufmass-wahl";
 import { bausteinLoeschen, bausteinSpeichern, bausteinVerschieben } from "../actions";
 
-const EINHEITEN_LISTE = [...new Set([...EINHEITEN.leistung, ...EINHEITEN.material, "Lfm", "Pkg"])];
 
 type Werte = { kurztext: string; langtext: string; menge: string; einheit: string; einzelpreis: string };
 
-function startWerte(b: Baustein | null): Werte {
+function startWerte(b: Baustein | null, einheitStandard: string): Werte {
   return {
     kurztext: b?.kurztext ?? "",
     langtext: b?.langtext ?? "",
     menge: b?.menge == null ? "" : zahlFuerFeld(b.menge),
-    einheit: b?.einheit ?? "",
+    einheit: b?.einheit ?? einheitStandard,
     einzelpreis: b?.einzelpreis == null ? "" : zahlFuerFeld(b.einzelpreis, 2),
   };
 }
@@ -70,7 +69,8 @@ export function BausteinKarte({
 }) {
   const router = useRouter();
   const typ: BausteinTyp = baustein?.typ ?? neuTyp ?? "text";
-  const start = startWerte(baustein);
+  const einheiten = useEinheiten();
+  const start = startWerte(baustein, typ === "position" ? einheiten.position : "");
   const [w, setW] = useState(start);
   const [fehler, setFehler] = useState<string | null>(null);
   const [loeschenFrage, setLoeschenFrage] = useState(false);
@@ -178,7 +178,7 @@ export function BausteinKarte({
           </div>
           <AufmassWahl projektId={projektId} positionsText={`${w.kurztext} ${w.langtext}`} gesperrt={gesperrt}
             onWahl={(menge, einheit) => { setW((alt) => ({ ...alt, menge: zahlFuerFeld(menge), einheit })); setFehler(null); }} />
-          <datalist id="einheiten-liste">{EINHEITEN_LISTE.map((e) => <option key={e} value={e} />)}</datalist>
+          <datalist id="einheiten-liste">{einheiten.liste.map((e) => <option key={e} value={e} />)}</datalist>
         </>
       )}
 
