@@ -21,7 +21,7 @@ const ABWESENHEIT: Record<string, string> = {
  */
 export async function dashboardLaden(heute: string, forderungsZeitraum: ForderungsZeitraum = FORDERUNGS_STANDARD) {
   const supabase = await createClient();
-  const [projekte, zuletzt, einsaetze, urlaubHeute, kranke, urlaubOffen, rechnungen, rechnungsEntwuerfe, versendet, angebotsEntwuerfe, chat, kollegen] = await Promise.all([
+  const [projekte, zuletzt, einsaetze, urlaubHeute, kranke, urlaubOffen, rechnungen, rechnungsEntwuerfe, versendet, angebotsEntwuerfe, chat, kollegen, eingangPruefen] = await Promise.all([
     supabase.from("projects").select("status_id, project_statuses(name, farbe, sortierung)").is("archiviert_am", null).limit(1000),
     supabase
       .from("projects")
@@ -47,6 +47,7 @@ export async function dashboardLaden(heute: string, forderungsZeitraum: Forderun
     supabase.from("quotes").select("id", { count: "exact", head: true }).eq("status", "entwurf").is("archiviert_am", null),
     supabase.rpc("chat_ungelesen"),
     kollegenLaden(),
+    supabase.from("incoming_invoices").select("id", { count: "exact", head: true }).eq("zu_pruefen", true).is("archiviert_am", null),
   ]);
 
   const name = (uid: string) => {
@@ -100,6 +101,6 @@ export async function dashboardLaden(heute: string, forderungsZeitraum: Forderun
       entwuerfe: angebotsEntwuerfe.count ?? 0,
     },
     rechnungen: { forderungen: geld, entwuerfe: rechnungsEntwuerfe.count ?? 0 },
-    aufgaben: { urlaubsantraege: urlaubOffen.count ?? 0, chat: chatSumme(chat.data) },
+    aufgaben: { urlaubsantraege: urlaubOffen.count ?? 0, chat: chatSumme(chat.data), eingangPruefen: eingangPruefen.count ?? 0 },
   };
 }

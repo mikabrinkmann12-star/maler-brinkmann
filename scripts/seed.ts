@@ -101,7 +101,7 @@ async function main() {
   const entferne = async (
     tabelle: "assignments" | "assignment_members" | "time_entries" | "leave_requests" | "notifications"
       | "project_notes" | "project_photos" | "material_usage" | "measurements" | "project_members" | "appointments"
-      | "appointment_members" | "project_messages" | "chat_reads" | "project_files" | "project_reports",
+      | "appointment_members" | "project_messages" | "chat_reads" | "project_files" | "project_reports" | "incoming_invoices",
     spalte: string,
     ids: string[],
   ) => {
@@ -132,6 +132,10 @@ async function main() {
   await entferne("leave_requests", "entschieden_von", alteNutzerIds);
   await entferne("notifications", "project_id", alteProjektIds);
   await entferne("notifications", "ausgeloest_von", alteNutzerIds);
+  // Eingangsrechnungen, die Demo-Projekten zugewiesen oder von Demo-Nutzern angelegt wurden
+  await entferne("incoming_invoices", "project_id", alteProjektIds);
+  await entferne("incoming_invoices", "erstellt_von", alteNutzerIds);
+  await entferne("incoming_invoices", "bearbeitet_von", alteNutzerIds);
   // Berichte und Chat zuerst (Nachrichten verweisen auf Fotos und Dateien der Ablage)
   await entferne("project_reports", "project_id", alteProjektIds);
   await entferne("project_reports", "erstellt_von", alteNutzerIds);

@@ -10,6 +10,7 @@ import {
   FileStackIcon,
   FileTextIcon,
   HashIcon,
+  InboxIcon,
   PlugIcon,
   RulerIcon,
   ShieldCheckIcon,
@@ -32,6 +33,7 @@ const GRUPPEN: { titel: string; eintraege: Eintrag[] }[] = [
       { href: "/buero/einstellungen/rollen", name: "Rollen & Zugriffsrechte", icon: ShieldCheckIcon },
       { href: "/buero/einstellungen/projektstatus", name: "Projektstatus", icon: TagsIcon },
       { href: "/buero/einstellungen/lexware", name: "Schnittstellen", icon: PlugIcon },
+      { href: "/buero/einstellungen/postfach", name: "Postfach für Rechnungen", icon: InboxIcon },
     ],
   },
   {

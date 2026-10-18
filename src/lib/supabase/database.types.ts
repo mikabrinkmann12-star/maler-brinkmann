@@ -484,6 +484,128 @@ export type Database = {
           },
         ]
       }
+      incoming_invoices: {
+        Row: {
+          absender: string | null
+          archiviert_am: string | null
+          bearbeitet_von: string | null
+          bereich: string | null
+          bezahlt_am: string | null
+          brutto: number | null
+          contact_id: string | null
+          created_at: string
+          datei_hash: string | null
+          dateiname: string
+          erkannt_aus: string | null
+          erstellt_von: string | null
+          faellig_am: string | null
+          groesse_bytes: number | null
+          iban: string | null
+          id: string
+          lieferant: string
+          mime: string | null
+          netto: number | null
+          notiz: string | null
+          project_id: string | null
+          quelle: string
+          rechnungsdatum: string | null
+          rechnungsnummer: string | null
+          storage_pfad: string
+          updated_at: string
+          zahlstatus: string
+          zu_pruefen: boolean
+        }
+        Insert: {
+          absender?: string | null
+          archiviert_am?: string | null
+          bearbeitet_von?: string | null
+          bereich?: string | null
+          bezahlt_am?: string | null
+          brutto?: number | null
+          contact_id?: string | null
+          created_at?: string
+          datei_hash?: string | null
+          dateiname: string
+          erkannt_aus?: string | null
+          erstellt_von?: string | null
+          faellig_am?: string | null
+          groesse_bytes?: number | null
+          iban?: string | null
+          id?: string
+          lieferant?: string
+          mime?: string | null
+          netto?: number | null
+          notiz?: string | null
+          project_id?: string | null
+          quelle?: string
+          rechnungsdatum?: string | null
+          rechnungsnummer?: string | null
+          storage_pfad: string
+          updated_at?: string
+          zahlstatus?: string
+          zu_pruefen?: boolean
+        }
+        Update: {
+          absender?: string | null
+          archiviert_am?: string | null
+          bearbeitet_von?: string | null
+          bereich?: string | null
+          bezahlt_am?: string | null
+          brutto?: number | null
+          contact_id?: string | null
+          created_at?: string
+          datei_hash?: string | null
+          dateiname?: string
+          erkannt_aus?: string | null
+          erstellt_von?: string | null
+          faellig_am?: string | null
+          groesse_bytes?: number | null
+          iban?: string | null
+          id?: string
+          lieferant?: string
+          mime?: string | null
+          netto?: number | null
+          notiz?: string | null
+          project_id?: string | null
+          quelle?: string
+          rechnungsdatum?: string | null
+          rechnungsnummer?: string | null
+          storage_pfad?: string
+          updated_at?: string
+          zahlstatus?: string
+          zu_pruefen?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "incoming_invoices_bearbeitet_von_fkey"
+            columns: ["bearbeitet_von"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "incoming_invoices_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "incoming_invoices_erstellt_von_fkey"
+            columns: ["erstellt_von"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "incoming_invoices_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoice_items: {
         Row: {
           created_at: string

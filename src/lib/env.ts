@@ -46,3 +46,19 @@ export function smtpKonfiguration(): SmtpKonfiguration | null {
   if (!host || !user || !password || !Number.isInteger(port) || port < 1 || port > 65535) return null;
   return { host, port, user, password, von: process.env.SMTP_FROM?.trim() || user };
 }
+
+export type ImapKonfiguration = { host: string; port: number; user: string; password: string; ordner: string };
+
+/**
+ * Zugang zum Postfach, aus dem Eingangsrechnungen abgeholt werden (nur serverseitig). Fehlt etwas, ist der Abruf „nicht eingerichtet“.
+ * Variablen: IMAP_HOST, IMAP_PORT (Standard 993), IMAP_USER, IMAP_PASSWORD, optional IMAP_ORDNER (Standard INBOX).
+ * Am besten ein eigenes Postfach oder ein eigener Ordner nur für Rechnungen: Gelesen werden nur ungelesene Mails, danach gelten sie als gelesen.
+ */
+export function imapKonfiguration(): ImapKonfiguration | null {
+  const host = process.env.IMAP_HOST?.trim();
+  const user = process.env.IMAP_USER?.trim();
+  const password = process.env.IMAP_PASSWORD;
+  const port = Number(process.env.IMAP_PORT ?? "993");
+  if (!host || !user || !password || !Number.isInteger(port) || port < 1 || port > 65535) return null;
+  return { host, port, user, password, ordner: process.env.IMAP_ORDNER?.trim() || "INBOX" };
+}

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { cookies } from "next/headers";
 import type { ReactNode } from "react";
-import { CalendarDaysIcon, ChevronRightIcon, FileTextIcon, MessageCircleIcon, PalmtreeIcon, ReceiptTextIcon, TruckIcon } from "lucide-react";
+import { CalendarDaysIcon, ChevronRightIcon, FileTextIcon, InboxIcon, MessageCircleIcon, PalmtreeIcon, ReceiptTextIcon, TruckIcon } from "lucide-react";
 import { StatusPille } from "@/components/status-pille";
 import { requireRole } from "@/lib/auth";
 import { FORDERUNGS_STANDARD, istForderungsZeitraum } from "@/lib/dashboard";
@@ -65,6 +65,7 @@ export default async function BueroUebersicht({ searchParams }: PageProps<"/buer
     { href: "/buero/projekte", icon: MessageCircleIcon, text: `Neue Chat-Nachrichten${d.aufgaben.chat.projekte > 1 ? ` in ${d.aufgaben.chat.projekte} Projekten` : ""}`, zahl: d.aufgaben.chat.nachrichten },
     { href: "/buero/rechnungen?status=entwurf", icon: ReceiptTextIcon, text: "Rechnungsentwürfe", zahl: d.rechnungen.entwuerfe },
     { href: "/buero/angebote?status=entwurf", icon: FileTextIcon, text: "Angebotsentwürfe", zahl: d.angebote.entwuerfe },
+    { href: "/buero/eingangsrechnungen?tab=pruefen", icon: InboxIcon, text: "Eingangsrechnungen zu prüfen", zahl: d.aufgaben.eingangPruefen },
   ].filter((a) => a.zahl > 0);
 
   const f = d.rechnungen.forderungen;

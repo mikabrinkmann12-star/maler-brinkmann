@@ -11,6 +11,7 @@ import {
   FolderIcon,
   HouseIcon,
   LayersIcon,
+  InboxIcon,
   PlusIcon,
   ReceiptTextIcon,
   UsersIcon,
@@ -29,13 +30,14 @@ type Eintrag = {
   auch?: string[];
 };
 
-// Reihenfolge wie in Plancraft: Übersicht, Plantafel („Einteilung“), Projekte, Angebote, Rechnungen, Zeiten, Stammdaten, Kontakte.
+// Reihenfolge wie in Plancraft: Übersicht, Plantafel („Einteilung“), Projekte, Angebote, Ausgangs- und Eingangsrechnungen, Zeiten, Stammdaten, Kontakte.
 const EINTRAEGE: Eintrag[] = [
   { href: "/buero", name: "Übersicht", icon: HouseIcon },
   { href: "/buero/plantafel", name: "Einteilung", icon: CalendarDaysIcon },
   { href: "/buero/projekte", name: "Projekte", icon: FolderIcon, plus: { href: "/buero/projekte/neu", titel: "Neues Projekt" } },
   { href: "/buero/angebote", name: "Angebote", icon: FileTextIcon },
-  { href: "/buero/rechnungen", name: "Rechnungen", icon: ReceiptTextIcon },
+  { href: "/buero/rechnungen", name: "Ausgangsrechnungen", icon: ReceiptTextIcon },
+  { href: "/buero/eingangsrechnungen", name: "Eingangsrechnungen", icon: InboxIcon },
   { href: "/buero/zeiten", name: "Zeiten", icon: ClockIcon, plus: { href: "/buero/zeiten/neu", titel: "Neue Zeit" }, auch: ["/buero/urlaub"] },
   { href: "/buero/katalog", name: "Stammdaten", icon: LayersIcon, neu: true },
   { href: "/buero/kontakte", name: "Kontakte", icon: UsersIcon, plus: { href: "/buero/kontakte/neu", titel: "Neuer Kontakt" } },

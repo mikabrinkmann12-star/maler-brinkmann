@@ -33,7 +33,7 @@ Diese Datei ist die Sammlung; der Umbau wird abgehakt unter „Umgesetzt“.
 - Spalten: Auswahlkästchen, Re.-Nr., Rechnung (Name, darunter Art: Rechnung / Schlussrechnung / 3. Abschlagsrechnung), Empfänger, Datum, Status (Offen blau, Bezahlt grün, Überfällig gelb), Fällig („8 Tage“, „-1 Tag“ rot), Betrag €, Offen € (rot bei überfällig). Unten Summen und „Bezahlt“.
 
 ## Eingangsrechnungen
-- Reiter „Alle Rechnungen“ / „Zu prüfen (7)“, Knopf „Rechnung hinzufügen“ (grün), Hinweis „36 / 50 KI-Scans verfügbar“ + „Upgraden“. Spalten: Lieferant, Re.-Nr., Re.-Datum, Betrag (netto), Kostenzuweisung, Zahlstatus, Hochgeladen (Datum + wer). **Bei uns nicht geplant** (Buchhaltung bleibt in Lexware); nur zur Info.
+- Reiter „Alle Rechnungen“ / „Zu prüfen (7)“, Knopf „Rechnung hinzufügen“ (grün), Hinweis „36 / 50 KI-Scans verfügbar“ + „Upgraden“. Spalten: Lieferant, Re.-Nr., Re.-Datum, Betrag (netto), Kostenzuweisung, Zahlstatus, Hochgeladen (Datum + wer). **Gebaut am 18.10.2026** (Mika wünscht es, ohne KI-Scans: automatisches Auslesen von E-Rechnung/PDF-Text, E-Mail-Abruf); die Buchhaltung bleibt in Lexware.
 
 ## Einstellungen (Seitenleiste der Einstellungen)
 - Gruppen: Unternehmen (Mitarbeiter, Unternehmen, Vertrag, Arbeitszeiten, Feiertage, Rollen & Zugriffsrechte, Schnittstellen, KI-Empfang), Layout & Textvorlagen (Briefpapier, Anfangs- & Schlusstexte, Berichtsvorlagen, Ablage, Automatische Anhänge, Dateinamen, E-Mail Versand), Buchhaltung & Rechnungswesen (Nummernkreise, Zahlungsziel & Skonto, Lohnkostenanteil ausweisen, Bezahlcode, Mahnungen, Abschlagsrechnungen), Kalkulation (Lohngruppen, Zuschläge, Einheiten).
@@ -80,7 +80,7 @@ Diese Datei ist die Sammlung; der Umbau wird abgehakt unter „Umgesetzt“.
 - **Mahnungen:** Zahlungserinnerung (Zahlungsziel 7 Tage), 1. Mahnung (7 Tage, Verzugszinsen 0 %, Gebühr 3,00 €), 2. Mahnung (letzte, ebenso). **Lohngruppen** (Name, Lohnkosten EK, Verrechnungssatz, freigeschaltet für Kalkulation/Nachkalkulation, Mitarbeiter-Kreise). **Zuschläge** (siehe oben). **Schnittstellen:** Eingangsrechnungen per E-Mail hochladen (E-Mail generieren). Vertrag & Abo, KI-Telefon: bei uns nicht geplant.
 
 ## Eingangsrechnungen (nur zur Info)
-- Filter Zeitraum, **Zuweisung** (Suche; „Letzte Projekte“, „Betriebsbereiche“: Lager, Büro, Mitarbeiter), Zuweisungsstatus (Vollständig / Teilweise / Nicht zugewiesen mit Punkt), Zahlstatus; Zahlstatus-Pille zum Ändern; gelbes Symbol „zu prüfen“. Nicht im Plan (Buchhaltung bleibt in Lexware).
+- Filter Zeitraum, **Zuweisung** (Suche; „Letzte Projekte“, „Betriebsbereiche“: Lager, Büro, Mitarbeiter), Zuweisungsstatus (Vollständig / Teilweise / Nicht zugewiesen mit Punkt), Zahlstatus; Zahlstatus-Pille zum Ändern; gelbes Symbol „zu prüfen“. Gebaut, siehe CLAUDE.md.
 
 ## Im Video NICHT gesehen (bitte nachliefern, wenn es genau so werden soll)
 Projekt-Detailseite (Kacheln, Dokumente, Zeiten, Chat, Berichte, Ablage), Angebots-Editor (Positionen, Titel, Rechner, KI-Eingabe), „Neue Zeit“-Dialog, Plantafel ausführlich (Woche, Zuweisen, Hover-Plus), Mitarbeiter-App (Handy).

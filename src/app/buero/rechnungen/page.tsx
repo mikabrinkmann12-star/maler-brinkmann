@@ -22,7 +22,7 @@ import { rechnungenLaden } from "@/lib/rechnung-daten";
 import { BUERO_ROLLEN } from "@/lib/rollen";
 import { istTag } from "@/lib/zeitraum";
 
-export const metadata: Metadata = { title: "Rechnungen" };
+export const metadata: Metadata = { title: "Ausgangsrechnungen" };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const FILTER_STATUS: RechnungAnzeigeStatus[] = ["entwurf", "offen", "ueberfaellig", "angemahnt", "bezahlt", "storniert"];
@@ -59,7 +59,7 @@ export default async function RechnungsListe({ searchParams }: PageProps<"/buero
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h1 className="text-xl font-semibold">Rechnungen</h1>
+        <h1 className="text-xl font-semibold">Ausgangsrechnungen</h1>
         <p className="mt-0.5 text-xs text-muted-foreground">
           Eine Rechnung entsteht aus einem Angebot („Rechnung erstellen“ im Angebot). Nummer und Datei kommen von Lexware Office, Status und Fälligkeit vom letzten Abgleich.
         </p>
