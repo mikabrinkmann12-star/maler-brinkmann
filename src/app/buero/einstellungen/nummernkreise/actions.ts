@@ -2,17 +2,17 @@
 
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth";
-import { laufendeNummer } from "@/lib/projektnummer";
+import { PROJEKT_START_STANDARD, laufendeNummer } from "@/lib/projektnummer";
 import { createClient } from "@/lib/supabase/server";
 
 export type NummernkreisZustand = { fehler?: string; gespeichert?: number };
 
-/** Startwert der Projektnummern speichern (nur Admin). Eingabe: „512“ oder „P-(2600)512“. */
+/** Startwert der Projektnummern speichern (nur Admin). Eingabe: „602“ oder „P-(2400)602“; leer = Standard. */
 export async function nummernkreisSpeichern(_vorher: NummernkreisZustand, formData: FormData): Promise<NummernkreisZustand> {
   const admin = await requireRole(["admin"]);
   const roh = String(formData.get("projekt_start") ?? "").trim();
-  const nummer = roh === "" ? 0 : laufendeNummer(roh);
-  if (nummer === null) return { fehler: "Bitte die Nummer eingeben, z. B. 512 oder P-(2600)512." };
+  const nummer = roh === "" ? PROJEKT_START_STANDARD : laufendeNummer(roh);
+  if (nummer === null) return { fehler: "Bitte die Nummer eingeben, z. B. 602 oder P-(2400)602." };
 
   const supabase = await createClient();
   const { error } = await supabase

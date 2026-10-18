@@ -1,5 +1,4 @@
 import "server-only";
-import { heuteIso } from "@/lib/datum";
 import { naechsteKundennummer } from "@/lib/kundennummer";
 import { createClient } from "@/lib/supabase/server";
 
@@ -16,5 +15,5 @@ export async function kundennummerVorschlag(): Promise<string> {
     nummern.push(...data.map((k) => k.kundennummer));
     if (data.length < 1000) break;
   }
-  return naechsteKundennummer(nummern, Number(heuteIso().slice(0, 4)));
+  return naechsteKundennummer(nummern);
 }

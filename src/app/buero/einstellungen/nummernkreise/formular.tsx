@@ -20,10 +20,10 @@ export function NummernkreisFormular({ start, vorschlag }: { start: number; vors
       <Feld
         label="Höchste Projektnummer in Plancraft"
         htmlFor="projekt_start"
-        hinweis={<>Nur die laufende Nummer zählt (bei P-(2400)447 ist das 447). Leer = unbekannt. Der nächste Vorschlag ist dann <strong>{vorschlag}</strong>.</>}
+        hinweis={<>Nur die laufende Nummer zählt (bei P-(2400)447 ist das 447). Leer = Standard 602 (Plancraft, Stand 18.10.2026). Der nächste Vorschlag ist dann <strong>{vorschlag}</strong>.</>}
       >
         <Input id="projekt_start" name="projekt_start" defaultValue={start ? String(start) : ""} inputMode="numeric"
-          placeholder="z. B. 512 oder P-(2600)512" className="h-12 max-w-xs text-base" />
+          placeholder="z. B. 602 oder P-(2400)602" className="h-12 max-w-xs text-base" />
       </Feld>
       <div className="flex items-center gap-3">
         <Button type="submit" size="touch" disabled={laeuft}>{laeuft ? "Speichern …" : "Speichern"}</Button>
