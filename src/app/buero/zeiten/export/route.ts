@@ -1,13 +1,13 @@
 import { requireRole } from "@/lib/auth";
 import { istMonat } from "@/lib/datum";
 import { BUERO_ROLLEN } from "@/lib/rollen";
+import { istZeitArt } from "@/lib/zeiten";
 import {
-  eintraegeFiltern,
   eintraegeSortieren,
   einzelCsv,
-  filterLesen,
   summenCsv,
   summenJePerson,
+  zeitenFiltern,
 } from "@/lib/zeiten-auswertung";
 import { bueroPersonen, monatsEintraege, personenNamen } from "@/lib/zeiten-buero-daten";
 
@@ -24,15 +24,18 @@ export async function GET(anfrage: Request) {
   const monat = url.searchParams.get("monat");
   if (!istMonat(monat)) return new Response("Bitte einen Monat angeben (JJJJ-MM).", { status: 400 });
   const typ = url.searchParams.get("typ") === "einzeln" ? "einzeln" : "summen";
-  const filter = filterLesen({
-    person: url.searchParams.get("person"),
-    projekt: url.searchParams.get("projekt"),
-    art: url.searchParams.get("art"),
-  });
+  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const liste = (n: string) => (url.searchParams.get(n) ?? "").split(",").filter(Boolean);
+  const filter = {
+    personIds: liste("person").filter((x) => uuid.test(x)),
+    projektIds: liste("projekt").filter((x) => uuid.test(x)),
+    arten: liste("art").filter(istZeitArt),
+    q: url.searchParams.get("q") ?? "",
+  };
 
   const [personen, alle] = await Promise.all([bueroPersonen(), monatsEintraege(monat)]);
   const namen = personenNamen(personen);
-  const eintraege = eintraegeFiltern(alle, filter);
+  const eintraege = zeitenFiltern(alle, filter, namen);
   const csv =
     typ === "einzeln"
       ? einzelCsv(eintraegeSortieren(eintraege, namen), namen)

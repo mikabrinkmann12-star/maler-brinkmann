@@ -104,11 +104,12 @@ export function AdressFelder({ werte, onChange }: { werte: AdressWerte; onChange
             autoComplete="off"
             role="combobox"
             aria-expanded={offen}
+            aria-controls="adress-vorschlaege"
             aria-autocomplete="list"
             className={EINGABE}
           />
           {offen && (
-            <ul role="listbox" className="absolute top-full left-0 z-40 mt-1 w-[min(26rem,90vw)] overflow-hidden rounded-md border bg-popover p-1 shadow-lg">
+            <ul id="adress-vorschlaege" role="listbox" className="absolute top-full left-0 z-40 mt-1 w-[min(26rem,90vw)] overflow-hidden rounded-md border bg-popover p-1 shadow-lg">
               {vorschlaege.map((v, i) => (
                 <li key={v.label} role="option" aria-selected={i === aktiv}>
                   <button

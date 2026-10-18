@@ -11,7 +11,6 @@ import {
   LayersIcon,
   PlusIcon,
   ReceiptTextIcon,
-  TreePalmIcon,
   UsersIcon,
 } from "lucide-react";
 import { cn } from "cn";
@@ -23,6 +22,8 @@ type Eintrag = {
   /** Kleines „+“ rechts beim Darüberfahren (wie in Plancraft): legt direkt etwas Neues an. */
   plus?: { href: string; titel: string };
   neu?: boolean;
+  /** Weitere Pfade, bei denen der Eintrag als aktiv gilt (z. B. Urlaubsanträge gehören zu „Zeiten“). */
+  auch?: string[];
 };
 
 // Reihenfolge wie in Plancraft: Übersicht, Plantafel („Einteilung“), Projekte, Angebote, Rechnungen, Zeiten, Stammdaten, Kontakte.
@@ -32,8 +33,7 @@ const EINTRAEGE: Eintrag[] = [
   { href: "/buero/projekte", name: "Projekte", icon: FolderIcon, plus: { href: "/buero/projekte/neu", titel: "Neues Projekt" } },
   { href: "/buero/angebote", name: "Angebote", icon: FileTextIcon },
   { href: "/buero/rechnungen", name: "Rechnungen", icon: ReceiptTextIcon },
-  { href: "/buero/zeiten", name: "Zeiten", icon: ClockIcon, plus: { href: "/buero/zeiten/neu", titel: "Neue Zeit" } },
-  { href: "/buero/urlaub", name: "Urlaub", icon: TreePalmIcon },
+  { href: "/buero/zeiten", name: "Zeiten", icon: ClockIcon, plus: { href: "/buero/zeiten/neu", titel: "Neue Zeit" }, auch: ["/buero/urlaub"] },
   { href: "/buero/katalog", name: "Stammdaten", icon: LayersIcon, neu: true },
   { href: "/buero/kontakte", name: "Kontakte", icon: UsersIcon, plus: { href: "/buero/kontakte/neu", titel: "Neuer Kontakt" } },
 ];
@@ -54,8 +54,11 @@ export function BueroNavigation({
   return (
     <nav aria-label="Büro-Navigation">
       <ul className="flex flex-col gap-0.5">
-        {EINTRAEGE.map(({ href, name, icon: Icon, plus, neu }) => {
-          const aktiv = href === "/buero" ? pfad === href : pfad === href || pfad.startsWith(`${href}/`);
+        {EINTRAEGE.map(({ href, name, icon: Icon, plus, neu, auch = [] }) => {
+          const aktiv =
+            href === "/buero"
+              ? pfad === href
+              : [href, ...auch].some((h) => pfad === h || pfad.startsWith(`${h}/`));
           return (
             <li key={href} className="group/eintrag relative">
               <Link

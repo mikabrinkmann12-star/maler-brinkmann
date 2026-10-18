@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bearbeitetText, personKreis, zeitraumText } from "./listen-anzeige";
+import { bearbeitetText, personKreis, stundenHM, wochentagName, zeitraumText } from "./listen-anzeige";
 
 describe("zeitraumText (wie in der Plancraft-Projektliste)", () => {
   it("einzelne und fehlende Daten", () => {
@@ -32,5 +32,16 @@ describe("personKreis", () => {
     expect(personKreis("Cher").initialen).toBe("C");
     expect(personKreis("Ralf Brinkmann").farbe).toBe(personKreis("Ralf Brinkmann").farbe);
     expect(personKreis("").initialen).toBe("?");
+  });
+});
+
+describe("stundenHM und wochentagName", () => {
+  it("Stunden ohne Einheit, Wochentage ausgeschrieben", () => {
+    expect(stundenHM(8.5)).toBe("8:30");
+    expect(stundenHM(294.75)).toBe("294:45");
+    expect(stundenHM(0)).toBe("-");
+    expect(stundenHM(null)).toBe("-");
+    expect(wochentagName("2026-10-16")).toBe("Freitag");
+    expect(wochentagName("2026-10-31")).toBe("Samstag");
   });
 });

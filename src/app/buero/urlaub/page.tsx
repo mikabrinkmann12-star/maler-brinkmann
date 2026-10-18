@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { cn } from "cn";
 import { UrlaubskontoAnzeige } from "@/components/urlaubskonto-anzeige";
+import { ZeitenTabs } from "@/components/zeiten/zeiten-tabs";
 import { requireRole } from "@/lib/auth";
 import { heuteIso, tageVerschieben } from "@/lib/datum";
 import { formatDatum, formatDatumZeit, formatStunden, formatStundenSaldo } from "@/lib/format";
@@ -11,7 +12,7 @@ import { kontenLaden } from "@/lib/ueberstunden-daten";
 import { URLAUB_ART_NAMEN, URLAUB_STATUS_FARBE, URLAUB_STATUS_NAMEN, urlaubskonto, werktage, type UrlaubArt } from "@/lib/urlaub";
 import { Entscheidung } from "./entscheidung";
 
-export const metadata: Metadata = { title: "Urlaub" };
+export const metadata: Metadata = { title: "Zeiten – Urlaubsanträge" };
 
 export default async function BueroUrlaubSeite() {
   const nutzer = await requireRole(BUERO_ROLLEN);
@@ -92,7 +93,8 @@ export default async function BueroUrlaubSeite() {
 
   return (
     <div className="flex max-w-3xl flex-col gap-6">
-      <h1 className="text-2xl font-semibold">Urlaub</h1>
+      <h1 className="text-xl font-semibold">Zeiten</h1>
+      <ZeitenTabs aktiv="urlaub" offeneAntraege={offen.length} />
       {!istAdmin && (
         <p className="rounded-lg bg-muted p-3 text-sm">Urlaubsanträge genehmigt nur der Admin. Du siehst hier alle Anträge.</p>
       )}

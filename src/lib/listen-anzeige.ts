@@ -39,3 +39,17 @@ export function personKreis(name: string): { initialen: string; farbe: string } 
   for (const z of name) summe += z.charCodeAt(0);
   return { initialen, farbe: KREIS_FARBEN[summe % KREIS_FARBEN.length] };
 }
+
+/** Stunden als „8:30“ (ohne Einheit, wie in Plancraft-Tabellen); 0 oder fehlend als „-“. */
+export function stundenHM(stunden: number | null | undefined): string {
+  if (!stunden || stunden <= 0) return "-";
+  const minuten = Math.round(stunden * 60);
+  return `${Math.floor(minuten / 60)}:${String(minuten % 60).padStart(2, "0")}`;
+}
+
+const WOCHENTAG_LANG = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
+
+/** Voller Wochentag zu einem Tag („2026-10-16“ → „Freitag“). */
+export function wochentagName(tag: string): string {
+  return WOCHENTAG_LANG[new Date(`${tag}T12:00:00Z`).getUTCDay()];
+}
