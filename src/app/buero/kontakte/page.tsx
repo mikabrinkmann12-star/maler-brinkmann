@@ -1,40 +1,56 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BuildingIcon, ChevronLeftIcon, ChevronRightIcon, PlusIcon, SearchIcon, UploadIcon, UserIcon } from "lucide-react";
+import { ArrowDownIcon, ArrowUpIcon, BuildingIcon, ChevronLeftIcon, ChevronRightIcon, PlusIcon, UploadIcon, UserIcon } from "lucide-react";
 import { cn } from "cn";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { requireRole } from "@/lib/auth";
-import { formatDatum } from "@/lib/format";
+import { kontaktFarbwert, istKontaktFarbe } from "@/lib/kontakt-farben";
 import {
   fehltAngabe,
   istFehlt,
-  istSortierung,
   kontakteSortieren,
   orteMitAnzahl,
   type Fehlt,
   type ListenKontakt,
   type Sortierung,
 } from "@/lib/kontakt-liste";
-import { kontaktAnzeigename } from "@/lib/kontakt-schema";
+import { bearbeitetText } from "@/lib/listen-anzeige";
+import { kollegenLaden } from "@/lib/mitarbeiter-daten";
 import { BUERO_ROLLEN } from "@/lib/rollen";
 import { suchtext } from "@/lib/suche";
 import { createClient } from "@/lib/supabase/server";
-import { Filterleiste } from "./filterleiste";
+import { KontakteFilter } from "./kontakte-filter";
+import { ZeilenPapierkorb } from "./zeilen-papierkorb";
 
 export const metadata: Metadata = { title: "Kontakte" };
 
 const PRO_SEITE = 100;
-const SPALTEN = "id, kundennummer, typ, firmenname, vorname, nachname, strasse, plz, ort, telefon, mobil, email, created_at, updated_at";
+const SPALTEN = "id, kundennummer, typ, firmenname, vorname, nachname, strasse, plz, ort, telefon, mobil, email, farbe, bearbeitet_von, created_at, updated_at";
+
+type SortSpalte = "name" | "nummer" | "bearbeitet";
+const SORT_SPALTEN: { id: SortSpalte; text: string; klasse?: string }[] = [
+  { id: "name", text: "Name" },
+  { id: "nummer", text: "Nummer", klasse: "hidden sm:table-cell" },
+  { id: "bearbeitet", text: "Bearbeitet", klasse: "hidden md:table-cell" },
+];
+
+function sortierungFuer(spalte: SortSpalte, absteigend: boolean): Sortierung {
+  if (spalte === "name") return absteigend ? "name_ab" : "name_auf";
+  if (spalte === "nummer") return absteigend ? "nummer_ab" : "nummer_auf";
+  return absteigend ? "geaendert_neu" : "geaendert_alt";
+}
 
 export default async function KontakteSeite({ searchParams }: PageProps<"/buero/kontakte">) {
   const nutzer = await requireRole(BUERO_ROLLEN);
   const params = await searchParams;
   const wert = (n: string) => (typeof params[n] === "string" ? (params[n] as string) : "");
   const q = suchtext(wert("q"));
-  const typ: "privat" | "firma" | "alle" = wert("typ") === "privat" ? "privat" : wert("typ") === "firma" ? "firma" : "alle";
+  const typen = wert("typ").split(",").filter((t): t is "privat" | "firma" => t === "privat" || t === "firma");
+  const farben = wert("farbe").split(",").filter(istKontaktFarbe);
+  const gewaehlteOrte = wert("ort").split("|").map((o) => o.trim()).filter(Boolean);
   const archiv = wert("archiv") === "1";
-  const sortierung: Sortierung = istSortierung(wert("sortierung")) ? (wert("sortierung") as Sortierung) : "name_auf";
-  const ort = wert("ort");
+  const sort: SortSpalte = wert("sort") === "nummer" || wert("sort") === "bearbeitet" ? (wert("sort") as SortSpalte) : "name";
+  const absteigend = wert("dir") ? wert("dir") === "ab" : sort === "bearbeitet";
   const fehlt: Fehlt | "" = istFehlt(wert("fehlt")) ? (wert("fehlt") as Fehlt) : "";
   const seite = Math.max(1, Number.parseInt(wert("seite"), 10) || 1);
 
@@ -43,7 +59,8 @@ export default async function KontakteSeite({ searchParams }: PageProps<"/buero/
   const baue = () => {
     let a = supabase.from("contacts").select(SPALTEN);
     a = archiv ? a.not("archiviert_am", "is", null) : a.is("archiviert_am", null);
-    if (typ !== "alle") a = a.eq("typ", typ);
+    if (typen.length === 1) a = a.eq("typ", typen[0]);
+    if (farben.length) a = a.in("farbe", farben);
     if (q) {
       const felder = ["firmenname", "vorname", "nachname", "kundennummer", "strasse", "plz", "ort", "telefon", "mobil", "email"];
       a = a.or(felder.map((f) => `${f}.ilike.%${q}%`).join(","));
@@ -57,113 +74,115 @@ export default async function KontakteSeite({ searchParams }: PageProps<"/buero/
     geladen.push(...data);
     if (data.length < 1000) break;
   }
+  const kollegen = await kollegenLaden();
+  const bearbeiter = (id: string | null | undefined) => {
+    const k = id ? kollegen.get(id) : null;
+    return k ? `${k.vorname} ${k.nachname}`.trim() : "";
+  };
 
   const orte = orteMitAnzahl(geladen);
-  const gefiltert = geladen.filter((k) => (!ort || k.ort?.trim() === ort) && (!fehlt || fehltAngabe(k, fehlt)));
-  const sortiert = kontakteSortieren(gefiltert, sortierung);
+  const gefiltert = geladen.filter(
+    (k) => (!gewaehlteOrte.length || gewaehlteOrte.includes(k.ort?.trim() ?? "")) && (!fehlt || fehltAngabe(k, fehlt)),
+  );
+  const sortiert = kontakteSortieren(gefiltert, sortierungFuer(sort, absteigend));
   const seiten = Math.max(1, Math.ceil(sortiert.length / PRO_SEITE));
   const aktuelleSeite = Math.min(seite, seiten);
   const kontakte = sortiert.slice((aktuelleSeite - 1) * PRO_SEITE, aktuelleSeite * PRO_SEITE);
 
-  const adresse = (teil: Record<string, string | undefined>) => {
+  /** Adresse mit denselben Filtern, aber anderer Sortierung oder Seite. */
+  const adresse = (teil: Record<string, string>) => {
     const p = new URLSearchParams();
-    const alle = { q, typ: typ === "alle" ? "" : typ, archiv: archiv ? "1" : "", sortierung: sortierung === "name_auf" ? "" : sortierung, ort, fehlt, ...teil };
-    for (const [k, v] of Object.entries(alle)) if (v) p.set(k, v);
+    for (const [k, v] of Object.entries(params)) if (typeof v === "string" && v) p.set(k, v);
+    for (const [k, v] of Object.entries(teil)) {
+      if (v) p.set(k, v);
+      else p.delete(k);
+    }
     return `/buero/kontakte${p.size ? `?${p}` : ""}`;
   };
-  const zeigDatum = sortierung.startsWith("angelegt") ? "created_at" : "updated_at";
+  const sortAdresse = (spalte: SortSpalte) =>
+    adresse({ sort: spalte, dir: sort === spalte ? (absteigend ? "auf" : "ab") : "auf", seite: "" });
 
   return (
-    <div className="flex max-w-4xl flex-col gap-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold">Kontakte</h1>
-          <p className="text-sm text-muted-foreground">
-            {sortiert.length} {archiv ? "archivierte " : ""}Kontakte{q && ` für „${q}“`}{ort && ` in ${ort}`}
-          </p>
-        </div>
-        <div className="flex gap-2">
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-xl font-semibold">Kontakte</h1>
+        <div className="flex items-center gap-2">
           {nutzer.rolle === "admin" && (
-            <Link href="/buero/kontakte/import" className={buttonVariants({ variant: "outline", size: "lg" })}>
-              <UploadIcon /> Import
+            <Link href="/buero/kontakte/import" className={buttonVariants({ variant: "outline", className: "h-8 px-3 text-[13px]" })}>
+              <UploadIcon className="size-3.5" /> Import
             </Link>
           )}
-          <Link href="/buero/kontakte/neu" className={buttonVariants({ size: "lg" })}>
-            <PlusIcon /> Neuer Kontakt
+          <Link href="/buero/kontakte/neu" className={buttonVariants({ className: "h-8 px-3 text-[13px]" })}>
+            <PlusIcon className="size-3.5 sm:hidden" /> Neuer Kontakt
           </Link>
         </div>
       </div>
 
-      <form className="flex flex-wrap items-center gap-2" role="search">
-        <div className="relative min-w-60 flex-1">
-          <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-          <input name="q" defaultValue={q} placeholder="Name, Ort, Kundennummer, Telefon …" aria-label="Suchen"
-            className="h-11 w-full rounded-lg border border-input bg-transparent pr-3 pl-9 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50" />
+      <KontakteFilter archiv={archiv} q={q} farben={farben} typen={typen} orte={orte} gewaehlteOrte={gewaehlteOrte} fehlt={fehlt} />
+
+      <div className="overflow-hidden rounded-lg border bg-white">
+        <table className="w-full border-collapse text-[13px]">
+          <thead>
+            <tr className="border-b text-left text-xs font-semibold">
+              <th className="w-12 px-3 py-2.5">Typ</th>
+              {SORT_SPALTEN.map((s) => (
+                <th key={s.id} className={cn("px-3 py-2.5 font-semibold", s.klasse)}>
+                  <Link href={sortAdresse(s.id)} className="inline-flex items-center gap-1 hover:text-foreground">
+                    {s.text}
+                    {sort === s.id && (absteigend ? <ArrowDownIcon className="size-3" /> : <ArrowUpIcon className="size-3" />)}
+                  </Link>
+                </th>
+              ))}
+              <th className="w-10" />
+            </tr>
+          </thead>
+          <tbody>
+            {kontakte.length === 0 && <tr><td colSpan={5} className="px-3 py-10 text-center text-muted-foreground">Keine Kontakte gefunden.</td></tr>}
+            {kontakte.map((k) => {
+              const Icon = k.typ === "firma" ? BuildingIcon : UserIcon;
+              const wer = bearbeiter(k.bearbeitet_von);
+              return (
+                <tr key={k.id} className="relative border-b last:border-b-0 hover:bg-muted/40">
+                  <td className="px-3 py-2.5">
+                    <Icon className="size-4" style={{ color: kontaktFarbwert(k.farbe) }} aria-label={k.typ === "firma" ? "Firma" : "Person"} />
+                  </td>
+                  <td className="px-3 py-2.5">
+                    <Link href={`/buero/kontakte/${k.id}`} className="block truncate after:absolute after:inset-0 after:content-['']">
+                      {k.firmenname?.trim() ? (
+                        <span className="font-semibold">{k.firmenname}</span>
+                      ) : (
+                        <>
+                          {k.vorname} <span className="font-semibold">{k.nachname || (!k.vorname && "Ohne Namen")}</span>
+                        </>
+                      )}
+                    </Link>
+                  </td>
+                  <td className="hidden px-3 py-2.5 whitespace-nowrap text-muted-foreground sm:table-cell">{k.kundennummer || "–"}</td>
+                  <td className="hidden px-3 py-2.5 whitespace-nowrap md:table-cell">
+                    <span className="block">{bearbeitetText(k.updated_at)}</span>
+                    {wer && <span className="block text-xs text-muted-foreground">{wer}</span>}
+                  </td>
+                  <td className="relative z-10 px-2 py-2.5"><ZeilenPapierkorb id={k.id} archiviert={archiv} /></td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        <div className="flex items-center justify-between gap-3 border-t px-3 py-2 text-xs text-muted-foreground">
+          <span>{sortiert.length} {sortiert.length === 1 ? "Kontakt" : "Kontakte"}</span>
+          {seiten > 1 && (
+            <nav className="flex items-center gap-2" aria-label="Seiten">
+              <Link href={adresse({ seite: aktuelleSeite > 2 ? String(aktuelleSeite - 1) : "" })} aria-disabled={aktuelleSeite === 1} aria-label="Vorherige Seite" className={cn("rounded p-1 hover:bg-muted", aktuelleSeite === 1 && "pointer-events-none opacity-40")}>
+                <ChevronLeftIcon className="size-4" />
+              </Link>
+              <span>Seite {aktuelleSeite} von {seiten}</span>
+              <Link href={adresse({ seite: String(aktuelleSeite + 1) })} aria-disabled={aktuelleSeite === seiten} aria-label="Nächste Seite" className={cn("rounded p-1 hover:bg-muted", aktuelleSeite === seiten && "pointer-events-none opacity-40")}>
+                <ChevronRightIcon className="size-4" />
+              </Link>
+            </nav>
+          )}
         </div>
-        {typ !== "alle" && <input type="hidden" name="typ" value={typ} />}
-        {archiv && <input type="hidden" name="archiv" value="1" />}
-        {sortierung !== "name_auf" && <input type="hidden" name="sortierung" value={sortierung} />}
-        {ort && <input type="hidden" name="ort" value={ort} />}
-        {fehlt && <input type="hidden" name="fehlt" value={fehlt} />}
-        <Button type="submit" size="lg">Suchen</Button>
-      </form>
-
-      <div className="flex flex-wrap gap-2 text-sm" aria-label="Filter">
-        {([["alle", "Alle"], ["privat", "Privat"], ["firma", "Firmen"]] as const).map(([w, name]) => (
-          <Link key={w} href={adresse({ typ: w === "alle" ? "" : w, seite: "" })} aria-current={typ === w ? "true" : undefined}
-            className={cn("flex h-9 items-center rounded-full border px-4", typ === w ? "border-primary bg-primary text-primary-foreground" : "hover:bg-muted")}>
-            {name}
-          </Link>
-        ))}
-        <Link href={adresse({ archiv: archiv ? "" : "1", seite: "" })} aria-current={archiv ? "true" : undefined}
-          className={cn("flex h-9 items-center rounded-full border px-4", archiv ? "border-primary bg-primary text-primary-foreground" : "hover:bg-muted")}>
-          Archiv
-        </Link>
       </div>
-
-      <Filterleiste
-        basis={{ q, typ: typ === "alle" ? "" : typ, archiv: archiv ? "1" : "" }}
-        sortierung={sortierung}
-        ort={ort}
-        fehlt={fehlt}
-        orte={orte}
-      />
-
-      {kontakte.length === 0 && <p className="rounded-xl border border-dashed p-6 text-muted-foreground">Keine Kontakte gefunden.</p>}
-      <ul className="flex flex-col divide-y rounded-xl border">
-        {kontakte.map((k) => (
-          <li key={k.id}>
-            <Link href={`/buero/kontakte/${k.id}`} className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted">
-              {k.typ === "firma" ? <BuildingIcon className="size-5 shrink-0 text-muted-foreground" /> : <UserIcon className="size-5 shrink-0 text-muted-foreground" />}
-              <span className="min-w-0 flex-1">
-                <span className="block truncate font-medium">{kontaktAnzeigename(k)}</span>
-                <span className="block truncate text-sm text-muted-foreground">
-                  {[[k.strasse, [k.plz, k.ort].filter(Boolean).join(" ")].filter(Boolean).join(", "), k.mobil || k.telefon].filter(Boolean).join(" · ") || "Keine Adresse"}
-                </span>
-              </span>
-              <span className="hidden shrink-0 text-right text-sm text-muted-foreground sm:block">
-                {k.kundennummer && <span className="block">{k.kundennummer}</span>}
-                <span className="block text-xs">{zeigDatum === "created_at" ? "angelegt" : "bearbeitet"} {formatDatum(k[zeigDatum])}</span>
-              </span>
-              <ChevronRightIcon className="size-5 shrink-0 text-muted-foreground" />
-            </Link>
-          </li>
-        ))}
-      </ul>
-
-      {seiten > 1 && (
-        <nav className="flex items-center justify-between gap-3" aria-label="Seiten">
-          <Link href={adresse({ seite: aktuelleSeite > 2 ? String(aktuelleSeite - 1) : "" })} aria-disabled={aktuelleSeite === 1}
-            className={cn(buttonVariants({ variant: "outline", size: "lg" }), aktuelleSeite === 1 && "pointer-events-none opacity-50")}>
-            <ChevronLeftIcon /> Zurück
-          </Link>
-          <span className="text-sm text-muted-foreground">Seite {aktuelleSeite} von {seiten}</span>
-          <Link href={adresse({ seite: String(aktuelleSeite + 1) })} aria-disabled={aktuelleSeite === seiten}
-            className={cn(buttonVariants({ variant: "outline", size: "lg" }), aktuelleSeite === seiten && "pointer-events-none opacity-50")}>
-            Weiter <ChevronRightIcon />
-          </Link>
-        </nav>
-      )}
     </div>
   );
 }

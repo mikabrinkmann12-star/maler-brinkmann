@@ -49,7 +49,7 @@ export default async function KontaktSeite({ params }: PageProps<"/buero/kontakt
   if (!k) notFound();
 
   const anschrift = briefanschrift(k);
-  const adresse = [k.strasse, [k.plz, k.ort].filter(Boolean).join(" ")].filter(Boolean);
+  const adresse = [k.strasse, [k.plz, k.ort].filter(Boolean).join(" "), k.land !== "Deutschland" ? k.land : ""].filter(Boolean);
   const mailto = k.email ? `mailto:${k.email}` : null;
 
   return (

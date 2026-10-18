@@ -29,6 +29,16 @@ describe("kontakteSortieren", () => {
     expect(kontakteSortieren(liste, "angelegt_alt").map((x) => x.id)).toEqual(["ahlers", "zeller", "mueller", "bau"]);
   });
 
+  it("Nummer: natürlich sortiert (KD-2 vor KD-10), Kontakte ohne Nummer immer am Ende", () => {
+    const nummern = [
+      k({ id: "a", nachname: "A", kundennummer: "KD-10" }),
+      k({ id: "b", nachname: "B" }),
+      k({ id: "c", nachname: "C", kundennummer: "KD-2" }),
+    ];
+    expect(kontakteSortieren(nummern, "nummer_auf").map((x) => x.id)).toEqual(["c", "a", "b"]);
+    expect(kontakteSortieren(nummern, "nummer_ab").map((x) => x.id)).toEqual(["a", "c", "b"]);
+  });
+
   it("ändert die Eingabe nicht", () => {
     const kopie = [...liste];
     kontakteSortieren(liste, "name_ab");

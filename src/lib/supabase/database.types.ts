@@ -375,10 +375,12 @@ export type Database = {
           anrede: string | null
           ansprechpartner: string | null
           archiviert_am: string | null
+          bearbeitet_von: string | null
           created_at: string
           created_by: string | null
           email: string | null
           empfaenger: string | null
+          farbe: string | null
           firmenname: string | null
           id: string
           kundennummer: string | null
@@ -405,10 +407,12 @@ export type Database = {
           anrede?: string | null
           ansprechpartner?: string | null
           archiviert_am?: string | null
+          bearbeitet_von?: string | null
           created_at?: string
           created_by?: string | null
           email?: string | null
           empfaenger?: string | null
+          farbe?: string | null
           firmenname?: string | null
           id?: string
           kundennummer?: string | null
@@ -435,10 +439,12 @@ export type Database = {
           anrede?: string | null
           ansprechpartner?: string | null
           archiviert_am?: string | null
+          bearbeitet_von?: string | null
           created_at?: string
           created_by?: string | null
           email?: string | null
           empfaenger?: string | null
+          farbe?: string | null
           firmenname?: string | null
           id?: string
           kundennummer?: string | null
@@ -462,6 +468,13 @@ export type Database = {
           zahlungsziel_tage?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "contacts_bearbeitet_von_fkey"
+            columns: ["bearbeitet_von"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "contacts_created_by_fkey"
             columns: ["created_by"]

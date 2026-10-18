@@ -36,6 +36,9 @@ describe("Anzeigename und Briefanschrift", () => {
   it("baut die Briefanschrift für Privat und Firma", () => {
     expect(briefanschrift({ typ: "privat", anrede: "Frau", vorname: "Erika", nachname: "Muster", strasse: "Weg 1", plz: "26683", ort: "Saterland" }))
       .toEqual(["Frau", "Erika Muster", "Weg 1", "26683 Saterland"]);
+    // Ausland steht als letzte Zeile, Deutschland nicht
+    expect(briefanschrift({ typ: "privat", nachname: "Muster", strasse: "Weg 1", plz: "9000", ort: "Wien", land: "Österreich" })).toEqual(["Muster", "Weg 1", "9000 Wien", "Österreich"]);
+    expect(briefanschrift({ typ: "privat", nachname: "Muster", strasse: "Weg 1", plz: "26683", ort: "Saterland", land: "Deutschland" })).toEqual(["Muster", "Weg 1", "26683 Saterland"]);
     expect(briefanschrift({ typ: "privat", nachname: "Muster", empfaenger: "Familie Muster\n\n Weg 1 " })).toEqual(["Familie Muster", "Weg 1"]);
     expect(briefanschrift({ typ: "firma", firmenname: "Musterbau GmbH", ansprechpartner: "Hans Beispiel", strasse: "Weg 2", plz: "26169", ort: "Friesoythe" }))
       .toEqual(["Musterbau GmbH", "z. Hd. Hans Beispiel", "Weg 2", "26169 Friesoythe"]);

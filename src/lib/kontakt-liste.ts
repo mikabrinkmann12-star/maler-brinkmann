@@ -15,11 +15,15 @@ export type ListenKontakt = {
   email: string | null;
   created_at: string;
   updated_at: string;
+  farbe?: string | null;
+  bearbeitet_von?: string | null;
 };
 
 export const SORTIERUNGEN = {
   name_auf: "Name A → Z",
   name_ab: "Name Z → A",
+  nummer_auf: "Nummer aufsteigend",
+  nummer_ab: "Nummer absteigend",
   geaendert_neu: "Zuletzt bearbeitet: neueste zuerst",
   geaendert_alt: "Zuletzt bearbeitet: älteste zuerst",
   angelegt_neu: "Angelegt: neueste zuerst",
@@ -64,9 +68,16 @@ export function kontakteSortieren<T extends ListenKontakt>(kontakte: readonly T[
   const nameVergleich = (a: T, b: T) => sortierName(a).localeCompare(sortierName(b), "de", { sensitivity: "base", numeric: true });
   const nachDatum = (feld: "created_at" | "updated_at", absteigend: boolean) => (a: T, b: T) =>
     (absteigend ? -1 : 1) * a[feld].localeCompare(b[feld]) || nameVergleich(a, b);
+  // Nummer: leere ans Ende, sonst „natürlich“ (KD-2 vor KD-10)
+  const nummer = (a: T, b: T) => {
+    if (!a.kundennummer || !b.kundennummer) return a.kundennummer ? -1 : b.kundennummer ? 1 : 0;
+    return a.kundennummer.localeCompare(b.kundennummer, "de", { sensitivity: "base", numeric: true });
+  };
   const vergleich = {
     name_auf: nameVergleich,
     name_ab: (a: T, b: T) => nameVergleich(b, a),
+    nummer_auf: (a: T, b: T) => nummer(a, b) || nameVergleich(a, b),
+    nummer_ab: (a: T, b: T) => (!a.kundennummer || !b.kundennummer ? nummer(a, b) : nummer(b, a)) || nameVergleich(a, b),
     geaendert_neu: nachDatum("updated_at", true),
     geaendert_alt: nachDatum("updated_at", false),
     angelegt_neu: nachDatum("created_at", true),

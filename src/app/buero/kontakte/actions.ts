@@ -25,6 +25,8 @@ function zeile(k: ReturnType<typeof kontaktSchema.parse> | ReturnType<typeof imp
     strasse: leerZuNull(k.strasse),
     plz: leerZuNull(k.plz),
     ort: leerZuNull(k.ort),
+    land: k.land,
+    farbe: leerZuNull(k.farbe),
     ansprechpartner: leerZuNull(k.ansprechpartner),
     telefon: leerZuNull(k.telefon),
     mobil: leerZuNull(k.mobil),

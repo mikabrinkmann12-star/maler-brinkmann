@@ -20,6 +20,9 @@ const basis = z.object({
   strasse: text(120, "Die Straße ist zu lang."),
   plz: text(10, "Die PLZ ist zu lang."),
   ort: text(80, "Der Ort ist zu lang."),
+  land: z.string().trim().max(60, "Das Land ist zu lang.").default("").transform((l) => l || "Deutschland"),
+  /** Farbpunkt wie in Plancraft; leer = keine Farbe */
+  farbe: z.enum(["", "rot", "orange", "gruen", "blau", "lila", "grau"], { error: "Ungültige Farbe." }).default(""),
   ansprechpartner: text(120, "Der Ansprechpartner ist zu lang."),
   telefon: text(40, "Die Telefonnummer ist zu lang."),
   mobil: text(40, "Die Handynummer ist zu lang."),
@@ -75,6 +78,7 @@ export function briefanschrift(k: {
   strasse?: string | null;
   plz?: string | null;
   ort?: string | null;
+  land?: string | null;
   empfaenger?: string | null;
 }): string[] {
   // Von Hand eingetragener Empfänger geht vor
@@ -82,5 +86,6 @@ export function briefanschrift(k: {
   const kopf = k.typ === "firma"
     ? [k.firmenname, k.ansprechpartner && `z. Hd. ${k.ansprechpartner}`]
     : [k.anrede, [k.vorname, k.nachname].filter(Boolean).join(" ")];
-  return [...kopf, k.strasse, [k.plz, k.ort].filter(Boolean).join(" ")].filter((z): z is string => Boolean(z && z.trim()));
+  const ausland = k.land && k.land !== "Deutschland" ? k.land : null;
+  return [...kopf, k.strasse, [k.plz, k.ort].filter(Boolean).join(" "), ausland].filter((z): z is string => Boolean(z && z.trim()));
 }
