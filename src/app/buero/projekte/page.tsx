@@ -112,7 +112,7 @@ export default async function ProjekteSeite({ searchParams }: PageProps<"/buero/
                 <td className="px-3 py-2.5">
                   <div className="flex items-center gap-2">
                     <div className="min-w-0">
-                      <Link href={`/baustellen/${p.id}`} className="block truncate font-semibold after:absolute after:inset-0 after:content-['']">
+                      <Link href={`/buero/projekte/${p.id}`} className="block truncate font-semibold after:absolute after:inset-0 after:content-['']">
                         {p.name}
                       </Link>
                       <span className="block truncate text-xs text-muted-foreground">{p.adresse || "–"}</span>

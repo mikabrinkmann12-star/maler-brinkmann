@@ -70,6 +70,7 @@ export async function projektSpeichern(id: string | null, eingabe: unknown): Pro
 
   revalidatePath("/buero/projekte");
   revalidatePath(`/baustellen/${gespeichert.id}`);
+  revalidatePath(`/buero/projekte/${gespeichert.id}`);
   return { id: gespeichert.id };
 }
 
@@ -118,5 +119,6 @@ export async function projektStatusAendern(projektId: string, statusId: string):
   revalidatePath("/buero/projekte");
   revalidatePath("/buero");
   revalidatePath(`/baustellen/${projektId}`);
+  revalidatePath(`/buero/projekte/${projektId}`);
   return {};
 }

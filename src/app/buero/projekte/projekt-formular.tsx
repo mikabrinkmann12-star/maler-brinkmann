@@ -111,7 +111,7 @@ export function ProjektFormular({
         mitarbeiterIds: w.mitarbeiterIds,
       });
       if (r.fehler) setFehler(r.fehler);
-      else router.push(`/baustellen/${r.id}`);
+      else router.push(`/buero/projekte/${r.id}`);
     });
   }
 

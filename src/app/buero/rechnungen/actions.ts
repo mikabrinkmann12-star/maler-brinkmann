@@ -38,7 +38,10 @@ function dbMeldung(fehler: { code?: string; message: string }): string {
 function aktualisieren(id?: string, projektId?: string) {
   revalidatePath("/buero/rechnungen", "layout");
   if (id) revalidatePath(`/buero/rechnungen/${id}`);
-  if (projektId) revalidatePath(`/baustellen/${projektId}`);
+  if (projektId) {
+    revalidatePath(`/baustellen/${projektId}`);
+    revalidatePath(`/buero/projekte/${projektId}`);
+  }
 }
 
 // ---------------------------------------------------------------------------

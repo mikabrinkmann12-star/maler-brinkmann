@@ -53,7 +53,7 @@ export function AktionenLeiste({ angebotId, status, archiviert }: { angebotId: s
       const r = await arbeitsanweisungErstellen(angebotId);
       if (r.fehler) return setFehler(r.fehler);
       toast.success("Arbeitsanweisung erzeugt: bitte prüfen und freigeben");
-      router.push(`/baustellen/${r.projektId}#arbeitsanweisung`);
+      router.push(`/buero/projekte/${r.projektId}#arbeitsanweisung`);
     });
   }
 
@@ -63,7 +63,7 @@ export function AktionenLeiste({ angebotId, status, archiviert }: { angebotId: s
       const r = await materialListeErstellen(angebotId);
       if (r.fehler) return setFehler(r.fehler);
       toast.success("Materialliste erzeugt: bitte prüfen, ergänzen und freigeben");
-      router.push(`/baustellen/${r.projektId}#materialliste`);
+      router.push(`/buero/projekte/${r.projektId}#materialliste`);
     });
   }
 

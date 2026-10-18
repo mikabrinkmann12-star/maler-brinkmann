@@ -104,6 +104,7 @@ export async function angebotAnlegen(projektId: string, eingabe: unknown): Promi
 
   aktualisieren();
   revalidatePath(`/baustellen/${projektId}`);
+  revalidatePath(`/buero/projekte/${projektId}`);
   return { id: data.id };
 }
 

@@ -23,6 +23,7 @@ function meldung(fehler: { code?: string; message: string }): string {
 
 function aktualisieren(projektId: string) {
   revalidatePath(`/baustellen/${projektId}`);
+  revalidatePath(`/buero/projekte/${projektId}`);
 }
 
 type ListenArt = "arbeitsanweisung" | "materialliste";

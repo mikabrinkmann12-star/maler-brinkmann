@@ -65,7 +65,7 @@ export default async function AngebotSeite({ params }: PageProps<"/buero/angebot
         </div>
         <p className="text-sm text-muted-foreground">
           Projekt{" "}
-          <Link href={`/baustellen/${projekt.id}`} className="font-medium text-foreground hover:underline">
+          <Link href={`/buero/projekte/${projekt.id}`} className="font-medium text-foreground hover:underline">
             {projekt.projektnummer} · {projekt.name}
           </Link>
           {kunde && <> · Kunde <Link href={`/buero/kontakte/${kunde.id}`} className="font-medium text-foreground hover:underline">{kunde.name}</Link>{kunde.kundennummer && ` (${kunde.kundennummer})`}</>}

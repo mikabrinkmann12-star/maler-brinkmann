@@ -54,7 +54,7 @@ export async function suchen(eingabe: string): Promise<SuchTreffer[]> {
       id: p.id,
       titel: p.name,
       zeile: [p.projektnummer, kontaktName(p.contacts), p.baustelle_ort].filter(Boolean).join(" · "),
-      href: `/baustellen/${p.id}`,
+      href: `/buero/projekte/${p.id}`,
       archiviert: p.archiviert_am != null,
     })),
     ...kontakte.data.map((k): SuchTreffer => ({
@@ -70,7 +70,7 @@ export async function suchen(eingabe: string): Promise<SuchTreffer[]> {
       id: d.id,
       titel: d.dateiname,
       zeile: [d.projects?.projektnummer, d.projects?.name].filter(Boolean).join(" · "),
-      href: `/baustellen/${d.project_id}`,
+      href: `/buero/projekte/${d.project_id}`,
     })),
   ];
 }

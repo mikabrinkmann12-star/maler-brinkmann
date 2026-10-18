@@ -45,7 +45,7 @@ export default async function ProjektBearbeitenSeite({ params }: PageProps<"/bue
       buero={(buero ?? []).map((b) => ({ id: b.id, name: `${b.vorname} ${b.nachname}`.trim() }))}
       personen={personen}
       heute={heuteIso()}
-      zurueck={`/baustellen/${id}`}
+      zurueck={`/buero/projekte/${id}`}
       start={{
         projektnummer: p.projektnummer,
         name: p.name,

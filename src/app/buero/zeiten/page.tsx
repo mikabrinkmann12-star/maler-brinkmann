@@ -161,7 +161,7 @@ function GruppenZeilen({ gruppe, namen }: { gruppe: ReturnType<typeof nachTagGru
           <td className="px-3 py-2 text-right tabular-nums">{stundenHM(t.stunden)}</td>
           <td className="hidden px-3 py-2 text-right tabular-nums sm:table-cell">{t.von ? pauseText(t.pauseMin) : "-"}</td>
           <td className="hidden max-w-52 px-3 py-2 md:table-cell">
-            {t.projektId ? <Link href={`/baustellen/${t.projektId}`} className="relative z-10 line-clamp-2 font-medium underline underline-offset-2">{t.projektName}</Link> : "-"}
+            {t.projektId ? <Link href={`/buero/projekte/${t.projektId}`} className="relative z-10 line-clamp-2 font-medium underline underline-offset-2">{t.projektName}</Link> : "-"}
           </td>
           <td className="hidden max-w-48 truncate px-3 py-2 lg:table-cell">{t.beschreibung}</td>
           <td className="hidden px-3 py-2 whitespace-nowrap xl:table-cell">

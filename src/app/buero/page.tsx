@@ -83,7 +83,7 @@ export default async function BueroUebersicht({ searchParams }: PageProps<"/buer
           <ul className="flex flex-col divide-y">
             {d.zuletzt.map((p) => (
               <li key={p.id}>
-                <Link href={`/baustellen/${p.id}`} className="flex items-center gap-3 py-2.5 transition-colors hover:bg-muted/60">
+                <Link href={`/buero/projekte/${p.id}`} className="flex items-center gap-3 py-2.5 transition-colors hover:bg-muted/60">
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-medium">{p.name}</span>
                     <span className="block truncate text-sm text-muted-foreground">{[p.projektnummer, p.kunde].filter(Boolean).join(" · ")}</span>
@@ -146,7 +146,7 @@ export default async function BueroUebersicht({ searchParams }: PageProps<"/buer
                 <span className="font-medium">{e.auto}</span>
                 <span className="text-sm">
                   {e.baustellen.length === 0 ? "Keine Baustelle" : e.baustellen.map((b, i) => (
-                    <span key={b.id}>{i > 0 && ", "}<Link href={`/baustellen/${b.id}`} className="underline-offset-2 hover:underline">{b.name}</Link></span>
+                    <span key={b.id}>{i > 0 && ", "}<Link href={`/buero/projekte/${b.id}`} className="underline-offset-2 hover:underline">{b.name}</Link></span>
                   ))}
                 </span>
                 <span className="text-sm text-muted-foreground">{e.team.join(", ") || "Niemand eingeteilt"}</span>
