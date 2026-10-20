@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { CheckCircle2Icon, CircleAlertIcon } from "lucide-react";
 import { requireRole } from "@/lib/auth";
 import { imapKonfiguration } from "@/lib/env";
+import { kiRechnungKonfiguration } from "@/lib/eingangsrechnung-ki";
 
 export const metadata: Metadata = { title: "Postfach für Rechnungen" };
 
@@ -9,6 +10,7 @@ export default async function PostfachSeite() {
   await requireRole(["admin"]);
   const konfig = imapKonfiguration();
   const cron = Boolean(process.env.CRON_SECRET);
+  const ki = kiRechnungKonfiguration();
 
   return (
     <div className="flex max-w-2xl flex-col gap-6">
@@ -39,6 +41,19 @@ export default async function PostfachSeite() {
               {cron
                 ? "Vercel ruft die App einmal am Tag auf und holt neue Rechnungen ab. Mit Vercel Pro lässt sich der Zeitplan in vercel.json auf z. B. alle 15 Minuten stellen."
                 : "Dafür braucht die App ein Geheimnis: Trage in Vercel die Umgebungsvariable CRON_SECRET ein (ein langer zufälliger Text). Ohne sie bleibt nur der Knopf „Postfach abrufen“."}
+            </p>
+          </div>
+        </li>
+        <li className="flex items-start gap-3 px-4 py-3">
+          {ki.aktiv ? <CheckCircle2Icon className="mt-0.5 size-5 text-green-600" /> : <CircleAlertIcon className="mt-0.5 size-5 text-muted-foreground" />}
+          <div>
+            <p className="font-medium">
+              KI-Auslesen für Fotos, Scans und schwierige PDFs: {ki.aktiv ? `eingeschaltet (${ki.modell})` : ki.grund === "kein-schluessel" ? "Schalter an, aber Schlüssel fehlt" : "ausgeschaltet"}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {ki.aktiv
+                ? "Nur wenn E-Rechnung und Textregeln keine vollständige Rechnung ergeben, wird die Datei an die Claude-Schnittstelle von Anthropic geschickt. Das Ergebnis ist immer ein Vorschlag („Zu prüfen“). Es fallen Kosten pro Rechnung an."
+                : "Ausgeschaltet geht keine Rechnung an einen Dienst und es entstehen keine Kosten. Einschalten über die Umgebungsvariablen KI_RECHNUNG_AKTIV=1 und ANTHROPIC_API_KEY (optional KI_MODELL). Vorher klären: Kosten pro Rechnung, Vertrag zur Auftragsverarbeitung mit dem Anbieter, keine Nutzung der Daten zum Training."}
             </p>
           </div>
         </li>

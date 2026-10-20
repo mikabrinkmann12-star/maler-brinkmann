@@ -85,6 +85,13 @@ describe("Eingangsrechnungen (Tabelle)", () => {
     expect(nurProjekt.error).toBeNull();
   });
 
+  it("Herkunft der Felder: „ki“ ist erlaubt (KI-Auslesen), unbekannte Werte nicht", async () => {
+    for (const herkunft of ["e-rechnung", "pdf-text", "ki", "keine"]) {
+      expect((await bueroC.from("incoming_invoices").insert({ ...zeile(), erkannt_aus: herkunft })).error, herkunft).toBeNull();
+    }
+    expect((await bueroC.from("incoming_invoices").insert({ ...zeile(), erkannt_aus: "orakel" })).error).not.toBeNull();
+  });
+
   it("„Bezahlt am“ nur bei bezahlt", async () => {
     const r = await bueroC.from("incoming_invoices").insert(zeile({ zahlstatus: "offen", bezahlt_am: "2026-03-01" }));
     expect(r.error).not.toBeNull();

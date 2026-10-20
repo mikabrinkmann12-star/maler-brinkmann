@@ -17,6 +17,7 @@ Für das Gespräch mit Ralf am Samstag, 24.10.2026. Bis dahin ist alles **kosten
 ## 2. Später, noch nicht kalkulierbar
 
 - **Jarvis** (Sprachassistent, Telefon): braucht einen KI-Zugang (Abrechnung pro Nutzung), einen Telefondienst mit Rufnummer und Sprachdienste. Die Kosten hängen davon ab, wie oft er benutzt wird. Erst nach Ralfs Entscheidung, vorher eine Kostenschätzung machen.
+- **KI für Eingangsrechnungen (Fotos, Scans, schwierige PDFs):** in der App vorbereitet und **ausgeschaltet**. Abrechnung pro Nutzung über die Claude-Schnittstelle von Anthropic (Preise je 1 Mio. Token, Stand der Preisliste 6.10.2026): Standard-Modell `claude-opus-5-5` 4 $ Eingabe / 20 $ Ausgabe, günstiger `claude-haiku-5-5` 0,10 $ / 0,50 $. Eine Rechnungsseite sind grob 1.500–3.000 Token Eingabe und 300 Token Ausgabe, das sind bei Opus ca. 1 Cent, bei Haiku Bruchteile eines Cents (grobe Schätzung, nach dem ersten Test mit echten Rechnungen nachrechnen). Einschalten mit `KI_RECHNUNG_AKTIV=1` und `ANTHROPIC_API_KEY`. **Vorher:** Vertrag zur Auftragsverarbeitung mit Anthropic und Zusage, dass nicht mit den Daten trainiert wird (Rechnungen enthalten Namen, Adressen, IBAN).
 - **KI beim Angebot:** wie Jarvis, Abrechnung pro Nutzung. Im Angebot ist bisher nur ein Platzhalter.
 - **Briefpapier/Design:** keine laufenden Kosten.
 - **Eigene Domain für die App** (statt `…vercel.app`): wenige Euro pro Jahr, Firmendomain `maler-brinkmann.de` gibt es schon.

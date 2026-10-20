@@ -1,6 +1,7 @@
 import "server-only";
 import { createHash } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { rechnungMitKiLesen, kiRechnungKonfiguration } from "@/lib/eingangsrechnung-ki";
 import { rechnungAuslesen } from "@/lib/eingangsrechnung-lesen";
 import { eingangPfad } from "@/lib/eingangsrechnung";
 import type { Database } from "@/lib/supabase/database.types";
@@ -54,7 +55,9 @@ export async function eingangsrechnungAufnehmen(
   if (vorhanden) return { ok: true, id: vorhanden.id, doppelt: true, lieferant: vorhanden.lieferant };
 
   const bekannte = await bekannteLieferanten(supabase);
-  const auslese = await rechnungAuslesen(eingabe.bytes, eingabe.endung, bekannte, eingabe.eigeneNamen);
+  // Die KI wird nur gefragt, wenn sie ausdrücklich eingeschaltet ist (KI_RECHNUNG_AKTIV=1 und Schlüssel); sonst geht nichts an einen Dienst
+  const kiLeser = kiRechnungKonfiguration().aktiv ? rechnungMitKiLesen : undefined;
+  const auslese = await rechnungAuslesen(eingabe.bytes, eingabe.endung, bekannte, eingabe.eigeneNamen, kiLeser);
 
   // Lieferant aus den Kontakten verknüpfen, wenn der Name genau passt
   let contactId: string | null = null;

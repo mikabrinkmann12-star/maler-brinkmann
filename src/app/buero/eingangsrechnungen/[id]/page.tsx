@@ -14,6 +14,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ERKANNT: Record<string, { text: string; farbe: string }> = {
   "e-rechnung": { text: "Automatisch aus der E-Rechnung gelesen. Die Daten stammen aus der Datei des Lieferanten.", farbe: "border-emerald-300 bg-emerald-50 text-emerald-900" },
   "pdf-text": { text: "Aus dem Text des PDFs gelesen. Das ist ein Vorschlag: bitte Nummer, Datum und Beträge mit der Rechnung rechts vergleichen.", farbe: "border-amber-300 bg-amber-50 text-amber-900" },
+  ki: { text: "Von der KI gelesen. Das ist ein Vorschlag und kann Fehler enthalten: bitte Lieferant, Nummer, Datum, Beträge und IBAN mit der Rechnung rechts vergleichen.", farbe: "border-sky-300 bg-sky-50 text-sky-900" },
   keine: { text: "Aus der Datei konnte nichts gelesen werden (z. B. ein Foto). Bitte die Felder von Hand eintragen.", farbe: "border-amber-300 bg-amber-50 text-amber-900" },
 };
 

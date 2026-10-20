@@ -54,7 +54,7 @@ export type EingangDetail = {
   bezahltAm: string | null;
   notiz: string;
   absender: string;
-  erkanntAus: "e-rechnung" | "pdf-text" | "keine" | null;
+  erkanntAus: "e-rechnung" | "pdf-text" | "ki" | "keine" | null;
   mime: string;
   archiviert: boolean;
   /** Signierte Adresse zum Ansehen (1 Stunde gültig) */
