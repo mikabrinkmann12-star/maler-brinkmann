@@ -36,7 +36,6 @@ export default async function BaustellenSeite() {
 
   return (
     <div className="flex flex-col gap-5">
-      <h1 className="text-2xl font-semibold">Meine Baustellen</h1>
       {projekte.length === 0 && (
         <p className="rounded-xl border border-dashed p-5 text-muted-foreground">
           Du bist noch auf keiner Baustelle eingetragen.

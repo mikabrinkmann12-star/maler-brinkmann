@@ -56,8 +56,6 @@ export default async function ZeitenSeite({ searchParams }: PageProps<"/zeiten">
 
   return (
     <div className="flex flex-col gap-5">
-      <h1 className="text-2xl font-semibold">Meine Zeiten</h1>
-
       <Link href="/zeiten/neu" className={buttonVariants({ size: "touch", className: "w-full" })}>
         <PlusIcon /> Zeit eintragen
       </Link>
