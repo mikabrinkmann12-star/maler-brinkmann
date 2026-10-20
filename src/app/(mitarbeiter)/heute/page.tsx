@@ -6,22 +6,28 @@ import { ContainerKarte } from "@/components/container-karte";
 import { containerMeldungenLaden } from "@/lib/container-daten";
 import { buttonVariants } from "@/components/ui/button";
 import { requireUser } from "@/lib/auth";
-import { heuteIso } from "@/lib/datum";
+import { Wochenstreifen } from "@/components/wochenstreifen";
+import { heuteIso, istIsoDatum } from "@/lib/datum";
 import { stoppZeitText, stoppsSortieren } from "@/lib/einsatz";
-import { formatDatumLang, formatStunden } from "@/lib/format";
+import { formatStunden } from "@/lib/format";
 import { kollegenLaden, meineEinsaetze } from "@/lib/mitarbeiter-daten";
+import { initialen } from "@/lib/profil";
 import { adresseText, kontaktName, mapsLink } from "@/lib/projekt";
 import { createClient } from "@/lib/supabase/server";
+import { tagesTitel } from "@/lib/woche";
 import { Warteschlange } from "../warteschlange";
 
-export const metadata: Metadata = { title: "Heute" };
+export const metadata: Metadata = { title: "Einsätze" };
 
-export default async function HeuteSeite() {
+export default async function HeuteSeite({ searchParams }: PageProps<"/heute">) {
   const nutzer = await requireUser();
   const heute = heuteIso();
+  const { datum: datumParam } = await searchParams;
+  const datum = istIsoDatum(datumParam) ? datumParam : heute;
+  const istHeute = datum === heute;
   const supabase = await createClient();
   const [einsaetze, kollegen, { data: heuteZeiten }, { data: termine }, containerMeldungen] = await Promise.all([
-    meineEinsaetze(nutzer.id, heute),
+    meineEinsaetze(nutzer.id, datum),
     kollegenLaden(),
     supabase.from("time_entries").select("stunden").eq("user_id", nutzer.id).eq("datum", heute).is("archiviert_am", null),
     // Eigene Termine heute (Büro/Admin sehen per RLS alle, hier immer nur die eigenen)
@@ -37,24 +43,25 @@ export default async function HeuteSeite() {
   const heuteStunden = (heuteZeiten ?? []).reduce((s, t) => s + Number(t.stunden), 0);
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <p className="text-muted-foreground">{formatDatumLang(heute)}</p>
-        <p className="text-2xl font-semibold">Moin, {nutzer.vorname}!</p>
+    <div className="flex flex-col gap-5">
+      <Warteschlange userId={nutzer.id} />
+
+      <ContainerKarte meldungen={containerMeldungen} />
+
+      <Wochenstreifen gewaehlt={datum} heute={heute} hrefFuer={(d) => (d === heute ? "/heute" : `/heute?datum=${d}`)} />
+
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-lg font-semibold">{tagesTitel(datum, heute)}</h2>
         {heuteZeiten && heuteZeiten.length > 0 && (
-          <Link href="/zeiten" className="mt-1 flex w-fit items-center gap-1 text-sm text-green-700 underline-offset-4 hover:underline">
+          <Link href="/zeiten" className="flex items-center gap-1 text-sm text-green-700 underline-offset-4 hover:underline">
             <ClockIcon className="size-4" /> Heute eingetragen: {formatStunden(heuteStunden)}
           </Link>
         )}
       </div>
 
-      <Warteschlange userId={nutzer.id} />
-
-      <ContainerKarte meldungen={containerMeldungen} />
-
       {(termine?.length ?? 0) > 0 && (
         <section className="flex flex-col gap-2 rounded-2xl border border-sky-300 bg-sky-50 p-4 text-sky-950">
-          <h2 className="flex items-center gap-2 font-semibold"><CalendarClockIcon className="size-5" /> Termine heute</h2>
+          <h2 className="flex items-center gap-2 font-semibold"><CalendarClockIcon className="size-5" /> {istHeute ? "Termine heute" : "Termine"}</h2>
           <ul className="flex flex-col gap-2">
             {termine?.map((t) => (
               <li key={t.id}>
@@ -71,13 +78,20 @@ export default async function HeuteSeite() {
         <CalendarClockIcon className="size-4" /> Termin eintragen
       </Link>
 
+      <div className="flex items-center gap-3">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/15 font-semibold text-primary">
+          {initialen(nutzer.vorname, nutzer.nachname)}
+        </span>
+        <p className="font-semibold">{nutzer.vorname} {nutzer.nachname} <span className="font-normal text-muted-foreground">(du)</span></p>
+      </div>
+
       {einsaetze.length === 0 && (
         <div className="flex flex-col gap-3 rounded-xl border border-dashed p-5">
-          <p className="text-lg font-medium">Für heute bist du nicht eingeteilt.</p>
-          <p className="text-muted-foreground">Frag im Büro nach oder schau bei deinen Baustellen.</p>
+          <p className="text-lg font-medium">{istHeute ? "Für heute" : "Für diesen Tag"} bist du nicht eingeteilt.</p>
+          <p className="text-muted-foreground">Frag im Büro nach oder schau bei deinen Projekten.</p>
           <Link href="/baustellen" className={buttonVariants({ variant: "outline", size: "touch", className: "w-full" })}>
             <HardHatIcon />
-            Meine Baustellen
+            Meine Projekte
           </Link>
         </div>
       )}
@@ -175,17 +189,19 @@ export default async function HeuteSeite() {
                     </div>
                   )}
 
-                  <Link href={`/zeiten/neu?projekt=${p.id}`} className={buttonVariants({ variant: "outline", size: "touch", className: "w-full" })}>
-                    <ClockIcon />
-                    Zeit eintragen
-                  </Link>
+                  {datum <= heute && (
+                    <Link href={`/zeiten/neu?projekt=${p.id}`} className={buttonVariants({ variant: "outline", size: "touch", className: "w-full" })}>
+                      <ClockIcon />
+                      Zeit eintragen
+                    </Link>
+                  )}
                 </section>
               );
             })}
 
             {/* Team */}
             <div className="flex flex-col gap-2">
-              <p className="flex items-center gap-2 font-medium"><UsersIcon className="size-5" /> Heute dabei</p>
+              <p className="flex items-center gap-2 font-medium"><UsersIcon className="size-5" /> {istHeute ? "Heute dabei" : "Dabei"}</p>
               <ul className="flex flex-col divide-y rounded-xl border">
                 {team.map((k) => (
                   <li key={k.id} className="flex items-center justify-between gap-3 px-4 py-2">
