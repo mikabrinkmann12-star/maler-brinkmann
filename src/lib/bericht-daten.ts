@@ -1,6 +1,9 @@
 import "server-only";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth";
+import type { AnzeigeInfo } from "@/components/bericht-anzeige";
+import { firmaLaden } from "@/lib/firma-daten";
+import { adresseText, kontaktName } from "@/lib/projekt";
 import { vorschauPfad } from "@/lib/bild";
 import { formatDatumZeit } from "@/lib/format";
 import { kollegenLaden } from "@/lib/mitarbeiter-daten";
@@ -18,7 +21,7 @@ export async function berichtKontext(projektId: string) {
   if (!UUID.test(projektId)) notFound();
   const supabase = await createClient();
   const [{ data: projekt }, { data: mitglieder }, kollegen] = await Promise.all([
-    supabase.from("projects").select("id, name, projektnummer, archiviert_am").eq("id", projektId).maybeSingle(),
+    supabase.from("projects").select("id, name, projektnummer, archiviert_am, baustelle_strasse, baustelle_plz, baustelle_ort, contacts(firmenname, vorname, nachname, strasse, plz, ort)").eq("id", projektId).maybeSingle(),
     supabase.from("project_members").select("user_id").eq("project_id", projektId),
     kollegenLaden(),
   ]);
@@ -51,4 +54,27 @@ export async function projektFotos(k: Pick<Kontext, "supabase" | "projekt">, nur
     vorschauUrl: url.get(vorschauPfad(f.storage_pfad)) ?? url.get(f.storage_pfad) ?? null,
     wann: formatDatumZeit(f.created_at),
   }));
+}
+
+/**
+ * Angaben für „Allgemeine Informationen“ (Auftragnehmer = Firma aus den Einstellungen, Auftraggeber = Kunde, Leistungsort)
+ * und die Personenliste für Auswahlfelder (alle aktiven Kollegen, wie die Datenbank sie liefert).
+ */
+export async function berichtAngaben(k: Kontext): Promise<{ info: AnzeigeInfo; personen: TeamMitglied[] }> {
+  const [firma, kollegen] = await Promise.all([firmaLaden(), kollegenLaden()]);
+  const p = k.projekt;
+  const kunde = p.contacts;
+  const personen = [...kollegen.values()]
+    .map((x) => ({ id: x.id, name: `${x.vorname} ${x.nachname}`.trim() }))
+    .sort((a, b) => a.name.localeCompare(b.name, "de"));
+  return {
+    info: {
+      auftragnehmer: [firma.name, adresseText({ strasse: firma.strasse, plz: firma.plz, ort: firma.ort })].filter(Boolean).join("\n"),
+      auftraggeber: [kontaktName(kunde), kunde ? adresseText({ strasse: kunde.strasse, plz: kunde.plz, ort: kunde.ort }) : ""].filter(Boolean).join("\n"),
+      projekt: p.name,
+      leistungsort: adresseText({ strasse: p.baustelle_strasse, plz: p.baustelle_plz, ort: p.baustelle_ort }),
+      erstelltVon: "",
+    },
+    personen,
+  };
 }

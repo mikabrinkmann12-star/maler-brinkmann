@@ -151,3 +151,14 @@ describe("Abschließen und Unterschrift", () => {
     expect((await aC.from("project_reports").update({ archiviert_am: new Date().toISOString() }).eq("id", r.data!.id).select("id")).data).toHaveLength(1);
   });
 });
+
+describe("Berichtsarten (20.10.2026: wie in der Plancraft-App)", () => {
+  it("alle neun Arten sind erlaubt, eine unbekannte nicht", async () => {
+    const arten = ["abnahmeprotokoll", "aufmass", "baustellenbegehung", "bautagesbericht", "bedenkenanzeige", "besprechungsprotokoll", "checkliste", "einsatzbericht", "regiebericht"];
+    for (const art of arten) {
+      const r = await aC.from("project_reports").insert({ ...neu({ art, daten: { allgemein: {}, werte: {} } }), erstellt_von: a.id });
+      expect(r.error, art).toBeNull();
+    }
+    expect((await aC.from("project_reports").insert({ ...neu({ art: "besprechung" }), erstellt_von: a.id })).error).not.toBeNull();
+  });
+});

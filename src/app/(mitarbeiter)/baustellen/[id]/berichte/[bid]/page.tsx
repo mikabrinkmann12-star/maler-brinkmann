@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeftIcon, DownloadIcon, FileTextIcon } from "lucide-react";
+import { DownloadIcon, FileTextIcon } from "lucide-react";
+import { BerichtAnzeige } from "@/components/bericht-anzeige";
+import { SeitenKopf } from "@/components/layout/seiten-kopf";
 import { buttonVariants } from "@/components/ui/button";
-import { BERICHT_ART_NAMEN, datenLesen, wetterText, type BerichtArt } from "@/lib/bericht";
-import { berichtKontext, projektFotos } from "@/lib/bericht-daten";
+import { BERICHT_ART_NAMEN, datenLesen, istBerichtArt, verweise } from "@/lib/bericht";
+import { berichtAngaben, berichtKontext, projektFotos } from "@/lib/bericht-daten";
 import { formatDatum, formatDatumZeit } from "@/lib/format";
 import { BerichtEntfernen } from "../bericht-entfernen";
-import { BerichtFormular } from "../bericht-formular";
+import { BerichtAssistent } from "../bericht-assistent";
 
 export const metadata: Metadata = { title: "Bericht" };
 
@@ -24,51 +25,46 @@ export default async function BerichtSeite({ params }: { params: Promise<{ id: s
     .eq("project_id", id)
     .is("archiviert_am", null)
     .maybeSingle();
-  if (!b) notFound();
+  if (!b || !istBerichtArt(b.art)) notFound();
 
-  const daten = datenLesen(b.daten);
+  const art = b.art;
+  const daten = datenLesen(art, b.daten);
   const meiner = b.erstellt_von === k.nutzer.id;
   const bearbeitbar = b.status === "entwurf" && k.darfSchreiben && (meiner || k.istBuero);
-  const zurueck = (
-    <Link href={`/baustellen/${id}/berichte`} className="flex w-fit items-center gap-1 text-sm text-muted-foreground">
-      <ArrowLeftIcon className="size-4" /> Berichte
-    </Link>
-  );
-  const titel = `${BERICHT_ART_NAMEN[b.art as BerichtArt] ?? b.art} · ${formatDatum(b.datum)}`;
+  const { info, personen } = await berichtAngaben(k);
+  const personName = (uid: string) => personen.find((p) => p.id === uid)?.name ?? k.namen.get(uid) ?? "Ehemaliger Kollege";
 
+  // Entwurf: Assistent zum Weiterschreiben
   if (bearbeitbar) {
     const fotos = await projektFotos(k);
     return (
-      <div className="flex flex-col gap-4">
-        {zurueck}
-        <h1 className="text-2xl font-semibold">{BERICHT_ART_NAMEN[b.art as BerichtArt] ?? b.art}</h1>
-        <p className="-mt-2 text-muted-foreground">{k.projekt.name} · Entwurf</p>
-        <BerichtFormular projektId={id} berichtId={b.id} startDatum={b.datum} start={daten} team={k.team} fotos={fotos} />
-        <BerichtEntfernen projektId={id} berichtId={b.id} />
-      </div>
+      <BerichtAssistent
+        projektId={id}
+        berichtId={b.id}
+        art={art}
+        startDatum={b.datum}
+        start={daten}
+        gespeichertStart
+        info={info}
+        personen={personen}
+        fotos={fotos}
+      />
     );
   }
 
   // Nur ansehen: abgeschlossene Berichte (und fremde Entwürfe)
   const [fotos, unterschrift] = await Promise.all([
-    projektFotos(k, daten.fotos),
+    projektFotos(k, verweise(art, daten).fotos),
     b.unterschrift_pfad ? k.supabase.storage.from("berichtunterschriften").createSignedUrl(b.unterschrift_pfad, 3600) : Promise.resolve({ data: null }),
   ]);
-  const reihenfolge = new Map(daten.fotos.map((f, i) => [f, i]));
-  fotos.sort((x, y) => (reihenfolge.get(x.id) ?? 0) - (reihenfolge.get(y.id) ?? 0));
-  const anwesend = daten.personal.map((uid) => k.team.find((t) => t.id === uid)?.name ?? k.namen.get(uid) ?? "Ehemaliger Kollege");
-  const wetter = wetterText(daten.wetter, daten.temperatur);
+  const titel = `${BERICHT_ART_NAMEN[art]} - ${formatDatum(b.datum)}`;
 
   return (
-    <div className="flex flex-col gap-5">
-      {zurueck}
-      <div>
-        <h1 className="text-2xl font-semibold">{titel}</h1>
-        <p className="text-muted-foreground">{k.projekt.name}</p>
-        <p className="text-sm text-muted-foreground">
-          {b.status === "entwurf" ? `Entwurf von ${k.wer(b.erstellt_von)}` : `Abgeschlossen am ${formatDatumZeit(b.abgeschlossen_am)} · ${k.wer(b.erstellt_von)}`}
-        </p>
-      </div>
+    <div className="flex flex-col gap-4">
+      <SeitenKopf titel={titel} zurueck={`/baustellen/${id}/berichte`} />
+      <p className="text-center text-sm text-muted-foreground">
+        {b.status === "entwurf" ? `Entwurf von ${k.wer(b.erstellt_von)}` : `Abgeschlossen am ${formatDatumZeit(b.abgeschlossen_am)} · ${k.wer(b.erstellt_von)}`}
+      </p>
 
       {b.status === "abgeschlossen" && (
         <div className="flex flex-col gap-2">
@@ -81,30 +77,14 @@ export default async function BerichtSeite({ params }: { params: Promise<{ id: s
         </div>
       )}
 
-      <dl className="flex flex-col gap-4">
-        {wetter && <Zeile label="Wetter">{wetter}</Zeile>}
-        <Zeile label="Anwesend">{anwesend.length ? anwesend.join(", ") : "–"}</Zeile>
-        <Zeile label="Ausgeführte Arbeiten"><span className="whitespace-pre-line">{daten.arbeiten || "–"}</span></Zeile>
-        {daten.besonderheiten && <Zeile label="Besonderheiten, Behinderungen, Mängel"><span className="whitespace-pre-line">{daten.besonderheiten}</span></Zeile>}
-      </dl>
-
-      {fotos.length > 0 && (
-        <section className="flex flex-col gap-2">
-          <h2 className="text-lg font-semibold">Fotos</h2>
-          <ul className="grid grid-cols-2 gap-2">
-            {fotos.map((f) => (
-              <li key={f.id}>
-                <a href={f.bildUrl ?? undefined} target="_blank" rel="noreferrer" className="block aspect-square overflow-hidden rounded-lg border">
-                  {f.vorschauUrl && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={f.vorschauUrl} alt="Foto zum Bericht" className="size-full object-cover" />
-                  )}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      <BerichtAnzeige
+        art={art}
+        datum={b.datum}
+        daten={daten}
+        info={{ ...info, erstelltVon: daten.allgemein.erstelltVon ? personName(daten.allgemein.erstelltVon) : "" }}
+        personName={personName}
+        fotos={fotos}
+      />
 
       {b.status === "abgeschlossen" && (
         <section className="flex flex-col gap-2">
@@ -122,15 +102,6 @@ export default async function BerichtSeite({ params }: { params: Promise<{ id: s
       )}
 
       {(k.istBuero || (meiner && b.status === "entwurf")) && <BerichtEntfernen projektId={id} berichtId={b.id} />}
-    </div>
-  );
-}
-
-function Zeile({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex flex-col gap-0.5">
-      <dt className="text-sm font-medium text-muted-foreground">{label}</dt>
-      <dd className="text-base">{children}</dd>
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { BuildingIcon, PhoneIcon, SearchIcon, UserIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { requireUser } from "@/lib/auth";
@@ -58,18 +59,22 @@ export default async function KontakteSeite({ searchParams }: { searchParams: Pr
             {g.kontakte.map((k) => {
               const tel = telLink(k.mobil || k.telefon);
               return (
-                <li key={k.id} className="flex items-center gap-3 px-4 py-3">
-                  <span className={`flex size-10 shrink-0 items-center justify-center rounded-full ${FARBEN[k.farbe ?? ""] ?? FARBEN.grau}`}>
-                    {k.typ === "firma" ? <BuildingIcon className="size-5" /> : <UserIcon className="size-5" />}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate font-semibold">{kontaktName(k)}</span>
-                    {k.kundennummer && <span className="block truncate text-sm text-muted-foreground">{k.kundennummer}</span>}
-                  </span>
-                  {tel && (
-                    <a href={tel} aria-label={`${kontaktName(k)} anrufen`} className="flex size-11 shrink-0 items-center justify-center rounded-full text-primary hover:bg-muted">
+                <li key={k.id} className="flex items-center transition-colors hover:bg-muted">
+                  <Link href={`/kontakte/${k.id}`} className="flex min-w-0 flex-1 items-center gap-3 py-3 pl-4">
+                    <span className={`flex size-10 shrink-0 items-center justify-center rounded-full ${FARBEN[k.farbe ?? ""] ?? FARBEN.grau}`}>
+                      {k.typ === "firma" ? <BuildingIcon className="size-5" /> : <UserIcon className="size-5" />}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-semibold">{kontaktName(k)}</span>
+                      {k.kundennummer && <span className="block truncate text-sm text-muted-foreground">{k.kundennummer}</span>}
+                    </span>
+                  </Link>
+                  {tel ? (
+                    <a href={tel} aria-label={`${kontaktName(k)} anrufen`} className="flex size-14 shrink-0 items-center justify-center text-primary">
                       <PhoneIcon className="size-5" />
                     </a>
+                  ) : (
+                    <span className="w-4 shrink-0" />
                   )}
                 </li>
               );

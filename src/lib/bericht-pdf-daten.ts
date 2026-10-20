@@ -1,5 +1,5 @@
 import "server-only";
-import { BERICHT_ART_NAMEN, datenLesen, wetterText, type BerichtArt } from "@/lib/bericht";
+import { BERICHT_ART_NAMEN, datenLesen, istBerichtArt, verweise } from "@/lib/bericht";
 import { berichtPdf } from "@/lib/bericht-pdf";
 import { formatDatumZeit } from "@/lib/format";
 import { angebotEinstellungenLaden, firmaLaden } from "@/lib/firma-daten";
@@ -31,12 +31,13 @@ export async function berichtPdfErzeugen(projektId: string, berichtId: string): 
     .eq("project_id", projektId)
     .is("archiviert_am", null)
     .maybeSingle();
-  if (!b) return null;
+  if (!b || !istBerichtArt(b.art)) return null;
+  const art = b.art;
 
   const [{ data: p }, firma, vorgaben, kollegen] = await Promise.all([
     supabase
       .from("projects")
-      .select("name, projektnummer, baustelle_strasse, baustelle_plz, baustelle_ort, contacts(firmenname, vorname, nachname)")
+      .select("name, projektnummer, baustelle_strasse, baustelle_plz, baustelle_ort, contacts(firmenname, vorname, nachname, strasse, plz, ort)")
       .eq("id", projektId)
       .maybeSingle(),
     firmaLaden(),
@@ -45,22 +46,20 @@ export async function berichtPdfErzeugen(projektId: string, berichtId: string): 
   ]);
   if (!p) return null;
 
-  const daten = datenLesen(b.daten);
+  const daten = datenLesen(art, b.daten);
+  const { fotos: fotoIds } = verweise(art, daten);
   const name = (uid: string | null) => {
     const k = uid ? kollegen.get(uid) : undefined;
     return k ? `${k.vorname} ${k.nachname}`.trim() : "Ehemaliger Kollege";
   };
 
-  // Fotos in der gewählten Reihenfolge (nur nicht archivierte Fotos dieses Projekts)
-  const fotos: Uint8Array[] = [];
-  if (daten.fotos.length) {
-    const { data: zeilen } = await supabase.from("project_photos").select("id, storage_pfad").eq("project_id", projektId).is("archiviert_am", null).in("id", daten.fotos);
-    const pfad = new Map((zeilen ?? []).map((z) => [z.id, z.storage_pfad]));
-    for (const fotoId of daten.fotos) {
-      const ziel = pfad.get(fotoId);
-      if (!ziel) continue;
-      const { data } = await supabase.storage.from("projektfotos").download(ziel);
-      if (data) fotos.push(new Uint8Array(await data.arrayBuffer()));
+  // Fotos (nur nicht archivierte Fotos dieses Projekts)
+  const fotos = new Map<string, Uint8Array>();
+  if (fotoIds.length) {
+    const { data: zeilen } = await supabase.from("project_photos").select("id, storage_pfad").eq("project_id", projektId).is("archiviert_am", null).in("id", fotoIds);
+    for (const zeile of zeilen ?? []) {
+      const { data } = await supabase.storage.from("projektfotos").download(zeile.storage_pfad);
+      if (data) fotos.set(zeile.id, new Uint8Array(await data.arrayBuffer()));
     }
   }
 
@@ -76,23 +75,22 @@ export async function berichtPdfErzeugen(projektId: string, berichtId: string): 
     if (data) logo = new Uint8Array(await data.arrayBuffer());
   }
 
-  const titel = BERICHT_ART_NAMEN[b.art as BerichtArt] ?? "Bericht";
+  const titel = BERICHT_ART_NAMEN[art];
   const bytes = await berichtPdf({
     firma,
     logo,
+    art,
     titel,
     entwurf: b.status === "entwurf",
     datum: b.datum,
     projektName: p.name,
     projektnummer: p.projektnummer,
     baustelle: adresseText({ strasse: p.baustelle_strasse, plz: p.baustelle_plz, ort: p.baustelle_ort }),
-    kunde: kontaktName(p.contacts),
-    wetter: wetterText(daten.wetter, daten.temperatur),
-    anwesend: daten.personal.map((uid) => name(uid)),
-    arbeiten: daten.arbeiten,
-    besonderheiten: daten.besonderheiten,
+    kunde: [kontaktName(p.contacts), p.contacts ? adresseText({ strasse: p.contacts.strasse, plz: p.contacts.plz, ort: p.contacts.ort }) : ""].filter(Boolean).join("\n"),
+    daten,
+    personName: name,
     fotos,
-    erstelltVon: name(b.erstellt_von),
+    erstelltVon: daten.allgemein.erstelltVon ? name(daten.allgemein.erstelltVon) : name(b.erstellt_von),
     abgeschlossenAm: b.abgeschlossen_am ? formatDatumZeit(b.abgeschlossen_am) : "",
     unterschrift,
   });

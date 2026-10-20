@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireUser } from "@/lib/auth";
-import { berichtAbschliessenSchema, berichtSpeichernSchema, unterschriftPfad } from "@/lib/bericht";
+import { berichtAbschliessenSchema, berichtSpeichernSchema, datenPruefen, unterschriftPfad, verweise } from "@/lib/bericht";
 import { createClient } from "@/lib/supabase/server";
 
 // Berichte (Bautagesbericht …). Verbindlich regelt die Datenbank (RLS + Trigger): Büro/Admin und Mitglieder schreiben,
@@ -21,18 +21,21 @@ export async function berichtSpeichern(eingabe: unknown): Promise<BerichtErgebni
   const b = pruefung.data;
   const supabase = await createClient();
 
-  // Personal und Fotos müssen zu dieser Baustelle gehören
-  const personal = [...new Set(b.daten.personal)];
-  if (personal.length) {
-    const { data } = await supabase.from("project_members").select("user_id").eq("project_id", b.projektId).in("user_id", personal);
-    if ((data?.length ?? 0) !== personal.length) return { fehler: "Es können nur Mitarbeiter dieser Baustelle als anwesend eingetragen werden." };
+  const geprueft = datenPruefen(b.art, b.daten);
+  if ("fehler" in geprueft) return { fehler: geprueft.fehler };
+  const daten = geprueft.daten;
+
+  // Genannte Personen müssen aktive Kollegen sein, Fotos müssen zu dieser Baustelle gehören
+  const { personen, fotos } = verweise(b.art, daten);
+  if (personen.length) {
+    const { data } = await supabase.rpc("kollegen");
+    const aktive = new Set((data ?? []).map((k) => k.id));
+    if (personen.some((p) => !aktive.has(p))) return { fehler: "Eine der genannten Personen gibt es nicht (mehr)." };
   }
-  const fotos = [...new Set(b.daten.fotos)];
   if (fotos.length) {
     const { data } = await supabase.from("project_photos").select("id").eq("project_id", b.projektId).is("archiviert_am", null).in("id", fotos);
     if ((data?.length ?? 0) !== fotos.length) return { fehler: "Eines der Fotos gehört nicht zu dieser Baustelle." };
   }
-  const daten = { ...b.daten, personal, fotos };
 
   const { data: vorhanden } = await supabase.from("project_reports").select("id, status, project_id").eq("id", b.id).maybeSingle();
   if (vorhanden) {
@@ -46,6 +49,7 @@ export async function berichtSpeichern(eingabe: unknown): Promise<BerichtErgebni
       .insert({ id: b.id, project_id: b.projektId, art: b.art, datum: b.datum, daten, erstellt_von: nutzer.id });
     if (error && error.code !== "23505") return { fehler: FEHLER_RECHTE };
   }
+  // nur die Liste neu laden: Der Assistent bleibt dabei unberührt (sonst bekäme die Seite eine neue Bericht-ID)
   revalidatePath(`/baustellen/${b.projektId}/berichte`);
   return {};
 }
@@ -73,7 +77,7 @@ export async function berichtAbschliessen(eingabe: unknown): Promise<BerichtErge
   }
   const { data, error } = await supabase.from("project_reports").update(teile).eq("id", id).select("id");
   if (error || !data?.length) return { fehler: "Das hat nicht geklappt. Du kannst nur deine eigenen Entwürfe abschließen." };
-  revalidatePath(`/baustellen/${projektId}/berichte`);
+  revalidatePath(`/baustellen/${projektId}/berichte`, "layout");
   return {};
 }
 
@@ -89,6 +93,6 @@ export async function berichtArchivieren(id: string, projektId: string): Promise
     .eq("project_id", projektId)
     .select("id");
   if (error || !data?.length) return { fehler: "Das hat nicht geklappt. Abgeschlossene Berichte kann nur das Büro entfernen." };
-  revalidatePath(`/baustellen/${projektId}/berichte`);
+  revalidatePath(`/baustellen/${projektId}/berichte`, "layout");
   return {};
 }
