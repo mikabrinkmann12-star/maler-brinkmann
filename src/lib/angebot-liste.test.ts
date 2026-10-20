@@ -21,6 +21,7 @@ describe("Angebotsliste: Status aus drei Sichten", () => {
     expect(annahmeVon("abgelehnt")).toBe("abgelehnt");
     expect(versandVon(null)).toBe("nicht_gesendet");
     expect(versandVon("2026-10-11T10:00:00Z")).toBe("gesendet");
+    expect(versandVon("2026-10-11T10:00:00Z", "2026-10-12T08:00:00Z")).toBe("geoeffnet");
   });
 
   it("ohne Filter bleibt alles", () => {

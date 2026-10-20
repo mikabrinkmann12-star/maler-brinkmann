@@ -19,6 +19,7 @@ const TITEL: Record<string, string> = {
   urlaubsantrag: "Urlaubsantrag",
   termin: "Termin",
   container: "Container",
+  angebot_geoeffnet: "Angebot geöffnet",
 };
 
 export function hinweisTitel(typ: string): string {

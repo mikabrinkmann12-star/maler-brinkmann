@@ -21,6 +21,7 @@ import { BausteineEditor } from "./bausteine-editor";
 import { KiAssistent } from "./ki-assistent";
 import { KopfFormular } from "./kopf-formular";
 import { MailPanel } from "./mail-panel";
+import { oeffnungenLaden } from "@/lib/angebot-freigabe-daten";
 
 export const metadata: Metadata = { title: "Angebot" };
 
@@ -37,6 +38,7 @@ export default async function AngebotSeite({ params }: PageProps<"/buero/angebot
   const gesperrt = a.status !== "entwurf" || a.archiviert;
   const rechnung = angebotBerechnen(bausteine, { rabattProzent: a.rabattProzent, steuersatz: a.steuersatz, reverseCharge: a.reverseCharge });
   const [vorgaben, firma, vorlagen] = await Promise.all([angebotEinstellungenLaden(), firmaLaden(), textvorlagenLaden()]);
+  const oeffnungen = await oeffnungenLaden(await createClient(), [a.id]);
   const mailWerte = { betreff: a.betreff, kunde: kunde?.name ?? "", firma: firma.name };
 
   // Bilder liegen in einem privaten Speicher: für die Anzeige kurz gültige Adressen holen
@@ -142,6 +144,7 @@ export default async function AngebotSeite({ params }: PageProps<"/buero/angebot
           istEntwurf={a.status === "entwurf"}
           start={{ an: kunde?.email ?? "", betreff: mailPlatzhalter(vorgaben.mail_betreff, mailWerte), text: mailPlatzhalter(vorgaben.mail_text, mailWerte) }}
           zuletzt={a.versendetAm ? { am: a.versendetAm, an: a.versendetAn } : null}
+          oeffnung={oeffnungen.get(a.id) ?? null}
         />
       )}
 

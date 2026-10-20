@@ -4,6 +4,8 @@ import { angebotLaden } from "@/lib/angebot-daten";
 import { angebotPdf } from "@/lib/angebot-pdf";
 import { zahlungsbedingungText } from "@/lib/rechnung";
 import { angebotEinstellungenLaden, firmaLaden } from "@/lib/firma-daten";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/lib/supabase/database.types";
 import { createClient } from "@/lib/supabase/server";
 
 /** Dateiname ohne Sonderzeichen: „Angebot_Technologiepark_Haus_2.pdf“ */
@@ -19,15 +21,15 @@ export function pdfDateiname(betreff: string): string {
 
 /**
  * Angebot als PDF erzeugen (Firmendaten, Logo und Bilder aus den Einstellungen bzw. dem Speicher).
- * Wer das aufruft, hat vorher requireRole(BUERO_ROLLEN) geprüft. null = Angebot gibt es nicht.
+ * Wer das aufruft, hat vorher requireRole(BUERO_ROLLEN) geprüft (oder den Link-Schlüssel der Online-Ansicht, dann mit dem Dienst-Client `db`). null = Angebot gibt es nicht.
  */
-export async function angebotPdfErzeugen(id: string): Promise<{ bytes: Uint8Array; dateiname: string } | null> {
-  const detail = await angebotLaden(id);
+export async function angebotPdfErzeugen(id: string, db?: SupabaseClient<Database>): Promise<{ bytes: Uint8Array; dateiname: string } | null> {
+  const detail = await angebotLaden(id, db);
   if (!detail) return null;
   const { angebot: a, bausteine, projekt, kunde } = detail;
 
-  const [firma, vorgaben] = await Promise.all([firmaLaden(), angebotEinstellungenLaden()]);
-  const supabase = await createClient();
+  const [firma, vorgaben] = await Promise.all([firmaLaden(db), angebotEinstellungenLaden(db)]);
+  const supabase = db ?? (await createClient());
 
   const bilder: Record<string, Uint8Array> = {};
   for (const b of bausteine) {

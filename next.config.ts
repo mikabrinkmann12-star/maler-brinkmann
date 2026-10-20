@@ -33,6 +33,11 @@ const nextConfig: NextConfig = {
         ],
       },
       {
+        // Das PDF der Online-Ansicht wird auf der eigenen Seite eingebettet (iframe), nur von derselben Adresse aus
+        source: "/angebot/:token/pdf",
+        headers: [{ key: "X-Frame-Options", value: "SAMEORIGIN" }],
+      },
+      {
         // Service Worker nie zwischenspeichern, damit Änderungen sofort ankommen
         source: "/sw.js",
         headers: [

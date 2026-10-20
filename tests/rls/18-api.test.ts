@@ -19,6 +19,7 @@ async function aufruf(methode: "GET" | "POST", pfad: string, schluessel: string 
   const request = new Request(`http://localhost/api/v1/${p}${q ? `?${q}` : ""}`, { method: methode, headers: kopf, body: body === undefined ? undefined : JSON.stringify(body) });
   const ctx = { params: Promise.resolve({ pfad: p.split("/").filter(Boolean) }) } as never;
   const r = await (methode === "GET" ? GET(request, ctx) : POST(request, ctx));
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Testantworten sind frei geformt
   return { status: r.status, json: (await r.json()) as { daten?: any; fehler?: string; endpunkte?: { pfad: string }[]; rechte?: string[] } };
 }
 

@@ -110,7 +110,12 @@ export default async function AngebotsListe({ searchParams }: PageProps<"/buero/
                 <td className="hidden px-3 py-2.5 whitespace-nowrap sm:table-cell">{formatDatum(z.datum)}</td>
                 <td className="hidden max-w-48 truncate px-3 py-2.5 md:table-cell">{z.kunde || "–"}</td>
                 <td className="hidden px-3 py-2.5 whitespace-nowrap lg:table-cell">
-                  {versandVon(z.versendetAm) === "gesendet" ? (
+                  {versandVon(z.versendetAm, z.geoeffnetAm) === "geoeffnet" ? (
+                    <>
+                      <span className="block font-medium text-green-700">Geöffnet</span>
+                      <span className="block text-xs text-muted-foreground">{formatDatum(z.geoeffnetAm!.slice(0, 10))}</span>
+                    </>
+                  ) : versandVon(z.versendetAm) === "gesendet" ? (
                     <>
                       <span className="block">Gesendet</span>
                       <span className="block text-xs text-muted-foreground">{formatDatum(z.versendetAm!.slice(0, 10))}</span>

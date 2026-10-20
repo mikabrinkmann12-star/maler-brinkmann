@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { CheckIcon, MailIcon, SendIcon } from "lucide-react";
+import { CheckIcon, EyeIcon, EyeOffIcon, MailIcon, SendIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Feld } from "@/components/feld";
 import { FormularMeldung } from "@/components/formular-meldung";
@@ -21,6 +21,7 @@ export function MailPanel({
   istEntwurf,
   start,
   zuletzt,
+  oeffnung,
 }: {
   angebotId: string;
   /** Sind die SMTP-Zugangsdaten eingerichtet? */
@@ -28,9 +29,12 @@ export function MailPanel({
   istEntwurf: boolean;
   start: { an: string; betreff: string; text: string };
   zuletzt: { am: string; an: string } | null;
+  /** Wann der Kunde die Online-Ansicht geöffnet hat (leer = noch nicht) */
+  oeffnung: { erstAm: string | null; zuletztAm: string | null; anzahl: number; pdfAm: string | null } | null;
 }) {
   const router = useRouter();
   const [w, setW] = useState(start);
+  const [pdfAnhaengen, setPdfAnhaengen] = useState(false);
   const [frage, setFrage] = useState(false);
   const [fehler, setFehler] = useState<string | null>(null);
   const [laeuft, starte] = useTransition();
@@ -45,7 +49,7 @@ export function MailPanel({
   });
 
   function senden() {
-    const pruefung = mailSchema.safeParse(w);
+    const pruefung = mailSchema.safeParse({ ...w, pdfAnhaengen });
     if (!pruefung.success) return setFehler(ersteMeldung(pruefung.error));
     setFehler(null);
     starte(async () => {
@@ -63,6 +67,25 @@ export function MailPanel({
         <MailIcon className="size-5" /> Per E-Mail senden
         {zuletzt && <span className="text-sm font-normal text-muted-foreground">zuletzt am {formatDatumZeit(zuletzt.am)} an {zuletzt.an}</span>}
       </summary>
+      {zuletzt && (
+        <p className="mt-3 flex flex-wrap items-center gap-2 rounded-lg bg-muted px-3 py-2 text-sm">
+          {oeffnung?.erstAm ? (
+            <>
+              <EyeIcon className="size-4 text-green-700" />
+              <span>
+                <strong>Vom Kunden geöffnet</strong> am {formatDatumZeit(oeffnung.erstAm)}
+                {oeffnung.anzahl > 1 && ` (${oeffnung.anzahl}× angesehen, zuletzt ${formatDatumZeit(oeffnung.zuletztAm ?? oeffnung.erstAm)})`}
+                {oeffnung.pdfAm && `, PDF geladen ${formatDatumZeit(oeffnung.pdfAm)}`}
+              </span>
+            </>
+          ) : (
+            <>
+              <EyeOffIcon className="size-4 text-muted-foreground" />
+              <span>Noch nicht geöffnet. Sobald der Kunde den Link öffnet, steht das hier und du bekommst einen Hinweis.</span>
+            </>
+          )}
+        </p>
+      )}
       <div className="flex flex-col gap-4 pt-4">
         {!bereit && (
           <FormularMeldung art="hinweis">
@@ -77,9 +100,13 @@ export function MailPanel({
         <Feld label="Betreff" htmlFor="mail-betreff">
           <Input id="mail-betreff" maxLength={200} className="h-12 text-base" {...f("betreff")} />
         </Feld>
-        <Feld label="Text" htmlFor="mail-text" hinweis="Das PDF des Angebots hängt die App automatisch an.">
+        <Feld label="Text" htmlFor="mail-text" hinweis="Unter dem Text steht der grüne Knopf „Ihr Angebot ansehen“ mit dem Link zur Online-Ansicht (PDF ansehen und herunterladen). Der Link gilt 90 Tage.">
           <Textarea id="mail-text" rows={9} maxLength={5000} {...f("text")} />
         </Feld>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={pdfAnhaengen} onChange={(e) => { setPdfAnhaengen(e.target.checked); setFrage(false); }} />
+          Zusätzlich das PDF an die E-Mail anhängen
+        </label>
         {istEntwurf && <p className="text-sm text-muted-foreground">Beim Senden wird das Angebot auf „Versendet“ gesetzt und damit gesperrt. Schlägt der Versand fehl, bleibt es ein Entwurf.</p>}
         <div className="flex flex-wrap items-center gap-2">
           {frage ? (
@@ -88,7 +115,7 @@ export function MailPanel({
               <Button type="button" variant="ghost" onClick={() => setFrage(false)} disabled={laeuft}>Abbrechen</Button>
             </>
           ) : (
-            <Button type="button" onClick={() => { const p = mailSchema.safeParse(w); if (!p.success) return setFehler(ersteMeldung(p.error)); setFrage(true); }} disabled={!bereit}>
+            <Button type="button" onClick={() => { const p = mailSchema.safeParse({ ...w, pdfAnhaengen }); if (!p.success) return setFehler(ersteMeldung(p.error)); setFrage(true); }} disabled={!bereit}>
               <CheckIcon /> Prüfen und senden
             </Button>
           )}

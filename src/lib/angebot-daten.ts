@@ -4,6 +4,7 @@ import { adresseText, kontaktName } from "@/lib/projekt";
 import { suchtext } from "@/lib/suche";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
+import { oeffnungenLaden } from "@/lib/angebot-freigabe-daten";
 import { createClient } from "@/lib/supabase/server";
 
 // Abfragen für Angebote (nur Büro/Admin, die Datenbank erzwingt es per RLS).
@@ -150,6 +151,8 @@ export type AngebotListenZeile = {
   projektArchiviert: boolean;
   kunde: string;
   versendetAm: string | null;
+  /** Erstes Öffnen der Online-Ansicht durch den Kunden */
+  geoeffnetAm: string | null;
   brutto: number;
   /** Zuletzt bearbeitet (für die Sortierung bei gleichem Datum) */
   erstelltAm: string;
@@ -178,6 +181,7 @@ export async function angeboteLaden(opts: {
   const { data, error } = await abfrage.order("datum", { ascending: false }).order("created_at", { ascending: false }).limit(1000);
   if (error) throw new Error("Die Angebote konnten nicht geladen werden.");
 
+  const oeffnungen = await oeffnungenLaden(supabase, data.map((q) => q.id));
   const zeilen: AngebotListenZeile[] = data.map((q) => {
     const posten: Baustein[] = (q.quote_items ?? []).map((i, n) => ({
       id: String(n), typ: i.typ, kurztext: "", langtext: "", menge: i.menge == null ? null : Number(i.menge),
@@ -199,6 +203,7 @@ export async function angeboteLaden(opts: {
       projektArchiviert: q.projects?.archiviert_am != null,
       kunde: kontaktName(q.projects?.contacts),
       versendetAm: q.versendet_am,
+      geoeffnetAm: oeffnungen.get(q.id)?.erstAm ?? null,
       brutto: rechnung.brutto,
       erstelltAm: q.created_at,
     };

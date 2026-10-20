@@ -5,6 +5,8 @@ import nodemailer from "nodemailer";
 import { z } from "zod";
 import { requireRole } from "@/lib/auth";
 import { betreffBereinigen, mailSchema } from "@/lib/angebot-mail";
+import { angebotLink, angebotMailHtml, angebotMailText, appBasisUrl } from "@/lib/angebot-freigabe";
+import { freigabeAnlegen } from "@/lib/angebot-freigabe-daten";
 import { angebotPdfErzeugen } from "@/lib/angebot-pdf-daten";
 import { smtpKonfiguration } from "@/lib/env";
 import { firmaLaden } from "@/lib/firma-daten";
@@ -58,13 +60,42 @@ export async function angebotMailSenden(angebotId: string, eingabe: unknown): Pr
     if (statusGeaendert) await supabase.from("quotes").update({ status: "entwurf" }).eq("id", angebotId);
   };
 
+  // Link zur Online-Ansicht: Der Schlüssel steht nur in dieser Mail (in der Datenbank nur sein Hash)
+  const freigabe = await freigabeAnlegen(supabase, angebotId, mail.an);
+  if ("fehler" in freigabe) {
+    await zuruecksetzen();
+    return { fehler: freigabe.fehler };
+  }
+  const link = angebotLink(appBasisUrl(), freigabe.klartext);
+  const freigabeWiderrufen = async () => {
+    await supabase.from("quote_shares").update({ revoked_at: new Date().toISOString() }).eq("id", freigabe.id);
+  };
+
   try {
-    const pdf = await angebotPdfErzeugen(angebotId);
-    if (!pdf) {
-      await zuruecksetzen();
-      return { fehler: "Angebot nicht gefunden." };
-    }
     const firma = await firmaLaden();
+    const anhaenge: { filename: string; content: Buffer; contentType: string; cid?: string }[] = [];
+    if (mail.pdfAnhaengen) {
+      const pdf = await angebotPdfErzeugen(angebotId);
+      if (!pdf) {
+        await zuruecksetzen();
+        await freigabeWiderrufen();
+        return { fehler: "Angebot nicht gefunden." };
+      }
+      anhaenge.push({ filename: pdf.dateiname, content: Buffer.from(pdf.bytes), contentType: "application/pdf" });
+    }
+    // Logo als Bild in der Mail (nur wenn eines hochgeladen ist)
+    let logoCid: string | undefined;
+    if (firma.logo) {
+      const { data: logo } = await supabase.storage.from("firmenlogo").download(firma.logo);
+      if (logo) {
+        logoCid = "firmenlogo@angebot";
+        anhaenge.push({ filename: firma.logo, content: Buffer.from(await logo.arrayBuffer()), contentType: logo.type || "image/png", cid: logoCid });
+      }
+    }
+    const fusszeile = [
+      [firma.name, firma.strasse, [firma.plz, firma.ort].filter(Boolean).join(" ")].filter(Boolean).join(" · "),
+      [firma.telefon && `Telefon ${firma.telefon}`, firma.email].filter(Boolean).join(" · "),
+    ];
     const transport = nodemailer.createTransport({
       host: smtp.host,
       port: smtp.port,
@@ -79,11 +110,13 @@ export async function angebotMailSenden(angebotId: string, eingabe: unknown): Pr
       to: mail.an,
       replyTo: firma.email || undefined,
       subject: betreffBereinigen(mail.betreff),
-      text: mail.text,
-      attachments: [{ filename: pdf.dateiname, content: Buffer.from(pdf.bytes), contentType: "application/pdf" }],
+      text: angebotMailText(mail.text, link),
+      html: angebotMailHtml({ text: mail.text, link, firmenname: firma.name || "Angebot", fusszeile, logoCid }),
+      attachments: anhaenge,
     });
   } catch (fehler) {
     await zuruecksetzen();
+    await freigabeWiderrufen();
     console.error("[mail] Versand fehlgeschlagen:", typeof fehler === "object" && fehler !== null && "code" in fehler ? (fehler as { code: unknown }).code : "unbekannt");
     return { fehler: mailFehlerText(fehler) };
   }
