@@ -11,16 +11,20 @@ import { RechnungNotiz } from "./rechnung-notiz";
 import { requireRole } from "@/lib/auth";
 import { auswahlAusSteuer } from "@/lib/angebot-schema";
 import { formatBetrag, formatDatum, formatDatumZeit, formatZahl } from "@/lib/format";
+import { aktuellerAnbieter, anbieterName, sevdeskEingerichtet, sevdeskFinalisieren } from "@/lib/buchhaltung";
+import { firmaLaden } from "@/lib/firma-daten";
 import { lexwareEingerichtet, lexwareFinalisieren } from "@/lib/lexware";
+import { mahnungMailVorschlag, rechnungMailVorschlag } from "@/lib/rechnung-mail";
 import { lexwareLink, rechnungBerechnen } from "@/lib/rechnung";
 import { rechnungLaden } from "@/lib/rechnung-daten";
 import { kopfStart } from "@/lib/rechnung-formular";
 import { BUERO_ROLLEN } from "@/lib/rollen";
-import { LexwareLeiste } from "./lexware-leiste";
+import { BuchhaltungLeiste } from "./buchhaltung-leiste";
 import { MahnungKarte } from "./mahnung-karte";
 import { mahnungsHinweis } from "@/lib/rechnung-einstellungen";
 import { rechnungsEinstellungenLaden } from "@/lib/rechnung-einstellungen-daten";
 import { PositionenEditor } from "./positionen-editor";
+import { RechnungMailPanel, ZahlungKarte } from "./rechnung-aktionen";
 import { RechnungKopf } from "./rechnung-kopf";
 
 export const metadata: Metadata = { title: "Rechnung" };
@@ -42,10 +46,26 @@ export default async function RechnungSeite({ params }: PageProps<"/buero/rechnu
   const brutto = r.brutto ?? rechnung.brutto;
   const abweichung = r.netto !== null && Math.abs(r.netto - rechnung.nettoNachRabatt) > 0.01;
   const festgehangen = r.status === "wird_uebertragen";
+  // Neue Rechnungen gehen an den eingestellten Anbieter (sevdesk im Hintergrund), bereits übertragene bleiben bei ihrem
+  const anbieter = r.status === "entwurf" ? (aktuellerAnbieter() ?? "sevdesk") : r.anbieter;
+  const name = anbieterName(anbieter);
+  const istSevdesk = anbieter === "sevdesk";
+  const eingerichtet = istSevdesk ? sevdeskEingerichtet() : lexwareEingerichtet();
+  const finalisieren = istSevdesk ? sevdeskFinalisieren() : lexwareFinalisieren();
   const vorgaben = await rechnungsEinstellungenLaden();
   const mahnHinweise = Object.fromEntries([1, 2, 3].map((n) => [n, mahnungsHinweis(vorgaben, n) ?? ""]).filter(([, t]) => t));
 
   const heute = heuteIso();
+  const sevdeskAktiv = istSevdesk && r.status === "uebertragen";
+  const firma = sevdeskAktiv ? await firmaLaden() : null;
+  const angaben = { rechnungsnummer: r.rechnungsnummer, betreff: r.betreff, brutto: r.brutto, rechnungsdatum: r.rechnungsdatum, zahlungszielTage: r.zahlungszielTage, firma: firma?.name ?? "" };
+  const mahnSenden = sevdeskAktiv
+    ? {
+        an: r.versendetAn ?? kunde.email,
+        vorschlaege: Object.fromEntries([1, 2, 3].map((n) => [n, mahnungMailVorschlag(angaben, n, vorgaben, heute)])),
+        verlauf: detail.mahnungen.map((m) => ({ stufe: m.stufe, versendetAn: m.versendetAn, versendetAm: m.versendetAm })),
+      }
+    : undefined;
   const anzeige = anzeigeStatus(
     { status: r.status, lexwareStatus: r.lexwareStatus, rechnungsdatum: r.rechnungsdatum, zahlungszielTage: r.zahlungszielTage, mahnstufe: r.mahnstufe },
     heute,
@@ -117,11 +137,11 @@ export default async function RechnungSeite({ params }: PageProps<"/buero/rechnu
         <div className={abschnitt}>
           <h2 className={ueberschrift}>Zahlungen</h2>
           {anzeige === "bezahlt" ? (
-            <p className="px-3 text-[13px]">Diese Rechnung ist bezahlt ({formatBetrag(brutto)}). Die einzelnen Zahlungen stehen in Lexware.</p>
+            <p className="px-3 text-[13px]">Diese Rechnung ist bezahlt ({formatBetrag(brutto)}). Die einzelnen Zahlungen stehen in {name}.</p>
           ) : r.status === "uebertragen" ? (
-            <p className="px-3 text-[13px] text-muted-foreground">Noch keine Zahlung gemeldet. Zahlungen trägst du in Lexware ein; danach „Aus Lexware abgleichen“.</p>
+            <p className="px-3 text-[13px] text-muted-foreground">{istSevdesk ? "Noch keine Zahlung gebucht. Unten kannst du sie als bezahlt buchen." : "Noch keine Zahlung gemeldet. Zahlungen trägst du in Lexware ein; danach „Abgleichen“."}</p>
           ) : (
-            <p className="px-3 text-[13px] text-muted-foreground">Zahlungen gibt es erst, wenn die Rechnung an Lexware übertragen ist.</p>
+            <p className="px-3 text-[13px] text-muted-foreground">Zahlungen gibt es erst, wenn die Rechnung fertiggestellt ist.</p>
           )}
         </div>
 
@@ -147,27 +167,49 @@ export default async function RechnungSeite({ params }: PageProps<"/buero/rechnu
         <Link href={`/buero/kontakte/${kunde.id}`} className="font-medium text-foreground hover:underline">{kunde.name}</Link>
         {kunde.kundennummer && ` (${kunde.kundennummer})`}
         {angebot && <> · aus Angebot <Link href={`/buero/angebote/${angebot.id}`} className="font-medium text-foreground hover:underline">{angebot.betreff}</Link></>}
-        {r.uebertragenAm && <> · An Lexware übertragen am {formatDatumZeit(r.uebertragenAm)}{r.abgeglichenAm && <>, zuletzt abgeglichen am {formatDatumZeit(r.abgeglichenAm)}</>}</>}
+        {r.uebertragenAm && <> · An {name} übertragen am {formatDatumZeit(r.uebertragenAm)}{r.abgeglichenAm && <>, zuletzt abgeglichen am {formatDatumZeit(r.abgeglichenAm)}</>}</>}
       </p>
 
-      <LexwareLeiste
+      <BuchhaltungLeiste
         rechnungId={r.id}
         status={r.status}
-        lexwareLink={r.lexwareId ? lexwareLink(r.lexwareId) : null}
+        name={name}
+        zugang={istSevdesk ? "SEVDESK_API_TOKEN" : "LEXWARE_API_KEY"}
+        lexwareLink={!istSevdesk && r.lexwareId ? lexwareLink(r.lexwareId) : null}
         hatPdf={Boolean(r.pdfPfad)}
-        eingerichtet={lexwareEingerichtet()}
-        finalisieren={lexwareFinalisieren()}
+        eingerichtet={eingerichtet}
+        finalisieren={finalisieren}
         festgehangen={festgehangen}
       />
 
+      {sevdeskAktiv && r.lexwareStatus !== "voided" && r.lexwareStatus !== "draft" && (
+        <RechnungMailPanel
+          rechnungId={r.id}
+          bereit={eingerichtet}
+          start={{ an: r.versendetAn ?? kunde.email, ...rechnungMailVorschlag(angaben) }}
+          zuletzt={r.versendetAm && r.versendetAn ? { am: r.versendetAm, an: r.versendetAn } : null}
+        />
+      )}
+
+      {sevdeskAktiv && (
+        <ZahlungKarte
+          rechnungId={r.id}
+          brutto={brutto}
+          heute={heute}
+          kannBuchen={r.lexwareStatus === "open"}
+          kannStornieren={r.lexwareStatus === "open" || r.lexwareStatus === "paid"}
+          bezahltAm={r.bezahltAm}
+        />
+      )}
+
       {r.status === "uebertragen" && r.lexwareStatus === "open" && (
-        <MahnungKarte rechnungId={r.id} stufe={r.mahnstufe} angemahntAm={r.angemahntAm} hinweise={mahnHinweise} />
+        <MahnungKarte rechnungId={r.id} stufe={r.mahnstufe} angemahntAm={r.angemahntAm} hinweise={mahnHinweise} senden={mahnSenden} />
       )}
 
       {gesperrt && (
         <p className="flex items-center gap-2 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900">
           <LockIcon className="size-4 shrink-0" />
-          {r.archiviert ? "Diese Rechnung ist archiviert." : "Diese Rechnung ist an Lexware übertragen und gesperrt (Nummer und PDF stammen von Lexware)."}
+          {r.archiviert ? "Diese Rechnung ist archiviert." : `Diese Rechnung ist an ${name} übertragen und gesperrt (Nummer und PDF stammen von ${name}).`}
         </p>
       )}
 
@@ -188,7 +230,7 @@ export default async function RechnungSeite({ params }: PageProps<"/buero/rechnu
       </section>
 
       {r.netto !== null && abweichung && (
-        <p className="text-sm text-destructive">Laut Lexware: netto {formatBetrag(netto)}{brutto !== null && <>, brutto {formatBetrag(brutto)}</>} – weicht von der App ab, bitte in Lexware prüfen!</p>
+        <p className="text-sm text-destructive">Laut {name}: netto {formatBetrag(netto)}{brutto !== null && <>, brutto {formatBetrag(brutto)}</>} – weicht von der App ab, bitte prüfen!</p>
       )}
     </div>
   );

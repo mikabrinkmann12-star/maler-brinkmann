@@ -26,7 +26,14 @@ export type RechnungKopf = {
   rabattProzent: number;
   einleitung: string;
   schlusstext: string;
+  /** Wer hat die Rechnung übertragen? Neue Rechnungen gehen an sevdesk, ältere an Lexware. */
+  anbieter: "lexware" | "sevdesk";
   lexwareId: string | null;
+  sevdeskId: string | null;
+  versendetAm: string | null;
+  versendetAn: string | null;
+  bezahltAm: string | null;
+  storniertAm: string | null;
   rechnungsnummer: string;
   lexwareStatus: string;
   netto: number | null;
@@ -44,7 +51,8 @@ export type RechnungDetail = {
   rechnung: RechnungKopf;
   bausteine: (RechnungsBaustein & { id: string })[];
   projekt: { id: string; name: string; projektnummer: string; adresse: string };
-  kunde: { id: string; name: string; kundennummer: string; lexwareKontaktId: string | null; leitwegId: string; anschrift: string[] };
+  kunde: { id: string; name: string; kundennummer: string; lexwareKontaktId: string | null; sevdeskKontaktId: string | null; email: string; leitwegId: string; anschrift: string[] };
+  mahnungen: { id: string; stufe: number; versendetAn: string | null; versendetAm: string | null; erstelltAm: string }[];
   angebot: { id: string; betreff: string } | null;
 };
 
@@ -53,7 +61,7 @@ export async function rechnungLaden(id: string): Promise<RechnungDetail | null> 
   const { data: r, error } = await supabase
     .from("invoices")
     .select(
-      "id, project_id, quote_id, contact_id, status, betreff, rechnungsdatum, leistung_von, leistung_bis, zahlungsziel_tage, skonto_prozent, skonto_tage, steuersatz, reverse_charge, rabatt_prozent, einleitung, schlusstext, lexware_id, rechnungsnummer, lexware_status, netto, brutto, uebertragen_am, abgeglichen_am, pdf_pfad, archiviert_am, mahnstufe, angemahnt_am, notiz, projects(id, name, projektnummer, baustelle_strasse, baustelle_plz, baustelle_ort), contacts(id, kundennummer, typ, anrede, firmenname, ansprechpartner, vorname, nachname, strasse, plz, ort, land, empfaenger, lexware_contact_id, leitweg_id), quotes(id, betreff)",
+      "id, project_id, quote_id, contact_id, status, betreff, rechnungsdatum, leistung_von, leistung_bis, zahlungsziel_tage, skonto_prozent, skonto_tage, steuersatz, reverse_charge, rabatt_prozent, einleitung, schlusstext, anbieter, lexware_id, sevdesk_id, versendet_am, versendet_an, bezahlt_am, storniert_am, rechnungsnummer, lexware_status, netto, brutto, uebertragen_am, abgeglichen_am, pdf_pfad, archiviert_am, mahnstufe, angemahnt_am, notiz, projects(id, name, projektnummer, baustelle_strasse, baustelle_plz, baustelle_ort), contacts(id, kundennummer, typ, anrede, firmenname, ansprechpartner, vorname, nachname, strasse, plz, ort, land, empfaenger, email, lexware_contact_id, sevdesk_contact_id, leitweg_id), quotes(id, betreff)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -68,6 +76,13 @@ export async function rechnungLaden(id: string): Promise<RechnungDetail | null> 
     .order("created_at")
     .limit(2000);
   if (itemsFehler) throw new Error("Die Positionen konnten nicht geladen werden.");
+
+  const { data: mahn } = await supabase
+    .from("invoice_reminders")
+    .select("id, stufe, versendet_an, versendet_am, created_at")
+    .eq("invoice_id", id)
+    .order("created_at", { ascending: false })
+    .limit(20);
 
   const p = r.projects;
   const k = r.contacts;
@@ -90,7 +105,13 @@ export async function rechnungLaden(id: string): Promise<RechnungDetail | null> 
       rabattProzent: Number(r.rabatt_prozent),
       einleitung: r.einleitung ?? "",
       schlusstext: r.schlusstext ?? "",
+      anbieter: r.anbieter === "sevdesk" ? "sevdesk" : "lexware",
       lexwareId: r.lexware_id,
+      sevdeskId: r.sevdesk_id,
+      versendetAm: r.versendet_am,
+      versendetAn: r.versendet_an,
+      bezahltAm: r.bezahlt_am,
+      storniertAm: r.storniert_am,
       rechnungsnummer: r.rechnungsnummer ?? "",
       lexwareStatus: r.lexware_status ?? "",
       netto: r.netto == null ? null : Number(r.netto),
@@ -123,10 +144,13 @@ export async function rechnungLaden(id: string): Promise<RechnungDetail | null> 
       name: kontaktName(k),
       kundennummer: k?.kundennummer ?? "",
       lexwareKontaktId: k?.lexware_contact_id ?? null,
+      sevdeskKontaktId: k?.sevdesk_contact_id ?? null,
+      email: k?.email ?? "",
       leitwegId: k?.leitweg_id ?? "",
       anschrift: k ? briefanschrift(k) : [],
     },
     angebot: r.quotes ? { id: r.quotes.id, betreff: r.quotes.betreff } : null,
+    mahnungen: (mahn ?? []).map((m) => ({ id: m.id, stufe: m.stufe, versendetAn: m.versendet_an, versendetAm: m.versendet_am, erstelltAm: m.created_at })),
   };
 }
 

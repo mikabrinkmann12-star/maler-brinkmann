@@ -1,7 +1,7 @@
 import { cn } from "cn";
 import { RECHNUNG_STATUS_NAMEN, type RechnungStatus } from "@/lib/rechnung";
 
-const LEXWARE_NAMEN: Record<string, string> = { draft: "Entwurf in Lexware", open: "Offen", paid: "Bezahlt", paidoff: "Bezahlt", voided: "Storniert" };
+const LEXWARE_NAMEN: Record<string, string> = { draft: "Entwurf (Buchhaltung)", open: "Offen", paid: "Bezahlt", paidoff: "Bezahlt", voided: "Storniert" };
 
 /** Status einer Rechnung: Entwurf in der App, oder der Stand von Lexware (offen/bezahlt/storniert). */
 export function RechnungStatusBadge({ status, lexwareStatus, className }: { status: RechnungStatus; lexwareStatus?: string; className?: string }) {

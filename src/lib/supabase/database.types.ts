@@ -471,6 +471,7 @@ export type Database = {
           notizen: string | null
           ort: string | null
           plz: string | null
+          sevdesk_contact_id: string | null
           skonto_prozent: number | null
           skonto_tage: number | null
           steuersatz: number
@@ -503,6 +504,7 @@ export type Database = {
           notizen?: string | null
           ort?: string | null
           plz?: string | null
+          sevdesk_contact_id?: string | null
           skonto_prozent?: number | null
           skonto_tage?: number | null
           steuersatz?: number
@@ -535,6 +537,7 @@ export type Database = {
           notizen?: string | null
           ort?: string | null
           plz?: string | null
+          sevdesk_contact_id?: string | null
           skonto_prozent?: number | null
           skonto_tage?: number | null
           steuersatz?: number
@@ -793,12 +796,62 @@ export type Database = {
           },
         ]
       }
+      invoice_reminders: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          invoice_id: string
+          sevdesk_id: string | null
+          stufe: number
+          versendet_am: string | null
+          versendet_an: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          invoice_id: string
+          sevdesk_id?: string | null
+          stufe: number
+          versendet_am?: string | null
+          versendet_an?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          invoice_id?: string
+          sevdesk_id?: string | null
+          stufe?: number
+          versendet_am?: string | null
+          versendet_an?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_reminders_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_reminders_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoices: {
         Row: {
           abgeglichen_am: string | null
+          anbieter: string
           angemahnt_am: string | null
           archiviert_am: string | null
           betreff: string
+          bezahlt_am: string | null
           brutto: number | null
           contact_id: string
           created_at: string
@@ -820,19 +873,25 @@ export type Database = {
           rechnungsnummer: string | null
           reverse_charge: boolean
           schlusstext: string | null
+          sevdesk_id: string | null
           skonto_prozent: number | null
           skonto_tage: number | null
           status: Database["public"]["Enums"]["rechnung_status"]
           steuersatz: number
+          storniert_am: string | null
           uebertragen_am: string | null
           updated_at: string
+          versendet_am: string | null
+          versendet_an: string | null
           zahlungsziel_tage: number
         }
         Insert: {
           abgeglichen_am?: string | null
+          anbieter?: string
           angemahnt_am?: string | null
           archiviert_am?: string | null
           betreff: string
+          bezahlt_am?: string | null
           brutto?: number | null
           contact_id: string
           created_at?: string
@@ -854,19 +913,25 @@ export type Database = {
           rechnungsnummer?: string | null
           reverse_charge?: boolean
           schlusstext?: string | null
+          sevdesk_id?: string | null
           skonto_prozent?: number | null
           skonto_tage?: number | null
           status?: Database["public"]["Enums"]["rechnung_status"]
           steuersatz?: number
+          storniert_am?: string | null
           uebertragen_am?: string | null
           updated_at?: string
+          versendet_am?: string | null
+          versendet_an?: string | null
           zahlungsziel_tage?: number
         }
         Update: {
           abgeglichen_am?: string | null
+          anbieter?: string
           angemahnt_am?: string | null
           archiviert_am?: string | null
           betreff?: string
+          bezahlt_am?: string | null
           brutto?: number | null
           contact_id?: string
           created_at?: string
@@ -888,12 +953,16 @@ export type Database = {
           rechnungsnummer?: string | null
           reverse_charge?: boolean
           schlusstext?: string | null
+          sevdesk_id?: string | null
           skonto_prozent?: number | null
           skonto_tage?: number | null
           status?: Database["public"]["Enums"]["rechnung_status"]
           steuersatz?: number
+          storniert_am?: string | null
           uebertragen_am?: string | null
           updated_at?: string
+          versendet_am?: string | null
+          versendet_an?: string | null
           zahlungsziel_tage?: number
         }
         Relationships: [

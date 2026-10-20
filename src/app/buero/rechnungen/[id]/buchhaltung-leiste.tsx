@@ -9,10 +9,12 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import type { RechnungStatus } from "@/lib/rechnung";
 import { rechnungAbgleichen, rechnungArchivieren, rechnungUebertragen, rechnungWiederFreigeben } from "../actions";
 
-/** Übertragung an Lexware, Abgleich, PDF und Link. Das Finalisieren in Lexware ist nicht rücknehmbar, deshalb mit Bestätigung. */
-export function LexwareLeiste({
+/** Übertragung an die Buchhaltung (sevdesk bzw. Lexware), Abgleich, PDF und Link. Das Fertigstellen ist nicht rücknehmbar, deshalb mit Bestätigung. */
+export function BuchhaltungLeiste({
   rechnungId,
   status,
+  name,
+  zugang,
   lexwareLink,
   hatPdf,
   eingerichtet,
@@ -21,6 +23,10 @@ export function LexwareLeiste({
 }: {
   rechnungId: string;
   status: RechnungStatus;
+  /** „sevdesk“ oder „Lexware“ */
+  name: string;
+  /** Name der Umgebungsvariable, die noch fehlt (SEVDESK_API_TOKEN bzw. LEXWARE_API_KEY) */
+  zugang: string;
   lexwareLink: string | null;
   hatPdf: boolean;
   eingerichtet: boolean;
@@ -61,25 +67,25 @@ export function LexwareLeiste({
       {status === "entwurf" && (
         <div className="flex flex-col gap-2 rounded-xl border p-4">
           {!eingerichtet && (
-            <FormularMeldung art="hinweis">Lexware ist noch nicht eingerichtet: Der Admin trägt den API-Schlüssel (LEXWARE_API_KEY) in Vercel ein. Bis dahin kann die Rechnung vorbereitet, aber nicht gesendet werden.</FormularMeldung>
+            <FormularMeldung art="hinweis">{name} ist noch nicht eingerichtet: Der Admin trägt den Zugang ({zugang}) in Vercel ein. Bis dahin kann die Rechnung vorbereitet, aber nicht gesendet werden.</FormularMeldung>
           )}
           {frage ? (
             <>
               <p className="text-sm">
                 {finalisieren
-                  ? "Lexware erzeugt jetzt die fertige Rechnung mit Rechnungsnummer. Das lässt sich nicht mehr rückgängig machen, danach ist die Rechnung gesperrt. Prüfe vorher Betrag, Kunde und Leistungszeitraum."
-                  : "Test-Modus: Lexware legt die Rechnung nur als Entwurf an. Es entsteht keine Rechnungsnummer."}
+                  ? `${name} erzeugt jetzt die fertige Rechnung mit Rechnungsnummer. Das lässt sich nicht mehr rückgängig machen, danach ist die Rechnung gesperrt. Prüfe vorher Betrag, Kunde und Leistungszeitraum.`
+                  : `Test-Modus: ${name} legt die Rechnung nur als Entwurf an. Es entsteht keine Rechnungsnummer.`}
               </p>
               <div className="flex flex-wrap gap-2">
-                <Button type="button" onClick={() => ausfuehren(() => rechnungUebertragen(rechnungId), "An Lexware übertragen")} disabled={laeuft || !eingerichtet}>
-                  <SendIcon /> {laeuft ? "Wird übertragen …" : finalisieren ? "Ja, jetzt an Lexware senden" : "Ja, als Entwurf an Lexware senden"}
+                <Button type="button" onClick={() => ausfuehren(() => rechnungUebertragen(rechnungId), "Rechnung fertiggestellt")} disabled={laeuft || !eingerichtet}>
+                  <SendIcon /> {laeuft ? "Wird übertragen …" : finalisieren ? "Ja, Rechnung jetzt fertigstellen" : "Ja, als Entwurf anlegen"}
                 </Button>
                 <Button type="button" variant="ghost" onClick={() => setFrage(false)} disabled={laeuft}>Abbrechen</Button>
               </div>
             </>
           ) : (
             <div className="flex flex-wrap gap-2">
-              <Button type="button" onClick={() => setFrage(true)} disabled={!eingerichtet}><SendIcon /> An Lexware senden</Button>
+              <Button type="button" onClick={() => setFrage(true)} disabled={!eingerichtet}><SendIcon /> Rechnung fertigstellen</Button>
               {frageArchiv ? (
                 <>
                   <Button type="button" variant="destructive" disabled={laeuft} onClick={() => ausfuehren(() => rechnungArchivieren(rechnungId), "Entwurf archiviert")}>Wirklich archivieren</Button>
@@ -95,7 +101,7 @@ export function LexwareLeiste({
 
       {status === "wird_uebertragen" && (
         <div className="flex flex-col gap-2 rounded-xl border p-4">
-          <p className="text-sm">Die Rechnung wird gerade an Lexware übertragen. Lade die Seite gleich neu.</p>
+          <p className="text-sm">Die Rechnung wird gerade an {name} übertragen. Lade die Seite gleich neu.</p>
           {festgehangen && (
             <div>
               <Button type="button" variant="outline" disabled={laeuft} onClick={() => ausfuehren(() => rechnungWiederFreigeben(rechnungId), "Wieder freigegeben")}>Hängt die Übertragung? Wieder freigeben</Button>
@@ -106,8 +112,8 @@ export function LexwareLeiste({
 
       {status === "uebertragen" && (
         <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="outline" onClick={() => ausfuehren(() => rechnungAbgleichen(rechnungId), "Mit Lexware abgeglichen")} disabled={laeuft || !eingerichtet}>
-            <RefreshCwIcon /> {laeuft ? "Gleicht ab …" : "Aus Lexware abgleichen"}
+          <Button type="button" variant="outline" onClick={() => ausfuehren(() => rechnungAbgleichen(rechnungId), "Abgeglichen")} disabled={laeuft || !eingerichtet}>
+            <RefreshCwIcon /> {laeuft ? "Gleicht ab …" : "Abgleichen"}
           </Button>
           {hatPdf && (
             <>

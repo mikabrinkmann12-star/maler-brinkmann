@@ -4,8 +4,11 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireRole } from "@/lib/auth";
 import { steuerAusAuswahl } from "@/lib/angebot-schema";
-import { heuteIso } from "@/lib/datum";
+import { aktuellerAnbieter, sevdeskClient, sevdeskFinalisieren } from "@/lib/buchhaltung";
+import { heuteIso, istIsoDatum } from "@/lib/datum";
 import { lexwareClient, lexwareFinalisieren } from "@/lib/lexware";
+import { rechnungMailSchema } from "@/lib/rechnung-mail";
+import { sevdeskAbgleichen, sevdeskBezahltBuchen, sevdeskMahnen, sevdeskPerMail, sevdeskStornieren, sevdeskUebertragen, type Ergebnis } from "@/lib/sevdesk-uebertragung";
 import { istMahnstufe } from "@/lib/mahnung";
 import { LexwareFehler } from "@/lib/lexware-client";
 import { ersteMeldung } from "@/lib/nutzer-schema";
@@ -183,8 +186,56 @@ export async function rechnungArchivieren(id: string): Promise<RechnungErgebnis>
 }
 
 // ---------------------------------------------------------------------------
-// Übertragung an Lexware und Abgleich
+// Übertragung an die Buchhaltung (sevdesk im Hintergrund, ältere Rechnungen bei Lexware) und Abgleich
 // ---------------------------------------------------------------------------
+
+/** Gemeinsamer Rahmen für alle Abläufe mit sevdesk: Rechte sind geprüft, Client und Rechnung werden geladen, danach werden Seiten neu geladen. */
+async function mitSevdesk(
+  id: string,
+  ablauf: (db: Awaited<ReturnType<typeof createClient>>, client: NonNullable<ReturnType<typeof sevdeskClient>>, detail: NonNullable<Awaited<ReturnType<typeof rechnungLaden>>>) => Promise<Ergebnis>,
+): Promise<RechnungErgebnis> {
+  const client = sevdeskClient();
+  if (!client) return { fehler: "Die Buchhaltung ist noch nicht eingerichtet (der sevdesk-Token fehlt)." };
+  const detail = await rechnungLaden(id);
+  if (!detail) return { fehler: "Rechnung nicht gefunden." };
+  const r = await ablauf(await createClient(), client, detail);
+  aktualisieren(id, detail.rechnung.projectId);
+  revalidatePath("/buero");
+  return r;
+}
+
+/** Rechnung per E-Mail an den Kunden schicken (über die Buchhaltung, die PDF bzw. XML anhängt). */
+export async function rechnungPerMailSenden(id: string, eingabe: unknown): Promise<RechnungErgebnis> {
+  await requireRole(BUERO_ROLLEN);
+  if (!uuid.safeParse(id).success) return { fehler: "Ungültige Rechnung." };
+  const pruefung = rechnungMailSchema.safeParse(eingabe);
+  if (!pruefung.success) return { fehler: ersteMeldung(pruefung.error) };
+  return mitSevdesk(id, (db, client, detail) => sevdeskPerMail(db, client, detail, pruefung.data));
+}
+
+/** Zahlung buchen: die Rechnung gilt danach als bezahlt. */
+export async function rechnungAlsBezahltBuchen(id: string, datum: string): Promise<RechnungErgebnis> {
+  await requireRole(BUERO_ROLLEN);
+  if (!uuid.safeParse(id).success) return { fehler: "Ungültige Rechnung." };
+  if (!istIsoDatum(datum) || datum > heuteIso()) return { fehler: "Bitte ein Zahlungsdatum angeben, das nicht in der Zukunft liegt." };
+  return mitSevdesk(id, (db, client, detail) => sevdeskBezahltBuchen(db, client, detail, datum));
+}
+
+/** Zahlungserinnerung bzw. Mahnung anlegen und per E-Mail senden. */
+export async function rechnungMahnen(id: string, stufe: number, eingabe: unknown): Promise<RechnungErgebnis> {
+  await requireRole(BUERO_ROLLEN);
+  if (!uuid.safeParse(id).success || !istMahnstufe(stufe)) return { fehler: "Ungültige Eingabe." };
+  const pruefung = rechnungMailSchema.safeParse(eingabe);
+  if (!pruefung.success) return { fehler: ersteMeldung(pruefung.error) };
+  return mitSevdesk(id, (db, client, detail) => sevdeskMahnen(db, client, detail, stufe, pruefung.data));
+}
+
+/** Rechnung stornieren (Stornorechnung in der Buchhaltung, nicht rücknehmbar). */
+export async function rechnungStornieren(id: string): Promise<RechnungErgebnis> {
+  await requireRole(BUERO_ROLLEN);
+  if (!uuid.safeParse(id).success) return { fehler: "Ungültige Rechnung." };
+  return mitSevdesk(id, (db, client, detail) => sevdeskStornieren(db, client, detail));
+}
 
 /**
  * Original-Datei der Rechnung aus Lexware holen und als Kopie in der App ablegen: bei einer normalen Rechnung und bei ZUGFeRD ein PDF
@@ -216,6 +267,7 @@ async function dateiSichern(rechnungId: string, lexwareId: string): Promise<bool
 export async function rechnungUebertragen(id: string): Promise<RechnungErgebnis> {
   await requireRole(BUERO_ROLLEN);
   if (!uuid.safeParse(id).success) return { fehler: "Ungültige Rechnung." };
+  if (aktuellerAnbieter() === "sevdesk") return mitSevdesk(id, (db, client, detail) => sevdeskUebertragen(db, client, detail, sevdeskFinalisieren()));
   const client = lexwareClient();
   if (!client) return { fehler: "Lexware ist noch nicht eingerichtet (der API-Schlüssel fehlt)." };
 
@@ -321,10 +373,11 @@ export async function rechnungUebertragen(id: string): Promise<RechnungErgebnis>
 export async function rechnungAbgleichen(id: string): Promise<RechnungErgebnis> {
   await requireRole(BUERO_ROLLEN);
   if (!uuid.safeParse(id).success) return { fehler: "Ungültige Rechnung." };
-  const client = lexwareClient();
-  if (!client) return { fehler: "Lexware ist noch nicht eingerichtet (der API-Schlüssel fehlt)." };
   const detail = await rechnungLaden(id);
   if (!detail) return { fehler: "Rechnung nicht gefunden." };
+  if (detail.rechnung.anbieter === "sevdesk") return mitSevdesk(id, (db, client, d) => sevdeskAbgleichen(db, client, d));
+  const client = lexwareClient();
+  if (!client) return { fehler: "Lexware ist noch nicht eingerichtet (der API-Schlüssel fehlt)." };
   const { rechnung: r } = detail;
   if (!r.lexwareId) return { fehler: "Diese Rechnung ist noch nicht an Lexware übertragen." };
 

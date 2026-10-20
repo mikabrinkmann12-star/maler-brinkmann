@@ -61,7 +61,7 @@ export default async function RechnungsListe({ searchParams }: PageProps<"/buero
       <div>
         <h1 className="text-xl font-semibold">Ausgangsrechnungen</h1>
         <p className="mt-0.5 text-xs text-muted-foreground">
-          Eine Rechnung entsteht aus einem Angebot („Rechnung erstellen“ im Angebot). Nummer und Datei kommen von Lexware Office, Status und Fälligkeit vom letzten Abgleich.
+          Eine Rechnung entsteht aus einem Angebot („Rechnung erstellen“ im Angebot). Nummer und Datei kommen von der Buchhaltung (sevdesk im Hintergrund), Status und Fälligkeit vom letzten Abgleich.
         </p>
       </div>
 
