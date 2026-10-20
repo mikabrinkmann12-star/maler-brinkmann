@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeftIcon, ChevronRightIcon, PlusIcon } from "lucide-react";
+import { ChevronRightIcon, PlusIcon } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { requireUser } from "@/lib/auth";
 import { EINHEIT_NAMEN, abzugBewerten, aufmassSummen } from "@/lib/aufmass";
@@ -29,10 +29,6 @@ export default async function AufmassSeite({ params }: PageProps<"/baustellen/[i
 
   return (
     <div className="flex flex-col gap-5">
-      <Link href={`/baustellen/${id}`} className="flex w-fit items-center gap-1 text-sm text-muted-foreground">
-        <ArrowLeftIcon className="size-4" /> {rechte.projekt.name}
-      </Link>
-      <h1 className="text-2xl font-semibold">Aufmaß</h1>
       <Warteschlange userId={nutzer.id} />
 
       {rechte.darfInhalte && (

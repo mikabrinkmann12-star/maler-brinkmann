@@ -42,7 +42,7 @@ export async function dateiSpeichern(eingabe: unknown): Promise<DateiErgebnis> {
     erstellt_von: nutzer.id,
   });
   if (error && error.code !== "23505") return { fehler: "Dateien gehen nur auf Baustellen, auf denen du eingetragen bist." };
-  revalidatePath(`/baustellen/${d.projektId}`);
+  revalidatePath(`/baustellen/${d.projektId}`, "layout");
   return {};
 }
 
@@ -58,6 +58,6 @@ export async function dateiArchivieren(id: string, projektId: string): Promise<D
     .eq("project_id", projektId)
     .select("id");
   if (error || !data?.length) return { fehler: "Das hat nicht geklappt. Du kannst nur eigene Dateien entfernen." };
-  revalidatePath(`/baustellen/${projektId}`);
+  revalidatePath(`/baustellen/${projektId}`, "layout");
   return {};
 }

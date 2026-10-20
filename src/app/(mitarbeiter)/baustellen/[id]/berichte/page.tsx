@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowLeftIcon, ChevronRightIcon, FileTextIcon, PlusIcon } from "lucide-react";
+import { ChevronRightIcon, FileTextIcon, PlusIcon } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { BERICHT_ART_NAMEN, datenLesen, wetterText, type BerichtArt } from "@/lib/bericht";
 import { berichtKontext } from "@/lib/bericht-daten";
@@ -22,10 +22,6 @@ export default async function BerichteSeite({ params }: { params: Promise<{ id: 
 
   return (
     <div className="flex flex-col gap-4">
-      <Link href={`/baustellen/${id}`} className="flex w-fit items-center gap-1 text-sm text-muted-foreground">
-        <ArrowLeftIcon className="size-4" /> {k.projekt.name}
-      </Link>
-      <h1 className="text-2xl font-semibold">Berichte</h1>
       {k.darfSchreiben && (
         <Link href={`/baustellen/${id}/berichte/neu`} className={buttonVariants({ size: "touch", className: "w-full" })}>
           <PlusIcon /> Neuer Bautagesbericht

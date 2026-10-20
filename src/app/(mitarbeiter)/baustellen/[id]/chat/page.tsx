@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeftIcon } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { kollegenLaden } from "@/lib/mitarbeiter-daten";
 import { istBueroRolle } from "@/lib/rollen";
@@ -32,10 +30,6 @@ export default async function ChatSeite({ params }: { params: Promise<{ id: stri
 
   return (
     <div className="flex flex-1 flex-col gap-3">
-      <Link href={`/baustellen/${p.id}`} className="flex w-fit items-center gap-1 text-sm text-muted-foreground">
-        <ArrowLeftIcon className="size-4" /> {p.name}
-      </Link>
-      <h1 className="text-2xl font-semibold">Chat</h1>
       <ChatAnsicht projektId={p.id} ichId={nutzer.id} istBuero={istBuero} darfSchreiben={!p.archiviert_am} namen={namen} />
     </div>
   );

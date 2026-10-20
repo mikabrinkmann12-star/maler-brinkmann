@@ -1,206 +1,169 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeftIcon, ChevronRightIcon, MessageCircleIcon, FileTextIcon, ClipboardListIcon, FolderOpenIcon, PackageCheckIcon, PencilIcon, ClockIcon, NavigationIcon, PackageIcon, RulerIcon, StickyNoteIcon } from "lucide-react";
-import { cn } from "cn";
+import { ClockIcon, MailIcon, MapPinIcon, PencilIcon, PhoneIcon } from "lucide-react";
+import { AdressKarte } from "@/components/adress-karte";
 import { AnrufLink } from "@/components/anruf-link";
 import { StatusPille } from "@/components/status-pille";
 import { buttonVariants } from "@/components/ui/button";
-import { requireUser } from "@/lib/auth";
-import { EINHEIT_NAMEN, aufmassSummen } from "@/lib/aufmass";
-import { aufmassLaden } from "@/lib/baustellen-daten";
-import { vorschauPfad } from "@/lib/bild";
-import { ungelesenKarte, zaehlerText } from "@/lib/chat";
-import { groesseText } from "@/lib/dateien";
-import { formatDatum, formatDatumZeit, formatZahl } from "@/lib/format";
-import { kollegenLaden } from "@/lib/mitarbeiter-daten";
-import { adresseText, kontaktName, mapsLink } from "@/lib/projekt";
-import { istBueroRolle } from "@/lib/rollen";
-import { createClient } from "@/lib/supabase/server";
+import { formatDatum } from "@/lib/format";
+import { appleMapsLink, adresseText, kontaktName, mailLink, mapsLink, telLink } from "@/lib/projekt";
+import { projektKontext } from "@/lib/projekt-kontext";
 import { Warteschlange } from "../../warteschlange";
+import { AlteAnker } from "./alte-anker";
 import { Angebote } from "./angebote";
-import { Projektliste } from "./arbeitsanweisung";
-import { Rechnungen } from "./rechnungen";
-import { Dateien, type DateiAnzeige } from "./dateien";
-import { Fotos, type FotoAnzeige } from "./fotos";
-import { Material, type MaterialAnzeige } from "./material";
-import { Notizen, type NotizAnzeige } from "./notizen";
 import { ProjektArchivieren } from "./projekt-archivieren";
+import { Rechnungen } from "./rechnungen";
 import { Team } from "./team";
 
-export const metadata: Metadata = { title: "Baustelle" };
+export const metadata: Metadata = { title: "Projekt" };
 
-const SCHNELL = buttonVariants({ variant: "outline", size: "touch", className: "h-16 flex-col gap-1 px-1 text-sm" });
+const KARTE = "flex flex-col gap-3 rounded-xl border bg-card p-4";
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function MailKnopf({ email, name }: { email: string | null | undefined; name: string }) {
+  const link = mailLink(email);
+  if (!link) return null;
+  return (
+    <a href={link} aria-label={`E-Mail an ${name}`} className={buttonVariants({ variant: "outline", size: "icon-lg" })}>
+      <MailIcon />
+    </a>
+  );
+}
 
-export default async function BaustelleSeite({ params }: { params: Promise<{ id: string }> }) {
-  const nutzer = await requireUser();
+// Reiter „Infos“ (die erste Seite eines Projekts): Projektname, Baustellenadresse, Kunde, Ansprechpartner, Team.
+export default async function ProjektInfosSeite({ params }: PageProps<"/baustellen/[id]">) {
   const { id } = await params;
-  if (!UUID.test(id)) notFound();
+  const k = await projektKontext(id);
+  const { supabase, nutzer, kollegen } = k;
 
-  const supabase = await createClient();
-  // RLS: Mitarbeiter sehen nur eigene Projekte, Büro/Admin alle
-  const { data: p } = await supabase
-    .from("projects")
-    .select(
-      `id, name, beschreibung, baustelle_strasse, baustelle_plz, baustelle_ort, start_datum, end_datum,
-       archiviert_am, buero_ansprechpartner_id, project_statuses(name, farbe),
-       contacts(firmenname, anrede, vorname, nachname, ansprechpartner, telefon, mobil)`,
-    )
-    .eq("id", id)
-    .maybeSingle();
+  const [{ data: p }, { data: mitglieder }] = await Promise.all([
+    supabase
+      .from("projects")
+      .select(
+        `id, name, beschreibung, baustelle_strasse, baustelle_plz, baustelle_ort, start_datum, end_datum,
+         archiviert_am, buero_ansprechpartner_id, project_statuses(name, farbe),
+         contacts(firmenname, anrede, vorname, nachname, ansprechpartner, telefon, mobil, email, strasse, plz, ort)`,
+      )
+      .eq("id", id)
+      .maybeSingle(),
+    supabase.from("project_members").select("user_id").eq("project_id", id),
+  ]);
   if (!p) notFound();
 
-  const [{ data: mitglieder }, kollegen, { data: notizDaten }, { data: fotoDaten }, { data: dateiDaten }, { data: materialDaten }, aufmass, { data: ungelesenDaten }] = await Promise.all([
-    supabase.from("project_members").select("user_id").eq("project_id", id),
-    kollegenLaden(),
-    supabase.from("project_notes").select("id, text, erstellt_von, created_at")
-      .eq("project_id", id).is("archiviert_am", null).order("created_at", { ascending: false }),
-    supabase.from("project_photos").select("id, storage_pfad, kategorie, kommentar, erstellt_von, created_at")
-      .eq("project_id", id).is("archiviert_am", null).order("created_at", { ascending: false }),
-    supabase.from("project_files").select("id, storage_pfad, dateiname, groesse_bytes, erstellt_von, created_at")
-      .eq("project_id", id).is("archiviert_am", null).order("created_at", { ascending: false }),
-    supabase.from("material_usage").select("id, material, menge, einheit, bemerkung, erledigt_am, erstellt_von, created_at")
-      .eq("project_id", id).is("archiviert_am", null).order("created_at", { ascending: false }),
-    aufmassLaden(id),
-    supabase.rpc("chat_ungelesen"),
-  ]);
-  const chatNeu = ungelesenKarte(ungelesenDaten).get(id) ?? 0;
-  const team = (mitglieder ?? []).map((m) => kollegen.get(m.user_id)).filter((k): k is NonNullable<typeof k> => Boolean(k));
-  const istMitglied = team.some((t) => t.id === nutzer.id);
-  const istBuero = istBueroRolle(nutzer.rolle);
-  const darfInhalte = (istMitglied || istBuero) && !p.archiviert_am;
-  const wer = (uid: string | null) => {
-    if (uid === nutzer.id) return "Du";
-    const k = uid ? kollegen.get(uid) : undefined;
-    return k ? `${k.vorname} ${k.nachname}`.trim() : "Ehemaliger Kollege";
-  };
-  const darfLoeschen = (uid: string | null) => istBuero || (uid === nutzer.id && istMitglied);
-
-  // Fotos liegen im privaten Speicher: zeitlich begrenzte Adressen (1 Stunde) erzeugen
-  const pfade = (fotoDaten ?? []).flatMap((f) => [f.storage_pfad, vorschauPfad(f.storage_pfad)]);
-  const { data: adressen } = pfade.length
-    ? await supabase.storage.from("projektfotos").createSignedUrls(pfade, 60 * 60)
-    : { data: [] };
-  const adresse = new Map((adressen ?? []).filter((a) => a.signedUrl && !a.error).map((a) => [a.path, a.signedUrl]));
-  const fotos: FotoAnzeige[] = (fotoDaten ?? []).map((f) => ({
-    id: f.id,
-    kategorie: f.kategorie,
-    kommentar: f.kommentar ?? "",
-    bildUrl: adresse.get(f.storage_pfad) ?? null,
-    vorschauUrl: adresse.get(vorschauPfad(f.storage_pfad)) ?? adresse.get(f.storage_pfad) ?? null,
-    wer: wer(f.erstellt_von),
-    wann: formatDatumZeit(f.created_at),
-    darfLoeschen: darfLoeschen(f.erstellt_von),
-  }));
-  // Dateien liegen im privaten Speicher: Adressen mit dem Originalnamen zum Herunterladen (1 Stunde gültig)
-  const dateien: DateiAnzeige[] = await Promise.all(
-    (dateiDaten ?? []).map(async (f) => {
-      const { data: url } = await supabase.storage.from("projektdateien").createSignedUrl(f.storage_pfad, 60 * 60, { download: f.dateiname });
-      return {
-        id: f.id,
-        dateiname: f.dateiname,
-        groesse: groesseText(Number(f.groesse_bytes ?? 0)),
-        wer: wer(f.erstellt_von),
-        wann: formatDatumZeit(f.created_at),
-        url: url?.signedUrl ?? null,
-        darfLoeschen: darfLoeschen(f.erstellt_von),
-      };
-    }),
-  );
-  const material: MaterialAnzeige[] = (materialDaten ?? []).map((m) => ({
-    id: m.id,
-    material: m.material,
-    menge: Number(m.menge),
-    einheit: m.einheit,
-    bemerkung: m.bemerkung ?? "",
-    wer: wer(m.erstellt_von),
-    wann: formatDatumZeit(m.created_at),
-    erledigt: m.erledigt_am ? formatDatum(m.erledigt_am) : null,
-    darfLoeschen: darfLoeschen(m.erstellt_von),
-  }));
-  const aufmassSumme = aufmassSummen(aufmass);
-  const notizen: NotizAnzeige[] = (notizDaten ?? []).map((n) => ({
-    id: n.id,
-    text: n.text,
-    wer: wer(n.erstellt_von),
-    wann: formatDatumZeit(n.created_at),
-    darfLoeschen: darfLoeschen(n.erstellt_von),
-  }));
+  const team = (mitglieder ?? []).map((m) => kollegen.get(m.user_id)).filter((x): x is NonNullable<typeof x> => Boolean(x));
   const anschrift = { strasse: p.baustelle_strasse, plz: p.baustelle_plz, ort: p.baustelle_ort };
-  const navi = mapsLink(anschrift);
+  const adresse = adresseText(anschrift);
   const kunde = p.contacts;
+  const kundenName = kontaktName(kunde);
+  const kundenAdresse = kunde ? { strasse: kunde.strasse, plz: kunde.plz, ort: kunde.ort } : {};
   const bueroKontakt = p.buero_ansprechpartner_id ? kollegen.get(p.buero_ansprechpartner_id) : undefined;
+  const kundenNummer = kunde?.mobil || kunde?.telefon;
 
   return (
-    <div className="flex flex-col gap-6">
-      <Link href={p.archiviert_am && !istMitglied ? "/baustellen/archiv" : istBuero ? "/buero/projekte" : "/baustellen"} className="flex w-fit items-center gap-1 text-sm text-muted-foreground">
-        <ArrowLeftIcon className="size-4" /> {p.archiviert_am && !istMitglied ? "Archiv" : istBuero ? "Projekte" : "Meine Baustellen"}
-      </Link>
-
-      <div className="flex flex-col gap-2">
-        <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-          {p.project_statuses && <StatusPille name={p.project_statuses.name} farbe={p.project_statuses.farbe} />}
-          {p.start_datum && <span>{formatDatum(p.start_datum)}–{formatDatum(p.end_datum)}</span>}
-          {p.archiviert_am && <span>archiviert</span>}
-        </p>
-        <h1 className="text-2xl font-semibold leading-tight">{p.name}</h1>
-        {adresseText(anschrift) && <p className="text-lg">{adresseText(anschrift)}</p>}
-        {navi && (
-          <a href={navi} target="_blank" rel="noopener noreferrer" className={buttonVariants({ size: "touch", className: "w-full" })}>
-            <NavigationIcon /> Navigation starten
-          </a>
-        )}
-        {p.beschreibung && <p className="whitespace-pre-line text-muted-foreground">{p.beschreibung}</p>}
-      </div>
-
+    <div className="flex flex-col gap-4">
+      <AlteAnker projektId={p.id} />
       <Warteschlange userId={nutzer.id} />
 
-      {/* Schnellzugriff: ein Tipp zur gewünschten Stelle */}
-      {darfInhalte && (
-        <nav aria-label="Auf dieser Baustelle" className="grid grid-cols-3 gap-2">
-          {istMitglied && (
-            <Link href={`/zeiten/neu?projekt=${p.id}`} className={SCHNELL}>
-              <ClockIcon /> Zeit
-            </Link>
-          )}
-          <Link href={`/baustellen/${p.id}/chat`} className={cn(SCHNELL, "relative")}>
-            <MessageCircleIcon /> Chat
-            {chatNeu > 0 && (
-              <span aria-label={`${chatNeu} neue Nachrichten`} className="absolute right-1.5 top-1.5 min-w-5 rounded-full bg-red-600 px-1.5 text-center text-xs font-semibold leading-5 text-white">
-                {zaehlerText(chatNeu)}
-              </span>
+      <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+        {p.project_statuses ? <StatusPille name={p.project_statuses.name} farbe={p.project_statuses.farbe} /> : <span className="rounded-full border bg-card px-3 py-1">Kein Status</span>}
+        <span className="rounded-full border bg-card px-3 py-1">
+          {p.start_datum ? `${formatDatum(p.start_datum)}–${formatDatum(p.end_datum)}` : "Kein Start / Ende"}
+        </span>
+        {p.archiviert_am && <span className="rounded-full border bg-card px-3 py-1">archiviert</span>}
+      </div>
+
+      <section className={KARTE}>
+        <div>
+          <p className="text-sm text-muted-foreground">Projektname</p>
+          <p className="text-lg font-semibold">{p.name}</p>
+        </div>
+        {p.beschreibung && (
+          <div>
+            <p className="text-sm text-muted-foreground">Projektbeschreibung</p>
+            <p className="whitespace-pre-line">{p.beschreibung}</p>
+          </div>
+        )}
+      </section>
+
+      {adresse && (
+        <AdressKarte
+          titel="Baustellenadresse"
+          text={adresse}
+          googleLink={mapsLink(anschrift) ?? "#"}
+          appleLink={appleMapsLink(anschrift) ?? "#"}
+        />
+      )}
+
+      {kunde && (
+        <section className={KARTE}>
+          <div>
+            <p className="text-sm text-muted-foreground">Kunde</p>
+            <p className="text-lg font-semibold">{kundenName}</p>
+          </div>
+          <ul className="flex flex-col divide-y">
+            {[
+              { label: "Mobil", nummer: kunde.mobil },
+              { label: "Telefon", nummer: kunde.telefon },
+            ]
+              .filter((t) => telLink(t.nummer))
+              .map((t) => (
+                <li key={t.label}>
+                  <a href={telLink(t.nummer)!} className="flex min-h-12 items-center gap-3 py-1">
+                    <PhoneIcon className="size-5 shrink-0 text-primary" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm text-muted-foreground">{t.label}</span>
+                      <span className="block font-medium text-primary">{t.nummer}</span>
+                    </span>
+                  </a>
+                </li>
+              ))}
+            {mailLink(kunde.email) && (
+              <li>
+                <a href={mailLink(kunde.email)!} className="flex min-h-12 items-center gap-3 py-1">
+                  <MailIcon className="size-5 shrink-0 text-primary" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm text-muted-foreground">E-Mail</span>
+                    <span className="block truncate font-medium text-primary">{kunde.email}</span>
+                  </span>
+                </a>
+              </li>
             )}
-          </Link>
-          <Link href={`/baustellen/${p.id}/berichte`} className={SCHNELL}><FileTextIcon /> Berichte</Link>
-          <a href="#arbeitsanweisung" className={SCHNELL}><ClipboardListIcon /> Arbeits­anweisung</a>
-          <a href="#materialliste" className={SCHNELL}><PackageCheckIcon /> Material­liste</a>
-          <a href="#ablage" className={SCHNELL}><FolderOpenIcon /> Ablage</a>
-          <a href="#notizen" className={SCHNELL}><StickyNoteIcon /> Notizen</a>
-          <a href="#material" className={SCHNELL}><PackageIcon /> Material melden</a>
-          <Link href={`/baustellen/${p.id}/aufmass`} className={SCHNELL}><RulerIcon /> Aufmaß</Link>
-        </nav>
+            {adresseText(kundenAdresse) && (
+              <li>
+                <a href={mapsLink(kundenAdresse) ?? "#"} target="_blank" rel="noopener noreferrer" className="flex min-h-12 items-center gap-3 py-1">
+                  <MapPinIcon className="size-5 shrink-0 text-primary" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm text-muted-foreground">Adresse</span>
+                    <span className="block font-medium text-primary">{adresseText(kundenAdresse)}</span>
+                  </span>
+                </a>
+              </li>
+            )}
+          </ul>
+        </section>
       )}
 
       {(kunde || bueroKontakt) && (
-        <section className="flex flex-col gap-2">
-          <h2 className="text-lg font-semibold">Ansprechpartner</h2>
-          <ul className="flex flex-col divide-y rounded-xl border">
+        <section className={KARTE}>
+          <p className="text-sm text-muted-foreground">Ansprechpartner</p>
+          <ul className="flex flex-col divide-y">
             {kunde && (
-              <li className="flex items-center justify-between gap-3 px-4 py-2">
-                <span>
-                  <span className="block">{kunde.ansprechpartner || kontaktName(kunde)}</span>
-                  <span className="text-sm text-muted-foreground">Kunde{kunde.ansprechpartner ? ` · ${kontaktName(kunde)}` : ""}</span>
+              <li className="flex items-center justify-between gap-3 py-2 first:pt-0 last:pb-0">
+                <span className="min-w-0">
+                  <span className="block truncate font-medium">{kunde.ansprechpartner || kundenName}</span>
+                  <span className="block truncate text-sm text-muted-foreground">Kunde{kunde.ansprechpartner ? ` · ${kundenName}` : ""}</span>
                 </span>
-                <AnrufLink nummer={kunde.mobil || kunde.telefon} name={kontaktName(kunde)} />
+                <span className="flex shrink-0 gap-2">
+                  <AnrufLink nummer={kundenNummer} name={kunde.ansprechpartner || kundenName} />
+                  <MailKnopf email={kunde.email} name={kunde.ansprechpartner || kundenName} />
+                </span>
               </li>
             )}
             {bueroKontakt && (
-              <li className="flex items-center justify-between gap-3 px-4 py-2">
-                <span>
-                  <span className="block">{bueroKontakt.vorname} {bueroKontakt.nachname}</span>
-                  <span className="text-sm text-muted-foreground">Büro</span>
+              <li className="flex items-center justify-between gap-3 py-2 first:pt-0 last:pb-0">
+                <span className="min-w-0">
+                  <span className="block truncate font-medium">{bueroKontakt.vorname} {bueroKontakt.nachname}</span>
+                  <span className="block text-sm text-muted-foreground">Büro</span>
                 </span>
                 <AnrufLink nummer={bueroKontakt.telefon} name={bueroKontakt.vorname} />
               </li>
@@ -209,57 +172,30 @@ export default async function BaustelleSeite({ params }: { params: Promise<{ id:
         </section>
       )}
 
-      <Projektliste projektId={p.id} art="arbeitsanweisung" istBuero={istBuero} archiviert={Boolean(p.archiviert_am)} />
-      <Projektliste projektId={p.id} art="materialliste" istBuero={istBuero} archiviert={Boolean(p.archiviert_am)} />
+      {k.istMitglied && !k.archiviert && (
+        <Link href={`/zeiten/neu?projekt=${p.id}`} className={buttonVariants({ size: "touch", className: "w-full" })}>
+          <ClockIcon /> Zeit eintragen
+        </Link>
+      )}
 
       <Team
         projektId={p.id}
         ichId={nutzer.id}
-        darfHinzufuegen={istMitglied && !p.archiviert_am}
-        darfEntfernen={istBuero}
+        darfHinzufuegen={k.istMitglied && !k.archiviert}
+        darfEntfernen={k.istBuero}
         team={team}
-        kollegen={[...kollegen.values()].filter((k) => k.id !== nutzer.id)}
+        kollegen={[...kollegen.values()].filter((x) => x.id !== nutzer.id)}
       />
 
-      <section id="ablage" className="flex scroll-mt-4 flex-col gap-5">
-        <h2 className="flex items-center gap-2 text-lg font-semibold"><FolderOpenIcon className="size-5" /> Ablage</h2>
-        <Fotos projektId={p.id} ichId={nutzer.id} darfHochladen={darfInhalte} fotos={fotos} />
-        <Dateien projektId={p.id} darfHochladen={darfInhalte} dateien={dateien} />
-      </section>
-      <Notizen projektId={p.id} ichId={nutzer.id} darfSchreiben={darfInhalte} notizen={notizen} />
+      {k.istBuero && <Angebote projektId={p.id} archiviert={k.archiviert} />}
+      {k.istBuero && <Rechnungen projektId={p.id} />}
 
-      <Material projektId={p.id} ichId={nutzer.id} darfMelden={darfInhalte} darfAbhaken={istBuero} eintraege={material} />
-
-      <section className="flex flex-col gap-3">
-        <h2 className="flex items-center gap-2 text-lg font-semibold"><RulerIcon className="size-5" /> Aufmaß</h2>
-        <Link href={`/baustellen/${p.id}/aufmass`} className="flex items-center gap-3 rounded-xl border p-4 transition-colors hover:bg-muted">
-          <span className="min-w-0 flex-1">
-            {aufmassSumme.length === 0 ? (
-              <span className="text-muted-foreground">{darfInhalte ? "Noch kein Aufmaß. Antippen zum Erfassen." : "Noch kein Aufmaß."}</span>
-            ) : (
-              <ul className="flex flex-col gap-1">
-                {aufmassSumme.map((s) => (
-                  <li key={`${s.position}|${s.einheit}`} className="flex justify-between gap-3">
-                    <span className="truncate">{s.position}</span>
-                    <span className="shrink-0 font-semibold">{formatZahl(s.menge, { min: 2, max: 2 })} {EINHEIT_NAMEN[s.einheit]}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </span>
-          <ChevronRightIcon className="size-5 shrink-0 text-muted-foreground" />
-        </Link>
-      </section>
-
-      {istBuero && <Angebote projektId={p.id} archiviert={Boolean(p.archiviert_am)} />}
-      {istBuero && <Rechnungen projektId={p.id} />}
-
-      {istBuero && (
+      {k.istBuero && (
         <div className="flex flex-col gap-3">
           <Link href={`/buero/projekte/${p.id}/bearbeiten`} className={buttonVariants({ variant: "outline", size: "touch", className: "w-full" })}>
             <PencilIcon /> Projekt bearbeiten
           </Link>
-          <ProjektArchivieren projektId={p.id} archiviert={Boolean(p.archiviert_am)} />
+          <ProjektArchivieren projektId={p.id} archiviert={k.archiviert} />
         </div>
       )}
     </div>

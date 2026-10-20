@@ -26,7 +26,7 @@ export async function kollegeHinzufuegen(projektId: string, userId: string): Pro
         : "Hinzufügen geht nur auf Baustellen, auf denen du selbst eingetragen bist.",
     };
   }
-  revalidatePath(`/baustellen/${projektId}`);
+  revalidatePath(`/baustellen/${projektId}`, "layout");
   return {};
 }
 
@@ -43,7 +43,7 @@ export async function kollegeEntfernen(projektId: string, userId: string): Promi
     .eq("user_id", userId)
     .select("user_id");
   if (error || !data?.length) return { fehler: "Entfernen hat nicht geklappt." };
-  revalidatePath(`/baustellen/${projektId}`);
+  revalidatePath(`/baustellen/${projektId}`, "layout");
   return {};
 }
 
@@ -72,7 +72,7 @@ export async function notizAnlegen(eingabe: unknown): Promise<InhaltErgebnis> {
   if (error && error.code !== "23505") {
     return { fehler: "Notizen gehen nur auf Baustellen, auf denen du eingetragen bist." };
   }
-  revalidatePath(`/baustellen/${projektId}`);
+  revalidatePath(`/baustellen/${projektId}`, "layout");
   return {};
 }
 
@@ -96,7 +96,7 @@ async function archivieren(
     if (schon?.archiviert_am) return {}; // schon erledigt
     return { fehler: "Löschen kannst du nur deine eigenen Einträge." };
   }
-  revalidatePath(`/baustellen/${data[0].project_id}`);
+  revalidatePath(`/baustellen/${data[0].project_id}`, "layout");
   return {};
 }
 
@@ -145,7 +145,7 @@ export async function fotoSpeichern(eingabe: unknown): Promise<InhaltErgebnis> {
   if (error && error.code !== "23505") {
     return { fehler: "Fotos gehen nur auf Baustellen, auf denen du eingetragen bist." };
   }
-  revalidatePath(`/baustellen/${f.projektId}`);
+  revalidatePath(`/baustellen/${f.projektId}`, "layout");
   return {};
 }
 
@@ -180,7 +180,7 @@ export async function materialMelden(eingabe: unknown): Promise<InhaltErgebnis> 
   if (error && error.code !== "23505") {
     return { fehler: "Material melden geht nur auf Baustellen, auf denen du eingetragen bist." };
   }
-  revalidatePath(`/baustellen/${m.projektId}`);
+  revalidatePath(`/baustellen/${m.projektId}`, "layout");
   revalidatePath("/buero");
   return {};
 }
@@ -202,7 +202,7 @@ export async function materialErledigt(materialId: string, erledigt: boolean): P
     .eq("id", materialId)
     .select("project_id");
   if (error || !data.length) return { fehler: "Speichern hat nicht geklappt." };
-  revalidatePath(`/baustellen/${data[0].project_id}`);
+  revalidatePath(`/baustellen/${data[0].project_id}`, "layout");
   revalidatePath("/buero");
   return {};
 }
@@ -220,7 +220,7 @@ export async function projektArchivieren(projektId: string, archivieren: boolean
     .eq("id", projektId)
     .select("id");
   if (error || !data.length) return { fehler: "Das hat nicht geklappt." };
-  revalidatePath(`/baustellen/${projektId}`);
+  revalidatePath(`/baustellen/${projektId}`, "layout");
   revalidatePath("/baustellen", "layout");
   revalidatePath("/buero/projekte");
   return {};

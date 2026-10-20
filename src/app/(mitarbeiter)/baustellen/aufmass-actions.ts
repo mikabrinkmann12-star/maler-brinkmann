@@ -47,7 +47,7 @@ const aufmassSchema = z
   });
 
 function aktualisieren(projektId: string) {
-  revalidatePath(`/baustellen/${projektId}`);
+  revalidatePath(`/baustellen/${projektId}`, "layout");
   revalidatePath(`/baustellen/${projektId}/aufmass`);
 }
 

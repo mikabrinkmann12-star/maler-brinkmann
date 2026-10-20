@@ -1,19 +1,22 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArchiveIcon, ChevronRightIcon, MessageCircleIcon } from "lucide-react";
+import { ArchiveIcon, ChevronRightIcon, MessageCircleIcon, SearchIcon } from "lucide-react";
 import { StatusPille } from "@/components/status-pille";
+import { Input } from "@/components/ui/input";
 import { requireUser } from "@/lib/auth";
 import { ungelesenKarte, zaehlerText } from "@/lib/chat";
 import { heuteIso } from "@/lib/datum";
 import { formatDatum } from "@/lib/format";
 import { meineEinsaetze, meineProjektIds } from "@/lib/mitarbeiter-daten";
-import { adresseText } from "@/lib/projekt";
+import { adresseText, kontaktName } from "@/lib/projekt";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Baustellen" };
 
-export default async function BaustellenSeite() {
+export default async function BaustellenSeite({ searchParams }: PageProps<"/baustellen">) {
   const nutzer = await requireUser();
+  const { q: qParam } = await searchParams;
+  const suche = (typeof qParam === "string" ? qParam : "").trim().toLowerCase().slice(0, 60);
   const [ids, heute] = await Promise.all([meineProjektIds(nutzer.id), meineEinsaetze(nutzer.id, heuteIso())]);
   const heuteIds = new Set(heute.flatMap((e) => e.assignment_stops.map((s) => s.projects?.id)).filter(Boolean));
 
@@ -23,12 +26,20 @@ export default async function BaustellenSeite() {
   const { data } = ids.length
     ? await supabase
         .from("projects")
-        .select("id, name, baustelle_strasse, baustelle_plz, baustelle_ort, start_datum, end_datum, project_statuses(name, farbe, sortierung)")
+        .select("id, name, baustelle_strasse, baustelle_plz, baustelle_ort, start_datum, end_datum, project_statuses(name, farbe, sortierung), contacts(firmenname, vorname, nachname)")
         .in("id", ids)
         .is("archiviert_am", null)
     : { data: [] };
 
-  const projekte = [...(data ?? [])].sort((a, b) => {
+  const projekte = [...(data ?? [])]
+    .filter((p) =>
+      !suche ||
+      [p.name, kontaktName(p.contacts), adresseText({ strasse: p.baustelle_strasse, plz: p.baustelle_plz, ort: p.baustelle_ort })]
+        .join(" ")
+        .toLowerCase()
+        .includes(suche),
+    )
+    .sort((a, b) => {
     const h = Number(heuteIds.has(b.id)) - Number(heuteIds.has(a.id));
     if (h) return h;
     return (a.project_statuses?.sortierung ?? 99) - (b.project_statuses?.sortierung ?? 99);
@@ -36,9 +47,13 @@ export default async function BaustellenSeite() {
 
   return (
     <div className="flex flex-col gap-5">
+      <form method="get" role="search" className="relative">
+        <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-5 -translate-y-1/2 text-muted-foreground" />
+        <Input name="q" defaultValue={qParam && typeof qParam === "string" ? qParam : ""} placeholder="Suchen" className="h-12 pl-10 text-base" />
+      </form>
       {projekte.length === 0 && (
         <p className="rounded-xl border border-dashed p-5 text-muted-foreground">
-          Du bist noch auf keiner Baustelle eingetragen.
+          {suche ? "Nichts gefunden." : "Du bist noch auf keinem Projekt eingetragen."}
         </p>
       )}
       <Link href="/baustellen/archiv" className="flex items-center gap-3 rounded-xl border p-4 transition-colors hover:bg-muted">
@@ -52,9 +67,12 @@ export default async function BaustellenSeite() {
       <ul className="flex flex-col gap-3">
         {projekte.map((p) => (
           <li key={p.id}>
-            <Link href={`/baustellen/${p.id}`} className="flex items-center gap-3 rounded-xl border p-4 transition-colors hover:bg-muted">
+            <Link href={`/baustellen/${p.id}`} className="flex items-center gap-3 rounded-xl border bg-card p-4 transition-colors hover:bg-muted">
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-lg font-medium">{p.name}</span>
+                <span className="block truncate text-lg font-semibold">{p.name}</span>
+                <span className="block truncate text-sm font-semibold text-muted-foreground">
+                  {kontaktName(p.contacts) || "Kein Kunde"}
+                </span>
                 <span className="block truncate text-sm text-muted-foreground">
                   {adresseText({ strasse: p.baustelle_strasse, plz: p.baustelle_plz, ort: p.baustelle_ort }) || "Keine Adresse"}
                 </span>

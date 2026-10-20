@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { adresseText, kontaktName, mapsLink, telLink } from "./projekt";
+import { adresseText, appleMapsLink, kontaktName, mailLink, mapsLink, telLink } from "./projekt";
 
 describe("adresseText / mapsLink", () => {
   it("baut die Adresse zusammen und lässt Leeres weg", () => {
@@ -30,5 +30,17 @@ describe("kontaktName", () => {
     expect(kontaktName({ firmenname: "Autohaus Feldhaus", nachname: "X" })).toBe("Autohaus Feldhaus");
     expect(kontaktName({ vorname: "Thomas", nachname: "Gerdes" })).toBe("Thomas Gerdes");
     expect(kontaktName(null)).toBe("");
+  });
+});
+
+describe("appleMapsLink und mailLink", () => {
+  it("baut den Apple-Karten-Link", () => {
+    expect(appleMapsLink({ strasse: "Birkenweg 7", ort: "Saterland" })).toBe("https://maps.apple.com/?q=Birkenweg%207%2C%20Saterland");
+    expect(appleMapsLink({})).toBeNull();
+  });
+  it("mailto nur bei plausibler Adresse", () => {
+    expect(mailLink(" a@b.de ")).toBe("mailto:a@b.de");
+    expect(mailLink("kein mail")).toBeNull();
+    expect(mailLink(null)).toBeNull();
   });
 });

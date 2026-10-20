@@ -34,3 +34,15 @@ export function kontaktName(k: KontaktName | null | undefined): string {
   if (k.firmenname?.trim()) return k.firmenname.trim();
   return [k.vorname, k.nachname].filter(Boolean).join(" ").trim();
 }
+
+/** Link, der auf iPhone/Mac die Karten-App von Apple öffnet. */
+export function appleMapsLink(a: Adresse): string | null {
+  const text = adresseText(a);
+  return text ? `https://maps.apple.com/?q=${encodeURIComponent(text)}` : null;
+}
+
+/** „mailto:“-Link, nur bei einer plausiblen Adresse. */
+export function mailLink(email: string | null | undefined): string | null {
+  const e = email?.trim();
+  return e && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e) ? `mailto:${e}` : null;
+}
