@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { requireRecht } from "@/lib/auth";
 import { projektKontext } from "@/lib/projekt-kontext";
 import { Projektliste } from "../arbeitsanweisung";
 
@@ -6,6 +7,7 @@ export const metadata: Metadata = { title: "Arbeitsanweisungen" };
 
 // Reiter „Arbeitsanweisungen“: Arbeitsanweisung und Materialliste (ohne Preise, nach Freigabe).
 export default async function AnweisungenSeite({ params }: PageProps<"/baustellen/[id]/anweisungen">) {
+  await requireRecht("anweisungen_ansehen");
   const { id } = await params;
   const k = await projektKontext(id);
 

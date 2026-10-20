@@ -8,7 +8,7 @@ import { heuteIso } from "@/lib/datum";
 import { faelligAm } from "@/lib/dashboard";
 import { RECHNUNG_ANZEIGE_FARBEN, RECHNUNG_ANZEIGE_NAMEN, anzeigeStatus, faelligBeschreibung, offenerBetrag } from "@/lib/rechnung-liste";
 import { RechnungNotiz } from "./rechnung-notiz";
-import { requireRole } from "@/lib/auth";
+import { requireBueroRecht } from "@/lib/auth";
 import { auswahlAusSteuer } from "@/lib/angebot-schema";
 import { formatBetrag, formatDatum, formatDatumZeit, formatZahl } from "@/lib/format";
 import { aktuellerAnbieter, anbieterName, sevdeskEingerichtet, sevdeskFinalisieren } from "@/lib/buchhaltung";
@@ -18,7 +18,6 @@ import { mahnungMailVorschlag, rechnungMailVorschlag } from "@/lib/rechnung-mail
 import { lexwareLink, rechnungBerechnen } from "@/lib/rechnung";
 import { rechnungLaden } from "@/lib/rechnung-daten";
 import { kopfStart } from "@/lib/rechnung-formular";
-import { BUERO_ROLLEN } from "@/lib/rollen";
 import { BuchhaltungLeiste } from "./buchhaltung-leiste";
 import { MahnungKarte } from "./mahnung-karte";
 import { mahnungsHinweis } from "@/lib/rechnung-einstellungen";
@@ -32,7 +31,7 @@ export const metadata: Metadata = { title: "Rechnung" };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export default async function RechnungSeite({ params }: PageProps<"/buero/rechnungen/[id]">) {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("rechnungen");
   const { id } = await params;
   if (!UUID.test(id)) notFound();
   const detail = await rechnungLaden(id);

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { SeitenKopf } from "@/components/layout/seiten-kopf";
-import { requireUser } from "@/lib/auth";
+import { requireRecht } from "@/lib/auth";
 import { heuteIso } from "@/lib/datum";
 import { meineEinsaetze, meineProjektIds } from "@/lib/mitarbeiter-daten";
 import { createClient } from "@/lib/supabase/server";
@@ -14,7 +14,7 @@ export const metadata: Metadata = { title: "Zeiterfassung" };
 
 // Stempeluhr: Projekt wählen, „Zum Einstempeln wischen“, später ausstempeln. Beim Ausstempeln entsteht ein normaler Zeiteintrag.
 export default async function ZeiterfassungSeite() {
-  const nutzer = await requireUser();
+  const nutzer = await requireRecht("zeiten_eigene");
   const heute = heuteIso();
   const supabase = await createClient();
   const ids = await meineProjektIds(nutzer.id);

@@ -3,13 +3,12 @@ import Link from "next/link";
 import { ArrowDownIcon, ArrowUpIcon, FileTextIcon, MessageCircleIcon, PlusIcon } from "lucide-react";
 import { cn } from "cn";
 import { buttonVariants } from "@/components/ui/button";
-import { requireRole } from "@/lib/auth";
+import { requireBueroRecht } from "@/lib/auth";
 import { ungelesenKarte, zaehlerText } from "@/lib/chat";
 import { heuteIso } from "@/lib/datum";
 import { bearbeitetText, personKreis, zeitraumText } from "@/lib/listen-anzeige";
 import { kollegenLaden } from "@/lib/mitarbeiter-daten";
 import { istProjektSpalte, projekteListe, type ProjektSpalte } from "@/lib/projekt-tabelle-daten";
-import { BUERO_ROLLEN } from "@/lib/rollen";
 import { createClient } from "@/lib/supabase/server";
 import { istTag } from "@/lib/zeitraum";
 import { ProjekteFilter } from "./projekte-filter";
@@ -30,7 +29,7 @@ const SPALTEN: { id: ProjektSpalte | null; text: string; klasse?: string }[] = [
 ];
 
 export default async function ProjekteSeite({ searchParams }: PageProps<"/buero/projekte">) {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("projekte_ansehen");
   const params = await searchParams;
   const wert = (n: string) => (typeof params[n] === "string" ? (params[n] as string) : "");
   const liste = (n: string) => wert(n).split(",").filter((x) => UUID.test(x));

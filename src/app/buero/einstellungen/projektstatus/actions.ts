@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { requireRole } from "@/lib/auth";
+import { requireBueroRecht } from "@/lib/auth";
 import { ersteMeldung } from "@/lib/nutzer-schema";
 import { createClient } from "@/lib/supabase/server";
 
@@ -27,7 +27,7 @@ function dbMeldung(fehler: { code?: string }): string {
 }
 
 export async function statusAnlegen(eingabe: unknown): Promise<StatusErgebnis> {
-  await requireRole(["admin"]);
+  await requireBueroRecht("einstellungen_firma");
   const p = statusSchema.safeParse(eingabe);
   if (!p.success) return { fehler: ersteMeldung(p.error) };
   const supabase = await createClient();
@@ -39,7 +39,7 @@ export async function statusAnlegen(eingabe: unknown): Promise<StatusErgebnis> {
 }
 
 export async function statusAendern(id: string, eingabe: unknown): Promise<StatusErgebnis> {
-  await requireRole(["admin"]);
+  await requireBueroRecht("einstellungen_firma");
   if (!uuid.safeParse(id).success) return { fehler: "Ungültiger Status." };
   const p = statusSchema.extend({ aktiv: z.boolean() }).safeParse(eingabe);
   if (!p.success) return { fehler: ersteMeldung(p.error) };
@@ -53,7 +53,7 @@ export async function statusAendern(id: string, eingabe: unknown): Promise<Statu
 
 /** Status um eine Stelle verschieben: tauscht die Reihenfolge mit dem Nachbarn. */
 export async function statusVerschieben(id: string, richtung: "hoch" | "runter"): Promise<StatusErgebnis> {
-  await requireRole(["admin"]);
+  await requireBueroRecht("einstellungen_firma");
   if (!uuid.safeParse(id).success || (richtung !== "hoch" && richtung !== "runter")) return { fehler: "Ungültige Eingabe." };
   const supabase = await createClient();
   const { data: alle, error } = await supabase.from("project_statuses").select("id, sortierung").order("sortierung").order("name");

@@ -2,10 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeftIcon, DownloadIcon, ExternalLinkIcon } from "lucide-react";
-import { requireRole } from "@/lib/auth";
+import { requireBueroRecht } from "@/lib/auth";
 import { eingangsrechnungLaden, projekteFuerZuweisung } from "@/lib/eingangsrechnung-daten";
 import { formatDatum } from "@/lib/format";
-import { BUERO_ROLLEN } from "@/lib/rollen";
 import { RechnungFormular } from "./rechnung-formular";
 
 export const metadata: Metadata = { title: "Eingangsrechnung" };
@@ -19,7 +18,7 @@ const ERKANNT: Record<string, { text: string; farbe: string }> = {
 };
 
 export default async function EingangsrechnungSeite({ params }: PageProps<"/buero/eingangsrechnungen/[id]">) {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("eingangsrechnungen");
   const { id } = await params;
   if (!UUID.test(id)) notFound();
   const [d, projekte] = await Promise.all([eingangsrechnungLaden(id), projekteFuerZuweisung()]);

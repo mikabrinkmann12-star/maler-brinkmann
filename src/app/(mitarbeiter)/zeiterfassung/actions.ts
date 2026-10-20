@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { requireUser } from "@/lib/auth";
+import { requireRecht } from "@/lib/auth";
 import { formatDatum } from "@/lib/format";
 import { berlinZeit, stempelEintrag } from "@/lib/stempeluhr";
 import { createClient } from "@/lib/supabase/server";
@@ -23,7 +23,7 @@ function aktualisieren() {
 }
 
 export async function einstempeln(projektId: unknown): Promise<StempelErgebnis> {
-  const nutzer = await requireUser();
+  const nutzer = await requireRecht("zeiten_eigene");
   const id = z.uuid("Bitte zuerst ein Projekt wählen.").safeParse(projektId);
   if (!id.success) return { fehler: id.error.issues[0]?.message ?? "Bitte zuerst ein Projekt wählen." };
 
@@ -44,7 +44,7 @@ export async function einstempeln(projektId: unknown): Promise<StempelErgebnis> 
 }
 
 export async function ausstempeln(): Promise<StempelErgebnis> {
-  const nutzer = await requireUser();
+  const nutzer = await requireRecht("zeiten_eigene");
   const supabase = await createClient();
   const { data: uhr } = await supabase
     .from("stempeluhr")
@@ -98,7 +98,7 @@ export async function ausstempeln(): Promise<StempelErgebnis> {
 
 /** Uhr verwerfen, ohne eine Zeit einzutragen (z. B. versehentlich eingestempelt). */
 export async function stempeluhrVerwerfen(): Promise<StempelErgebnis> {
-  const nutzer = await requireUser();
+  const nutzer = await requireRecht("zeiten_eigene");
   const supabase = await createClient();
   const { error } = await supabase.from("stempeluhr").delete().eq("user_id", nutzer.id);
   if (error) return { fehler: "Das hat nicht geklappt. Bitte nochmal versuchen." };

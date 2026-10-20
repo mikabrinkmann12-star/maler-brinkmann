@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { requireUser, type AktuellerNutzer } from "@/lib/auth";
+import { requireRecht, type AktuellerNutzer } from "@/lib/auth";
 import { heuteIso } from "@/lib/datum";
 import { formatDatum } from "@/lib/format";
 import { ersteMeldung } from "@/lib/nutzer-schema";
@@ -101,7 +101,7 @@ async function namenLaden(supabase: Supabase, ich: AktuellerNutzer): Promise<Map
 // Neue Zeit (für mich und ggf. Kollegen derselben Baustelle)
 // ---------------------------------------------------------------------------
 export async function zeitenAnlegen(eingabe: unknown): Promise<ZeitErgebnis> {
-  const nutzer = await requireUser();
+  const nutzer = await requireRecht("zeiten_eigene");
   const pruefung = neueZeitSchema.safeParse(eingabe);
   if (!pruefung.success) return { fehler: ersteMeldung(pruefung.error) };
   const { daten: d, personen } = pruefung.data;
@@ -155,7 +155,7 @@ export async function zeitenAnlegen(eingabe: unknown): Promise<ZeitErgebnis> {
 // Eigene Zeit ändern
 // ---------------------------------------------------------------------------
 export async function zeitAendern(id: string, eingabe: unknown): Promise<ZeitErgebnis> {
-  const nutzer = await requireUser();
+  const nutzer = await requireRecht("zeiten_eigene");
   if (!uuid.safeParse(id).success) return { fehler: "Ungültiger Eintrag." };
   const pruefung = zeitDatenSchema.safeParse(eingabe);
   if (!pruefung.success) return { fehler: ersteMeldung(pruefung.error) };
@@ -191,7 +191,7 @@ export async function zeitAendern(id: string, eingabe: unknown): Promise<ZeitErg
 // Eigene Zeit löschen = archivieren (nichts wird endgültig gelöscht)
 // ---------------------------------------------------------------------------
 export async function zeitArchivieren(id: string): Promise<ZeitErgebnis> {
-  const nutzer = await requireUser();
+  const nutzer = await requireRecht("zeiten_eigene");
   if (!uuid.safeParse(id).success) return { fehler: "Ungültiger Eintrag." };
 
   const supabase = await createClient();

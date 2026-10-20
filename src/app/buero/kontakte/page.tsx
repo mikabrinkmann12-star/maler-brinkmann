@@ -3,7 +3,8 @@ import Link from "next/link";
 import { ArrowDownIcon, ArrowUpIcon, BuildingIcon, ChevronLeftIcon, ChevronRightIcon, PlusIcon, UploadIcon, UserIcon } from "lucide-react";
 import { cn } from "cn";
 import { buttonVariants } from "@/components/ui/button";
-import { requireRole } from "@/lib/auth";
+import { ladeRechte, requireBueroRecht } from "@/lib/auth";
+import { rechtOk } from "@/lib/rechte";
 import { kontaktFarbwert, istKontaktFarbe } from "@/lib/kontakt-farben";
 import {
   fehltAngabe,
@@ -16,7 +17,6 @@ import {
 } from "@/lib/kontakt-liste";
 import { bearbeitetText } from "@/lib/listen-anzeige";
 import { kollegenLaden } from "@/lib/mitarbeiter-daten";
-import { BUERO_ROLLEN } from "@/lib/rollen";
 import { suchtext } from "@/lib/suche";
 import { createClient } from "@/lib/supabase/server";
 import { KontakteFilter } from "./kontakte-filter";
@@ -41,7 +41,8 @@ function sortierungFuer(spalte: SortSpalte, absteigend: boolean): Sortierung {
 }
 
 export default async function KontakteSeite({ searchParams }: PageProps<"/buero/kontakte">) {
-  const nutzer = await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("kontakte_ansehen");
+  const rechte = await ladeRechte();
   const params = await searchParams;
   const wert = (n: string) => (typeof params[n] === "string" ? (params[n] as string) : "");
   const q = suchtext(wert("q"));
@@ -107,7 +108,7 @@ export default async function KontakteSeite({ searchParams }: PageProps<"/buero/
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-xl font-semibold">Kontakte</h1>
         <div className="flex items-center gap-2">
-          {nutzer.rolle === "admin" && (
+          {rechtOk(rechte, "kontakte_importieren") && (
             <Link href="/buero/kontakte/import" className={buttonVariants({ variant: "outline", className: "h-8 px-3 text-[13px]" })}>
               <UploadIcon className="size-3.5" /> Import
             </Link>

@@ -17,14 +17,17 @@ import {
   UsersIcon,
 } from "lucide-react";
 import { cn } from "cn";
+import { rechtOk } from "@/lib/rechte";
 import { BENACHRICHTIGUNGEN_OEFFNEN, NEUE_ZEIT_OEFFNEN, SUCHE_OEFFNEN, useBuero } from "./buero-kontext";
 
 type Eintrag = {
   href: string;
   name: string;
   icon: typeof HouseIcon;
+  /** Recht, das für den Menüeintrag nötig ist (ohne: immer sichtbar) */
+  recht?: string;
   /** Kleines „+“ rechts beim Darüberfahren (wie in Plancraft): legt direkt etwas Neues an. */
-  plus?: { href: string; titel: string; /** Öffnet statt der Seite ein Fenster (Ereignis aus buero-kontext) */ ereignis?: string };
+  plus?: { href: string; titel: string; /** Recht fürs Anlegen */ recht?: string; /** Öffnet statt der Seite ein Fenster (Ereignis aus buero-kontext) */ ereignis?: string };
   neu?: boolean;
   /** Weitere Pfade, bei denen der Eintrag als aktiv gilt (z. B. Urlaubsanträge gehören zu „Zeiten“). */
   auch?: string[];
@@ -33,14 +36,14 @@ type Eintrag = {
 // Reihenfolge wie in Plancraft: Übersicht, Plantafel („Einteilung“), Projekte, Angebote, Ausgangs- und Eingangsrechnungen, Zeiten, Stammdaten, Kontakte.
 const EINTRAEGE: Eintrag[] = [
   { href: "/buero", name: "Übersicht", icon: HouseIcon },
-  { href: "/buero/plantafel", name: "Einteilung", icon: CalendarDaysIcon },
-  { href: "/buero/projekte", name: "Projekte", icon: FolderIcon, plus: { href: "/buero/projekte/neu", titel: "Neues Projekt" } },
-  { href: "/buero/angebote", name: "Angebote", icon: FileTextIcon },
-  { href: "/buero/rechnungen", name: "Ausgangsrechnungen", icon: ReceiptTextIcon },
-  { href: "/buero/eingangsrechnungen", name: "Eingangsrechnungen", icon: InboxIcon },
-  { href: "/buero/zeiten", name: "Zeiten", icon: ClockIcon, plus: { href: "/buero/zeiten/neu", titel: "Neue Zeit", ereignis: NEUE_ZEIT_OEFFNEN }, auch: ["/buero/urlaub"] },
-  { href: "/buero/katalog", name: "Stammdaten", icon: LayersIcon, neu: true },
-  { href: "/buero/kontakte", name: "Kontakte", icon: UsersIcon, plus: { href: "/buero/kontakte/neu", titel: "Neuer Kontakt" } },
+  { href: "/buero/plantafel", name: "Einteilung", icon: CalendarDaysIcon, recht: "einteilung_bearbeiten" },
+  { href: "/buero/projekte", name: "Projekte", icon: FolderIcon, recht: "projekte_ansehen", plus: { href: "/buero/projekte/neu", titel: "Neues Projekt", recht: "projekte_bearbeiten" } },
+  { href: "/buero/angebote", name: "Angebote", icon: FileTextIcon, recht: "angebote" },
+  { href: "/buero/rechnungen", name: "Ausgangsrechnungen", icon: ReceiptTextIcon, recht: "rechnungen" },
+  { href: "/buero/eingangsrechnungen", name: "Eingangsrechnungen", icon: InboxIcon, recht: "eingangsrechnungen" },
+  { href: "/buero/zeiten", name: "Zeiten", icon: ClockIcon, recht: "zeiten_alle", plus: { href: "/buero/zeiten/neu", titel: "Neue Zeit", recht: "zeiten_alle", ereignis: NEUE_ZEIT_OEFFNEN }, auch: ["/buero/urlaub"] },
+  { href: "/buero/katalog", name: "Stammdaten", icon: LayersIcon, recht: "katalog", neu: true },
+  { href: "/buero/kontakte", name: "Kontakte", icon: UsersIcon, recht: "kontakte_ansehen", plus: { href: "/buero/kontakte/neu", titel: "Neuer Kontakt", recht: "kontakte_bearbeiten" } },
 ];
 
 /**
@@ -56,7 +59,7 @@ export function BueroNavigation({
 }) {
   const pfad = usePathname();
 
-  const { ungelesen } = useBuero();
+  const { ungelesen, rechte } = useBuero();
 
   /** „Suchen“ und „Benachrichtigungen“ stehen wie in Plancraft ganz oben und öffnen ein Fenster statt einer Seite. */
   const fensterKnopf = (ereignis: string, name: string, Icon: typeof HouseIcon, zusatz?: React.ReactNode) => (
@@ -101,7 +104,9 @@ export function BueroNavigation({
           BellIcon,
         )}
         <li aria-hidden className="my-1 h-px bg-sidebar-border" />
-        {EINTRAEGE.map(({ href, name, icon: Icon, plus, neu, auch = [] }) => {
+        {EINTRAEGE.filter((e) => !e.recht || rechtOk(rechte, e.recht)).map(({ href, name, icon: Icon, plus: plusEintrag, neu, auch = [] }) => {
+          // Das „+“ gibt es nur, wenn der Nutzer auch anlegen darf
+          const plus = plusEintrag && (!plusEintrag.recht || rechtOk(rechte, plusEintrag.recht)) ? plusEintrag : undefined;
           const aktiv =
             href === "/buero"
               ? pfad === href

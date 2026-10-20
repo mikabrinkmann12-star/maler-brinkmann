@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
-import { requireRole } from "@/lib/auth";
+import { requireBueroRecht } from "@/lib/auth";
 import { heuteIso } from "@/lib/datum";
 import { feiertageImJahr } from "@/lib/feiertage";
 import { formatDatum } from "@/lib/format";
@@ -10,7 +10,7 @@ import { wochentagName } from "@/lib/listen-anzeige";
 export const metadata: Metadata = { title: "Feiertage" };
 
 export default async function FeiertageSeite({ searchParams }: PageProps<"/buero/einstellungen/feiertage">) {
-  await requireRole(["admin"]);
+  await requireBueroRecht("einstellungen_firma");
   const params = await searchParams;
   const heute = heuteIso();
   const aktuellesJahr = Number(heute.slice(0, 4));

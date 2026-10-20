@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { BuildingIcon, MailIcon, PhoneIcon, UserIcon } from "lucide-react";
 import { AdressKarte } from "@/components/adress-karte";
 import { SeitenKopf } from "@/components/layout/seiten-kopf";
-import { requireUser } from "@/lib/auth";
+import { requireRecht } from "@/lib/auth";
 import { appleMapsLink, adresseText, kontaktName, mailLink, mapsLink, telLink } from "@/lib/projekt";
 import { createClient } from "@/lib/supabase/server";
 
@@ -14,7 +14,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 // Ein Kontakt zum Nachschauen: anrufen, E-Mail schreiben, zur Adresse navigieren. Sichtbar ist nur, was die Datenbank zeigt
 // (Kunden der eigenen und der archivierten Projekte).
 export default async function KontaktSeite({ params }: PageProps<"/kontakte/[id]">) {
-  await requireUser();
+  await requireRecht("kontakte_ansehen");
   const { id } = await params;
   if (!UUID.test(id)) notFound();
   const supabase = await createClient();

@@ -5,7 +5,8 @@ import { AnrufLink } from "@/components/anruf-link";
 import { ContainerKarte } from "@/components/container-karte";
 import { containerMeldungenLaden } from "@/lib/container-daten";
 import { buttonVariants } from "@/components/ui/button";
-import { requireUser } from "@/lib/auth";
+import { ladeRechte, requireUser } from "@/lib/auth";
+import { rechtOk } from "@/lib/rechte";
 import { Wochenstreifen } from "@/components/wochenstreifen";
 import { heuteIso, istIsoDatum } from "@/lib/datum";
 import { stoppZeitText, stoppsSortieren } from "@/lib/einsatz";
@@ -23,24 +24,28 @@ export const metadata: Metadata = { title: "Einsätze" };
 
 export default async function HeuteSeite({ searchParams }: PageProps<"/heute">) {
   const nutzer = await requireUser();
+  const rechte = await ladeRechte();
+  const zeigeEinsaetze = rechtOk(rechte, "einsaetze_ansehen");
+  const zeigeTermine = rechtOk(rechte, "termine");
+  const zeigeContainer = rechtOk(rechte, "container_melden");
   const heute = heuteIso();
   const { datum: datumParam, personen: personenRoh } = await searchParams;
   const datum = istIsoDatum(datumParam) ? datumParam : heute;
   const istHeute = datum === heute;
   const supabase = await createClient();
   const [einsaetze, kollegen, { data: heuteZeiten }, { data: termine }, containerMeldungen] = await Promise.all([
-    meineEinsaetze(nutzer.id, datum),
+    zeigeEinsaetze ? meineEinsaetze(nutzer.id, datum) : Promise.resolve([]),
     kollegenLaden(),
     supabase.from("time_entries").select("stunden").eq("user_id", nutzer.id).eq("datum", heute).is("archiviert_am", null),
     // Eigene Termine heute (Büro/Admin sehen per RLS alle, hier immer nur die eigenen)
-    supabase
+    zeigeTermine ? supabase
       .from("appointments")
       .select("id, titel, ort, zeit, notiz, project_id, appointment_members!inner(user_id)")
       .eq("datum", heute)
       .eq("appointment_members.user_id", nutzer.id)
       .is("archiviert_am", null)
-      .order("zeit", { nullsFirst: false }),
-    containerMeldungenLaden(),
+      .order("zeit", { nullsFirst: false }) : Promise.resolve({ data: [] as { id: string; titel: string; ort: string | null; zeit: string | null; notiz: string | null; project_id: string | null }[] }),
+    zeigeContainer ? containerMeldungenLaden() : Promise.resolve([]),
   ]);
   const heuteStunden = (heuteZeiten ?? []).reduce((s, t) => s + Number(t.stunden), 0);
 
@@ -202,7 +207,7 @@ export default async function HeuteSeite({ searchParams }: PageProps<"/heute">) 
     <div className="flex flex-col gap-5">
       <Warteschlange userId={nutzer.id} />
 
-      <ContainerKarte meldungen={containerMeldungen} />
+      {zeigeContainer && <ContainerKarte meldungen={containerMeldungen} />}
 
       <Wochenstreifen gewaehlt={datum} heute={heute} hrefFuer={(d) => (d === heute ? "/heute" : `/heute?datum=${d}`)} />
 
@@ -238,9 +243,12 @@ export default async function HeuteSeite({ searchParams }: PageProps<"/heute">) 
         </section>
       )}
 
-      <Link href="/termine/neu" className="flex w-fit items-center gap-1 text-sm text-muted-foreground underline-offset-4 hover:underline">
-        <CalendarClockIcon className="size-4" /> Termin eintragen
-      </Link>
+      {zeigeTermine && (
+        <Link href="/termine/neu" className="flex w-fit items-center gap-1 text-sm text-muted-foreground underline-offset-4 hover:underline">
+          <CalendarClockIcon className="size-4" /> Termin eintragen
+        </Link>
+      )}
+      {!zeigeEinsaetze && <p className="rounded-xl border border-dashed p-4 text-muted-foreground">Die Einsatzplanung ist für dich nicht freigegeben.</p>}
 
       {gewaehlt.map((pid) => {
         const person = personenListe.find((k) => k.id === pid);
@@ -256,7 +264,7 @@ export default async function HeuteSeite({ searchParams }: PageProps<"/heute">) 
               <p className="font-semibold">{person.vorname} {person.nachname}{istIch && <span className="font-normal text-muted-foreground"> (du)</span>}</p>
             </div>
             {seine.length === 0 && !istIch && <p className="rounded-xl bg-muted px-4 py-3 text-muted-foreground">Keine Einsätze</p>}
-            {seine.length === 0 && istIch && (
+            {seine.length === 0 && istIch && zeigeEinsaetze && (
         <div className="flex flex-col gap-3 rounded-xl border border-dashed p-5">
           <p className="text-lg font-medium">{istHeute ? "Für heute" : "Für diesen Tag"} bist du nicht eingeteilt.</p>
           <p className="text-muted-foreground">Frag im Büro nach oder schau bei deinen Projekten.</p>

@@ -1,17 +1,16 @@
 import type { Metadata } from "next";
 import { ContainerIcon, LockIcon } from "lucide-react";
 import { ContainerKarte } from "@/components/container-karte";
-import { requireRole } from "@/lib/auth";
+import { requireBueroRecht } from "@/lib/auth";
 import { CONTAINER_NAMEN, restText, sperreBis } from "@/lib/container";
 import { containerMeldungenLaden } from "@/lib/container-daten";
 import { formatDatumZeit } from "@/lib/format";
-import { BUERO_ROLLEN } from "@/lib/rollen";
 import { ContainerAktionen } from "./container-verwaltung";
 
 export const metadata: Metadata = { title: "Container" };
 
 export default async function ContainerSeite() {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("container_verwalten");
   const meldungen = await containerMeldungenLaden(40);
 
   return (

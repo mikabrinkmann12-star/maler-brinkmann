@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeftIcon, LockIcon } from "lucide-react";
-import { requireRole } from "@/lib/auth";
+import { requireBueroRecht } from "@/lib/auth";
 import { angebotBerechnen } from "@/lib/angebot";
 import { auswahlAusSteuer } from "@/lib/angebot-schema";
 import { angebotLaden } from "@/lib/angebot-daten";
@@ -12,7 +12,6 @@ import { angebotEinstellungenLaden, firmaLaden } from "@/lib/firma-daten";
 import { textvorlagenLaden } from "@/lib/textvorlagen-daten";
 import { vorlagenDerArt } from "@/lib/textvorlagen";
 import { formatBetrag, formatZahl } from "@/lib/format";
-import { BUERO_ROLLEN } from "@/lib/rollen";
 import { createClient } from "@/lib/supabase/server";
 import { StatusBadge } from "../status-badge";
 import { AbschlussFormular } from "./abschluss-formular";
@@ -28,7 +27,7 @@ export const metadata: Metadata = { title: "Angebot" };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export default async function AngebotSeite({ params }: PageProps<"/buero/angebote/[id]">) {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("angebote");
   const { id } = await params;
   if (!UUID.test(id)) notFound();
   const detail = await angebotLaden(id);

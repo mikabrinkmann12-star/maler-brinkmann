@@ -2,7 +2,8 @@ import "server-only";
 import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { startseiteFuer, type Rolle } from "@/lib/rollen";
+import { rechtOk, rechteAusZeilen, type Rechte } from "@/lib/rechte";
+import { BUERO_ROLLEN, startseiteFuer, type Rolle } from "@/lib/rollen";
 
 export type AktuellerNutzer = {
   id: string;
@@ -74,5 +75,49 @@ export async function requireRole(
 ): Promise<AktuellerNutzer> {
   const nutzer = await requireUser();
   if (!rollen.includes(nutzer.rolle)) redirect(startseiteFuer(nutzer.rolle));
+  return nutzer;
+}
+
+/**
+ * Rechte des eingeloggten Nutzers (einmal pro Anfrage). Admin: alles. Sonst die Zeilen seiner Rolle aus `role_permissions`
+ * (lesen dürfen alle aktiven Nutzer, ändern nur der Admin). Fehlt etwas oder geht die Abfrage schief, gilt „nein“.
+ */
+export const ladeRechte = cache(async (): Promise<Rechte> => {
+  const sitzung = await ladeSitzung();
+  if (sitzung.status !== "ok") return rechteAusZeilen("mitarbeiter", []);
+  const rolle = sitzung.nutzer.rolle;
+  if (rolle === "admin") return rechteAusZeilen("admin", []);
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("role_permissions").select("recht, stufe").eq("rolle", rolle);
+  // Sicher: ohne Antwort gilt „nein“. Der Fehler kommt ins Protokoll, damit ein leeres Menü nicht rätselhaft bleibt.
+  if (error) console.error("[rechte] Rechte konnten nicht geladen werden:", error.message);
+  return rechteAusZeilen(rolle, data ?? []);
+});
+
+/** Hat der Nutzer das Recht? (Für Anzeige und Menüs; durchgesetzt wird es zusätzlich von der Datenbank.) */
+export async function darf(recht: string): Promise<boolean> {
+  return rechtOk(await ladeRechte(), recht);
+}
+
+/**
+ * Wie requireUser, zusätzlich muss der Nutzer das Recht haben (Admin immer). Sonst → eigene Startseite.
+ * Das ist die Prüfung für Seiten und Server-Aktionen; sie ersetzt requireRole(BUERO_ROLLEN) und requireRole(["admin"]), wo
+ * der Admin das Recht in „Rollen & Zugriffsrechte“ einstellen kann. Die Rolle bleibt Pflicht für die Büro-Ansicht (/buero).
+ */
+export async function requireRecht(recht: string): Promise<AktuellerNutzer> {
+  const nutzer = await requireUser();
+  if (nutzer.rolle === "admin") return nutzer;
+  if (!rechtOk(await ladeRechte(), recht)) redirect(startseiteFuer(nutzer.rolle));
+  return nutzer;
+}
+
+/**
+ * Für Seiten und Aktionen der Büro-Ansicht: Rolle Büro oder Admin UND das Recht (Admin immer). Ohne das Recht geht es zurück
+ * auf die Büro-Übersicht. Ersetzt requireRole(BUERO_ROLLEN) und requireRole(["admin"]) bei allem, was der Admin einstellen kann.
+ */
+export async function requireBueroRecht(recht: string): Promise<AktuellerNutzer> {
+  const nutzer = await requireRole(BUERO_ROLLEN);
+  if (nutzer.rolle === "admin") return nutzer;
+  if (!rechtOk(await ladeRechte(), recht)) redirect("/buero");
   return nutzer;
 }

@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
-import { requireRole } from "@/lib/auth";
+import { requireBueroRecht } from "@/lib/auth";
 import { einheitenLaden } from "@/lib/einheiten-daten";
 import { EinheitenFormular } from "./einheiten-formular";
 
 export const metadata: Metadata = { title: "Einheiten" };
 
 export default async function EinheitenSeite() {
-  await requireRole(["admin"]);
+  await requireBueroRecht("einstellungen_firma");
   const einheiten = await einheitenLaden();
   return (
     <div className="flex max-w-xl flex-col gap-5">

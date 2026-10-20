@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
-import { requireRole } from "@/lib/auth";
+import { requireBueroRecht } from "@/lib/auth";
 import { zeiterfassungEinstellungen } from "@/lib/zeiten-daten";
 import { ZeiterfassungFormular } from "./formular";
 
 export const metadata: Metadata = { title: "Zeiterfassung" };
 
 export default async function ZeiterfassungEinstellungenSeite() {
-  await requireRole(["admin"]);
+  await requireBueroRecht("einstellungen_firma");
   const einstellungen = await zeiterfassungEinstellungen();
 
   return (

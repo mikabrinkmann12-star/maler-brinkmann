@@ -2,12 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { requireRole } from "@/lib/auth";
+import { requireBueroRecht } from "@/lib/auth";
 import { kundennummerVorschlag } from "@/lib/kundennummer-daten";
 import { dublettenSchluessel, importStatus, type KontaktEntwurf } from "@/lib/kontakt-import";
 import { importKontaktSchema, kontaktSchema } from "@/lib/kontakt-schema";
 import { ersteMeldung } from "@/lib/nutzer-schema";
-import { BUERO_ROLLEN } from "@/lib/rollen";
 import { createClient } from "@/lib/supabase/server";
 
 export type KontaktErgebnis = { fehler?: string; id?: string };
@@ -49,7 +48,7 @@ function aktualisieren(id?: string) {
 
 /** Kontakt anlegen (id leer) oder ändern. Büro und Admin. */
 export async function kontaktSpeichern(id: string | null, eingabe: unknown): Promise<KontaktErgebnis> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("kontakte_bearbeiten");
   if (id !== null && !z.uuid().safeParse(id).success) return { fehler: "Ungültiger Kontakt." };
   const pruefung = kontaktSchema.safeParse(eingabe);
   if (!pruefung.success) return { fehler: ersteMeldung(pruefung.error) };
@@ -70,7 +69,7 @@ export async function kontaktSpeichern(id: string | null, eingabe: unknown): Pro
 
 /** Nächste freie Kundennummer (Vorschlag, wird erst beim Speichern vergeben). */
 export async function kundennummerVorschlagen(): Promise<{ nummer?: string; fehler?: string }> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("kontakte_bearbeiten");
   try {
     return { nummer: await kundennummerVorschlag() };
   } catch {
@@ -80,7 +79,7 @@ export async function kundennummerVorschlagen(): Promise<{ nummer?: string; fehl
 
 /** Archivieren / Wiederherstellen (nichts wird gelöscht). */
 export async function kontaktArchivieren(id: string, archivieren: boolean): Promise<KontaktErgebnis> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("kontakte_bearbeiten");
   if (!z.uuid().safeParse(id).success) return { fehler: "Ungültiger Kontakt." };
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -106,7 +105,7 @@ export type ImportErgebnis = {
 const MAX_PRO_AUFRUF = 150;
 
 export async function kontakteImportieren(eingabe: unknown): Promise<ImportErgebnis> {
-  await requireRole(["admin"]);
+  await requireBueroRecht("kontakte_importieren");
   const leer = { importiert: 0, uebersprungen: 0, fehlerhaft: 0 };
   if (!Array.isArray(eingabe) || eingabe.length > MAX_PRO_AUFRUF) return { ...leer, fehler: "Zu viele Kontakte auf einmal." };
 

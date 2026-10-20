@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireRole } from "@/lib/auth";
+import { requireBueroRecht } from "@/lib/auth";
 import { ersteMeldung } from "@/lib/nutzer-schema";
 import { createClient } from "@/lib/supabase/server";
 import { einstellungenSchema } from "@/lib/zeit-schema";
@@ -14,7 +14,7 @@ export async function einstellungenSpeichern(
   _vorher: EinstellungenZustand,
   formData: FormData,
 ): Promise<EinstellungenZustand> {
-  const admin = await requireRole(["admin"]);
+  const admin = await requireBueroRecht("einstellungen_firma");
 
   const pruefung = einstellungenSchema.safeParse({
     erlaubteArten: formData.getAll("erlaubte_arten"),

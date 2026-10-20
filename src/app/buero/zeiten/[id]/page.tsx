@@ -2,9 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeftIcon } from "lucide-react";
-import { requireRole } from "@/lib/auth";
+import { requireBueroRecht } from "@/lib/auth";
 import { formatDatumZeit } from "@/lib/format";
-import { BUERO_ROLLEN } from "@/lib/rollen";
 import { createClient } from "@/lib/supabase/server";
 import { uhrzeitKurz } from "@/lib/zeiten";
 import { bueroPersonen, personenNamen } from "@/lib/zeiten-buero-daten";
@@ -16,7 +15,7 @@ export const metadata: Metadata = { title: "Zeit ändern" };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export default async function BueroZeitSeite({ params }: PageProps<"/buero/zeiten/[id]">) {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("zeiten_alle");
   const { id } = await params;
   if (!UUID.test(id)) notFound();
 

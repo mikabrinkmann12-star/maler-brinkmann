@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { requireUser } from "@/lib/auth";
+import { requireRecht } from "@/lib/auth";
 import { kollegenLaden } from "@/lib/mitarbeiter-daten";
 import { istBueroRolle } from "@/lib/rollen";
 import { createClient } from "@/lib/supabase/server";
@@ -11,7 +11,7 @@ export const metadata: Metadata = { title: "Chat" };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export default async function ChatSeite({ params }: { params: Promise<{ id: string }> }) {
-  const nutzer = await requireUser();
+  const nutzer = await requireRecht("chat");
   const { id } = await params;
   if (!UUID.test(id)) notFound();
 

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeftIcon } from "lucide-react";
-import { requireUser } from "@/lib/auth";
+import { requireRecht } from "@/lib/auth";
 import { heuteIso, istIsoDatum } from "@/lib/datum";
 import { meineProjektIds } from "@/lib/mitarbeiter-daten";
 import { createClient } from "@/lib/supabase/server";
@@ -11,7 +11,7 @@ import { TerminFormular } from "../termin-formular";
 export const metadata: Metadata = { title: "Termin eintragen" };
 
 export default async function NeuerTerminSeite({ searchParams }: PageProps<"/termine/neu">) {
-  const nutzer = await requireUser();
+  const nutzer = await requireRecht("termine");
   const { datum } = await searchParams;
   const ids = await meineProjektIds(nutzer.id);
   const supabase = await createClient();

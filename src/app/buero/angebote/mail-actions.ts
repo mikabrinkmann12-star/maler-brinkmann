@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import nodemailer from "nodemailer";
 import { z } from "zod";
-import { requireRole } from "@/lib/auth";
+import { requireBueroRecht } from "@/lib/auth";
 import { betreffBereinigen, mailSchema } from "@/lib/angebot-mail";
 import { angebotLink, angebotMailHtml, angebotMailText, appBasisUrl } from "@/lib/angebot-freigabe";
 import { freigabeAnlegen } from "@/lib/angebot-freigabe-daten";
@@ -11,7 +11,6 @@ import { angebotPdfErzeugen } from "@/lib/angebot-pdf-daten";
 import { smtpKonfiguration } from "@/lib/env";
 import { firmaLaden } from "@/lib/firma-daten";
 import { ersteMeldung } from "@/lib/nutzer-schema";
-import { BUERO_ROLLEN } from "@/lib/rollen";
 import { createClient } from "@/lib/supabase/server";
 
 export type MailErgebnis = { fehler?: string; gesendetAn?: string };
@@ -33,7 +32,7 @@ function mailFehlerText(fehler: unknown): string {
  * Gesendet wird an genau eine Adresse, die das Büro eintippt oder bestätigt.
  */
 export async function angebotMailSenden(angebotId: string, eingabe: unknown): Promise<MailErgebnis> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("angebote");
   if (!z.uuid().safeParse(angebotId).success) return { fehler: "Ungültiges Angebot." };
   const pruefung = mailSchema.safeParse(eingabe);
   if (!pruefung.success) return { fehler: ersteMeldung(pruefung.error) };

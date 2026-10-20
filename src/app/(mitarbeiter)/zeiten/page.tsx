@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ChevronLeftIcon, ChevronRightIcon, LockIcon } from "lucide-react";
 import { cn } from "cn";
 import { ZeitenReiter } from "@/components/layout/zeiten-reiter";
-import { requireUser } from "@/lib/auth";
+import { requireRecht } from "@/lib/auth";
 import { heuteIso, istIsoDatum, monatsGrenzen, tageVerschieben } from "@/lib/datum";
 import { formatDatum, formatMonat, formatStunden } from "@/lib/format";
 import { kollegenLaden } from "@/lib/mitarbeiter-daten";
@@ -21,7 +21,7 @@ export const metadata: Metadata = { title: "Zeiten" };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export default async function ZeitenSeite({ searchParams }: PageProps<"/zeiten">) {
-  const nutzer = await requireUser();
+  const nutzer = await requireRecht("zeiten_eigene");
   const { bereich: bereichParam, datum: datumParam, projekt: projektParam } = await searchParams;
   const heute = heuteIso();
   const bereich = bereichParam === "monat" ? "monat" : "woche";

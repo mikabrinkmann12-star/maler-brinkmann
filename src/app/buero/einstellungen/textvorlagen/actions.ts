@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { requireRole } from "@/lib/auth";
+import { requireBueroRecht } from "@/lib/auth";
 import { ersteMeldung } from "@/lib/nutzer-schema";
 import { vorlageSchema } from "@/lib/textvorlagen";
 import { createClient } from "@/lib/supabase/server";
@@ -24,7 +24,7 @@ function aktualisieren() {
 
 /** Vorlage anlegen (id leer) oder ändern (nur Admin). Ist „Standard“ gesetzt, verliert die bisherige Standard-Vorlage dieser Art den Status. */
 export async function vorlageSpeichern(id: string | null, eingabe: unknown): Promise<VorlageErgebnis> {
-  await requireRole(["admin"]);
+  await requireBueroRecht("einstellungen_firma");
   if (id !== null && !uuid.safeParse(id).success) return { fehler: "Ungültige Vorlage." };
   const pruefung = vorlageSchema.safeParse(eingabe);
   if (!pruefung.success) return { fehler: ersteMeldung(pruefung.error) };
@@ -52,7 +52,7 @@ export async function vorlageSpeichern(id: string | null, eingabe: unknown): Pro
 
 /** Vorlage archivieren (nur Admin). Nichts wird gelöscht; bestehende Angebote behalten ihren Text. */
 export async function vorlageArchivieren(id: string): Promise<VorlageErgebnis> {
-  await requireRole(["admin"]);
+  await requireBueroRecht("einstellungen_firma");
   if (!uuid.safeParse(id).success) return { fehler: "Ungültige Vorlage." };
   const supabase = await createClient();
   const { data, error } = await supabase

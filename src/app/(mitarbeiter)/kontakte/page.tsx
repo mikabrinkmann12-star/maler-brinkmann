@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { BuildingIcon, PhoneIcon, SearchIcon, UserIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { requireUser } from "@/lib/auth";
+import { requireRecht } from "@/lib/auth";
 import { nachBuchstabenGruppieren } from "@/lib/kontakt-gruppen";
 import { kontaktName, telLink } from "@/lib/projekt";
 import { createClient } from "@/lib/supabase/server";
@@ -20,7 +20,7 @@ const FARBEN: Record<string, string> = {
 
 // Mitarbeiter sehen (per RLS) nur die Kunden ihrer eigenen und der archivierten Projekte.
 export default async function KontakteSeite({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
-  await requireUser();
+  await requireRecht("kontakte_ansehen");
   const { q } = await searchParams;
   const suche = (q ?? "").trim().slice(0, 60).replace(/[%,()*]/g, " ").trim();
 

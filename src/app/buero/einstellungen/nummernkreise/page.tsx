@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { requireRole } from "@/lib/auth";
+import { requireBueroRecht } from "@/lib/auth";
 import { projektnummerStart, projektnummerVorschlag } from "@/lib/projektnummer-daten";
 import { KUNDENNUMMER_BEISPIEL } from "@/lib/kundennummer";
 import { NummernkreisFormular } from "./formular";
@@ -7,7 +7,7 @@ import { NummernkreisFormular } from "./formular";
 export const metadata: Metadata = { title: "Nummernkreise" };
 
 export default async function NummernkreiseSeite() {
-  await requireRole(["admin"]);
+  await requireBueroRecht("einstellungen_firma");
   const [start, vorschlag] = await Promise.all([projektnummerStart(), projektnummerVorschlag()]);
 
   return (

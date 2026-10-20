@@ -2,11 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { requireRole } from "@/lib/auth";
+import { requireBueroRecht } from "@/lib/auth";
 import { angebotBerechnen } from "@/lib/angebot";
 import { angebotLaden } from "@/lib/angebot-daten";
 import { MATERIALLISTE_LEER, MAX_ANWEISUNG, arbeitsanweisungErzeugen, materiallisteErzeugen } from "@/lib/arbeitsanweisung";
-import { BUERO_ROLLEN } from "@/lib/rollen";
 import { createClient } from "@/lib/supabase/server";
 
 // Arbeitsanweisungen und Materiallisten (Büro und Admin). Mitarbeiter sehen sie erst nach der Freigabe (Regel steht in der Datenbank).
@@ -34,7 +33,7 @@ const LISTEN_NAMEN: Record<ListenArt, string> = { arbeitsanweisung: "Arbeitsanwe
  * schon eine dieser Art, die noch nicht freigegeben ist, wird sie neu erzeugt (überschrieben). Eine freigegebene bleibt unangetastet.
  */
 async function listeAusAngebot(angebotId: string, art: ListenArt): Promise<AnweisungErgebnis> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("angebote");
   if (!uuid.safeParse(angebotId).success) return { fehler: "Ungültiges Angebot." };
   const detail = await angebotLaden(angebotId);
   if (!detail) return { fehler: "Angebot nicht gefunden." };
@@ -84,7 +83,7 @@ export async function materialListeErstellen(angebotId: string): Promise<Anweisu
 
 /** Leere Liste direkt am Projekt anlegen (ohne Angebot), z. B. eine Materialliste, die das Büro von Hand schreibt. */
 export async function projektListeAnlegen(projektId: string, art: string): Promise<AnweisungErgebnis> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("angebote");
   if (!uuid.safeParse(projektId).success) return { fehler: "Ungültiges Projekt." };
   if (art !== "arbeitsanweisung" && art !== "materialliste") return { fehler: "Ungültige Art." };
   const supabase = await createClient();
@@ -109,7 +108,7 @@ async function projektIdVon(id: string): Promise<string | null> {
 }
 
 export async function anweisungSpeichern(id: string, titel: string, inhalt: string): Promise<AnweisungErgebnis> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("angebote");
   if (!uuid.safeParse(id).success) return { fehler: "Ungültige Anweisung." };
   const t = titel.trim();
   if (!t) return { fehler: "Bitte einen Titel eingeben." };
@@ -127,7 +126,7 @@ export async function anweisungSpeichern(id: string, titel: string, inhalt: stri
 
 /** Für die Mitarbeiter des Projekts freigeben oder die Freigabe zurücknehmen. */
 export async function anweisungFreigeben(id: string, freigeben: boolean): Promise<AnweisungErgebnis> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("angebote");
   if (!uuid.safeParse(id).success) return { fehler: "Ungültige Anweisung." };
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -142,7 +141,7 @@ export async function anweisungFreigeben(id: string, freigeben: boolean): Promis
 }
 
 export async function anweisungArchivieren(id: string): Promise<AnweisungErgebnis> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("angebote");
   if (!uuid.safeParse(id).success) return { fehler: "Ungültige Anweisung." };
   const projektId = await projektIdVon(id);
   const supabase = await createClient();

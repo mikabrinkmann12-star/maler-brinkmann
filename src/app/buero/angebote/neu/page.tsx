@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeftIcon } from "lucide-react";
-import { requireRole } from "@/lib/auth";
+import { requireBueroRecht } from "@/lib/auth";
 import { projekteFuerAngebot } from "@/lib/angebot-daten";
-import { BUERO_ROLLEN } from "@/lib/rollen";
 import { createClient } from "@/lib/supabase/server";
 import { NeuesAngebotFormular } from "./neues-angebot-formular";
 
@@ -12,7 +11,7 @@ export const metadata: Metadata = { title: "Neues Angebot" };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export default async function NeuesAngebotSeite({ searchParams }: PageProps<"/buero/angebote/neu">) {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("angebote");
   const params = await searchParams;
   const projektParam = typeof params.projekt === "string" && UUID.test(params.projekt) ? params.projekt : "";
 

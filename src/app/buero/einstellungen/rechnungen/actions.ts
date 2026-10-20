@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireRole } from "@/lib/auth";
+import { requireBueroRecht } from "@/lib/auth";
 import { ersteMeldung } from "@/lib/nutzer-schema";
 import { einstellungenAusEingabe, rechnungsEinstellungenAlsJson, rechnungsEinstellungenSchema } from "@/lib/rechnung-einstellungen";
 import { createClient } from "@/lib/supabase/server";
@@ -10,7 +10,7 @@ export type RechnungsEinstellungenErgebnis = { fehler?: string };
 
 /** „Rechnungen – Vorgaben“ speichern, nur Admin (RLS prüft es zusätzlich). */
 export async function rechnungsEinstellungenSpeichern(eingabe: unknown): Promise<RechnungsEinstellungenErgebnis> {
-  const admin = await requireRole(["admin"]);
+  const admin = await requireBueroRecht("einstellungen_firma");
   const pruefung = rechnungsEinstellungenSchema.safeParse(eingabe);
   if (!pruefung.success) return { fehler: ersteMeldung(pruefung.error) };
 

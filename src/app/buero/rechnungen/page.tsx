@@ -5,7 +5,7 @@ import { BelegFilter } from "@/components/listen/beleg-filter";
 import type { ListenOption } from "@/components/listen/mehrfach-liste";
 import { StatusPille } from "@/components/status-pille";
 import { summe } from "@/lib/angebot-liste";
-import { requireRole } from "@/lib/auth";
+import { requireBueroRecht } from "@/lib/auth";
 import { heuteIso } from "@/lib/datum";
 import { formatBetrag, formatDatum } from "@/lib/format";
 import {
@@ -19,7 +19,6 @@ import {
   type RechnungAnzeigeStatus,
 } from "@/lib/rechnung-liste";
 import { rechnungenLaden } from "@/lib/rechnung-daten";
-import { BUERO_ROLLEN } from "@/lib/rollen";
 import { istTag } from "@/lib/zeitraum";
 
 export const metadata: Metadata = { title: "Ausgangsrechnungen" };
@@ -28,7 +27,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const FILTER_STATUS: RechnungAnzeigeStatus[] = ["entwurf", "offen", "ueberfaellig", "angemahnt", "bezahlt", "storniert"];
 
 export default async function RechnungsListe({ searchParams }: PageProps<"/buero/rechnungen">) {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("rechnungen");
   const params = await searchParams;
   const wert = (n: string) => (typeof params[n] === "string" ? (params[n] as string) : "");
   const q = wert("q").trim();

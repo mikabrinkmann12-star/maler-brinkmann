@@ -2,9 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { requireRole, requireUser } from "@/lib/auth";
+import { requireBueroRecht, requireUser } from "@/lib/auth";
 import { FOTO_KATEGORIEN, fotoPfade } from "@/lib/bild";
-import { BUERO_ROLLEN } from "@/lib/rollen";
 import { createClient } from "@/lib/supabase/server";
 
 export type TeamErgebnis = { fehler?: string };
@@ -32,7 +31,7 @@ export async function kollegeHinzufuegen(projektId: string, userId: string): Pro
 
 /** Zuordnung wieder entfernen – nur Büro/Admin. */
 export async function kollegeEntfernen(projektId: string, userId: string): Promise<TeamErgebnis> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("kollegen_hinzufuegen");
   if (!id.safeParse(projektId).success || !id.safeParse(userId).success) return { fehler: "Ungültige Eingabe." };
 
   const supabase = await createClient();
@@ -193,7 +192,7 @@ export async function materialArchivieren(materialId: string): Promise<InhaltErg
 
 /** Büro hakt Material als besorgt/erledigt ab (oder nimmt den Haken zurück). */
 export async function materialErledigt(materialId: string, erledigt: boolean): Promise<InhaltErgebnis> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("baustelle_eintragen");
   if (!id.safeParse(materialId).success) return { fehler: "Ungültiger Eintrag." };
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -211,7 +210,7 @@ export async function materialErledigt(materialId: string, erledigt: boolean): P
 // Projekt archivieren / wiederherstellen (nur Büro/Admin, nichts wird gelöscht)
 // ---------------------------------------------------------------------------
 export async function projektArchivieren(projektId: string, archivieren: boolean): Promise<InhaltErgebnis> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("projekte_bearbeiten");
   if (!id.safeParse(projektId).success) return { fehler: "Ungültiges Projekt." };
   const supabase = await createClient();
   const { data, error } = await supabase

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { requireRole } from "@/lib/auth";
+import { requireBueroRecht } from "@/lib/auth";
 import { kalkulationInGrenzen, kalkulieren } from "@/lib/kalkulation";
 import { kalkulationEingabeSchema, kalkulationEinstellungenSchema } from "@/lib/kalkulation-schema";
 import { kalkulationLaden } from "@/lib/kalkulation-daten";
@@ -11,7 +11,6 @@ import { katalogSchluesselLaden, ordnerLaden, type OrdnerZeile } from "@/lib/kat
 import { MAX_ORDNER_TIEFE, importStatus, type KatalogEntwurf } from "@/lib/katalog-import";
 import { leistungSchema, materialSchema, ordnerSchema } from "@/lib/katalog-schema";
 import { ersteMeldung } from "@/lib/nutzer-schema";
-import { BUERO_ROLLEN } from "@/lib/rollen";
 import { createClient } from "@/lib/supabase/server";
 
 // Katalog pflegen (Büro und Admin). Nichts wird gelöscht, nur archiviert.
@@ -40,7 +39,7 @@ function tabelle(art: KatalogArt) {
 // Ordner
 // ---------------------------------------------------------------------------
 export async function ordnerSpeichern(art: string, id: string | null, eingabe: unknown): Promise<KatalogErgebnis> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("katalog");
   if (!istKatalogArt(art)) return { fehler: "Ungültige Art." };
   if (id !== null && !uuid.safeParse(id).success) return { fehler: "Ungültiger Ordner." };
   const pruefung = ordnerSchema.safeParse(eingabe);
@@ -67,7 +66,7 @@ export async function ordnerSpeichern(art: string, id: string | null, eingabe: u
 
 /** Ordner archivieren (nur wenn er leer ist) oder wiederherstellen (nur wenn der übergeordnete Ordner aktiv ist). */
 export async function ordnerArchivieren(art: string, id: string, archivieren: boolean): Promise<KatalogErgebnis> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("katalog");
   if (!istKatalogArt(art) || !uuid.safeParse(id).success) return { fehler: "Ungültiger Ordner." };
   const supabase = await createClient();
 
@@ -104,7 +103,7 @@ export async function ordnerArchivieren(art: string, id: string, archivieren: bo
 // Materialien und Leistungen
 // ---------------------------------------------------------------------------
 export async function eintragSpeichern(art: string, id: string | null, eingabe: unknown): Promise<KatalogErgebnis> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("katalog");
   if (!istKatalogArt(art)) return { fehler: "Ungültige Art." };
   if (id !== null && !uuid.safeParse(id).success) return { fehler: "Ungültiger Eintrag." };
 
@@ -185,7 +184,7 @@ export async function eintragSpeichern(art: string, id: string | null, eingabe: 
 
 /** Eintrag archivieren oder wiederherstellen (dann muss sein Ordner aktiv sein). */
 export async function eintragArchivieren(art: string, id: string, archivieren: boolean): Promise<KatalogErgebnis> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("katalog");
   if (!istKatalogArt(art) || !uuid.safeParse(id).success) return { fehler: "Ungültiger Eintrag." };
   const supabase = await createClient();
 
@@ -213,7 +212,7 @@ export async function eintragArchivieren(art: string, id: string, archivieren: b
 // Einstellungen der Kalkulation (nur Admin): Zuschläge je Kostenart und Lohngruppen
 // ---------------------------------------------------------------------------
 export async function kalkulationSpeichern(eingabe: unknown): Promise<KatalogErgebnis> {
-  await requireRole(["admin"]);
+  await requireBueroRecht("kalkulation_aendern");
   const pruefung = kalkulationEinstellungenSchema.safeParse(eingabe);
   if (!pruefung.success) return { fehler: ersteMeldung(pruefung.error) };
   const e = pruefung.data;
@@ -238,7 +237,7 @@ const idListe = z.array(z.uuid()).min(1, "Bitte mindestens einen Eintrag wählen
 
 /** Ausgewählte Einträge in einen Ordner verschieben (`folderId` leer = ohne Ordner). */
 export async function eintraegeVerschieben(art: string, ids: unknown, folderId: string): Promise<KatalogErgebnis & { anzahl?: number }> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("katalog");
   if (!istKatalogArt(art)) return { fehler: "Ungültige Art." };
   const liste = idListe.safeParse(ids);
   if (!liste.success) return { fehler: ersteMeldung(liste.error) };
@@ -258,7 +257,7 @@ export async function eintraegeVerschieben(art: string, ids: unknown, folderId: 
 
 /** Ausgewählte Einträge archivieren (nichts wird gelöscht; im Archiv lassen sie sich wiederherstellen). */
 export async function eintraegeArchivierenMehrere(art: string, ids: unknown): Promise<KatalogErgebnis & { anzahl?: number }> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("katalog");
   if (!istKatalogArt(art)) return { fehler: "Ungültige Art." };
   const liste = idListe.safeParse(ids);
   if (!liste.success) return { fehler: ersteMeldung(liste.error) };
@@ -296,7 +295,7 @@ const importEintragSchema = z.object({
 const nameNormal = (t: string) => t.trim().toLowerCase();
 
 export async function katalogImportieren(art: string, eingabe: unknown): Promise<KatalogImportErgebnis> {
-  await requireRole(["admin"]);
+  await requireBueroRecht("katalog_importieren");
   const leer = { importiert: 0, uebersprungen: 0, fehlerhaft: 0, neueOrdner: 0 };
   if (!istKatalogArt(art)) return { ...leer, fehler: "Ungültige Art." };
   if (!Array.isArray(eingabe) || eingabe.length > MAX_PRO_AUFRUF) return { ...leer, fehler: "Zu viele Einträge auf einmal." };

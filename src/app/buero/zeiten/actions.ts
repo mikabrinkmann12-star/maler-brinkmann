@@ -2,10 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { requireRole } from "@/lib/auth";
+import { requireBueroRecht } from "@/lib/auth";
 import { formatDatum } from "@/lib/format";
 import { ersteMeldung } from "@/lib/nutzer-schema";
-import { BUERO_ROLLEN } from "@/lib/rollen";
 import { createClient } from "@/lib/supabase/server";
 import { zeitDatenSchema, zeitZeile, type GepruefteZeitDaten } from "@/lib/zeit-schema";
 import { ueberschneidetSich, uhrzeitKurz, type ZeiterfassungEinstellungen } from "@/lib/zeiten";
@@ -64,7 +63,7 @@ const anlegenSchema = z.object({ eintragId: uuid, userId: uuid, daten: zeitDaten
 
 /** Zeit für einen Mitarbeiter nachtragen. */
 export async function bueroZeitAnlegen(eingabe: unknown): Promise<BueroZeitErgebnis> {
-  const nutzer = await requireRole(BUERO_ROLLEN);
+  const nutzer = await requireBueroRecht("zeiten_alle");
   const pruefung = anlegenSchema.safeParse(eingabe);
   if (!pruefung.success) return { fehler: ersteMeldung(pruefung.error) };
   const { eintragId, userId, daten: d } = pruefung.data;
@@ -96,7 +95,7 @@ export async function bueroZeitAnlegen(eingabe: unknown): Promise<BueroZeitErgeb
 
 /** Zeit eines Mitarbeiters ändern (Mitarbeiter und Ersteller bleiben gleich). */
 export async function bueroZeitAendern(id: string, eingabe: unknown): Promise<BueroZeitErgebnis> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("zeiten_alle");
   if (!uuid.safeParse(id).success) return { fehler: "Ungültiger Eintrag." };
   const pruefung = zeitDatenSchema.safeParse(eingabe);
   if (!pruefung.success) return { fehler: ersteMeldung(pruefung.error) };
@@ -124,7 +123,7 @@ export async function bueroZeitAendern(id: string, eingabe: unknown): Promise<Bu
 
 /** Zeit löschen = archivieren. Der Eintrag bleibt im Protokoll (audit_log) erhalten. */
 export async function bueroZeitArchivieren(id: string): Promise<BueroZeitErgebnis> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("zeiten_alle");
   if (!uuid.safeParse(id).success) return { fehler: "Ungültiger Eintrag." };
 
   const supabase = await createClient();
@@ -150,7 +149,7 @@ export async function neueZeitDatenLaden(): Promise<{
   projekte: { id: string; name: string }[];
   einstellungen: ZeiterfassungEinstellungen;
 }> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("zeiten_alle");
   const supabase = await createClient();
   const [personen, einstellungen, { data: projekte }] = await Promise.all([
     bueroPersonen(),

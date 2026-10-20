@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { LockIcon } from "lucide-react";
 import { SeitenKopf } from "@/components/layout/seiten-kopf";
-import { requireUser } from "@/lib/auth";
+import { requireRecht } from "@/lib/auth";
 import { formatDatumLang, formatDatumZeit, formatStunden } from "@/lib/format";
 import { kollegenLaden } from "@/lib/mitarbeiter-daten";
 import { createClient } from "@/lib/supabase/server";
@@ -16,7 +16,7 @@ export const metadata: Metadata = { title: "Zeit" };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export default async function ZeitSeite({ params }: PageProps<"/zeiten/[id]">) {
-  const nutzer = await requireUser();
+  const nutzer = await requireRecht("zeiten_eigene");
   const { id } = await params;
   if (!UUID.test(id)) notFound();
 

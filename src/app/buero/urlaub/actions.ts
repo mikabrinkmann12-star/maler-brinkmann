@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { requireRole } from "@/lib/auth";
+import { requireBueroRecht } from "@/lib/auth";
 import { heuteIso } from "@/lib/datum";
 import { formatDatum } from "@/lib/format";
 import { ruecknahmePlan } from "@/lib/urlaub";
@@ -18,7 +18,7 @@ const schema = z.object({
 
 /** Nur der Admin genehmigt oder lehnt ab. Wer und wann setzt die Datenbank (Trigger). */
 export async function urlaubEntscheiden(eingabe: unknown): Promise<EntscheidungErgebnis> {
-  await requireRole(["admin"]);
+  await requireBueroRecht("urlaub_genehmigen");
   const pruefung = schema.safeParse(eingabe);
   if (!pruefung.success) return { fehler: pruefung.error.issues[0]?.message ?? "Ungültige Eingabe." };
   const { id, entscheidung, antwort } = pruefung.data;
@@ -50,7 +50,7 @@ const ruecknahmeSchema = z.object({
  * „rest“: nur ab heute; der Antrag endet gestern, vergangene Tage bleiben gebucht. Die Zeiten werden archiviert, nie gelöscht.
  */
 export async function urlaubZuruecknehmen(eingabe: unknown): Promise<EntscheidungErgebnis> {
-  await requireRole(["admin"]);
+  await requireBueroRecht("urlaub_genehmigen");
   const pruefung = ruecknahmeSchema.safeParse(eingabe);
   if (!pruefung.success) return { fehler: pruefung.error.issues[0]?.message ?? "Ungültige Eingabe." };
   const { id, umfang, grund } = pruefung.data;

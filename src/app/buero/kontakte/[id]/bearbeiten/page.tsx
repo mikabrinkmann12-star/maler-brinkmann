@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { requireRole } from "@/lib/auth";
-import { BUERO_ROLLEN } from "@/lib/rollen";
+import { requireBueroRecht } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { KontaktFormular } from "../../kontakt-formular";
 
@@ -10,7 +9,7 @@ export const metadata: Metadata = { title: "Kontakt bearbeiten" };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export default async function KontaktBearbeitenSeite({ params }: PageProps<"/buero/kontakte/[id]/bearbeiten">) {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("kontakte_bearbeiten");
   const { id } = await params;
   if (!UUID.test(id)) notFound();
   const supabase = await createClient();

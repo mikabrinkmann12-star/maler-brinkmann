@@ -1,16 +1,15 @@
 import type { Metadata } from "next";
-import { requireRole } from "@/lib/auth";
+import { requireBueroRecht } from "@/lib/auth";
 import { heuteIso } from "@/lib/datum";
 import { kollegenLaden } from "@/lib/mitarbeiter-daten";
 import { projektnummerVorschlag } from "@/lib/projektnummer-daten";
-import { BUERO_ROLLEN } from "@/lib/rollen";
 import { createClient } from "@/lib/supabase/server";
 import { ProjektFormular } from "../projekt-formular";
 
 export const metadata: Metadata = { title: "Neues Projekt" };
 
 export default async function NeuesProjektSeite() {
-  const nutzer = await requireRole(BUERO_ROLLEN);
+  const nutzer = await requireBueroRecht("projekte_bearbeiten");
   const supabase = await createClient();
   const [vorschlag, { data: status }, { data: buero }, kollegen] = await Promise.all([
     projektnummerVorschlag(),

@@ -18,6 +18,8 @@ export function ProjektKopf({
   zurueck,
   zeigeChat,
   zeigeBerichte,
+  zeigeAnweisungen = true,
+  zeigeMaterial = true,
   chatNeu,
 }: {
   projektId: string;
@@ -25,6 +27,10 @@ export function ProjektKopf({
   zurueck: string;
   zeigeChat: boolean;
   zeigeBerichte: boolean;
+  /** Arbeitsanweisungen und Materialliste lesen (Recht „anweisungen_ansehen“) */
+  zeigeAnweisungen?: boolean;
+  /** Material melden und Aufmaß (Recht „baustelle_eintragen“) */
+  zeigeMaterial?: boolean;
   chatNeu: string;
 }) {
   const pfad = usePathname();
@@ -45,9 +51,8 @@ export function ProjektKopf({
     ...(zeigeChat ? [{ segment: "chat", name: "Chat", zaehler: chatNeu }] : []),
     ...(zeigeBerichte ? [{ segment: "berichte", name: "Berichte" }] : []),
     { segment: "ablage", name: "Ablage" },
-    { segment: "anweisungen", name: "Arbeitsanweisungen" },
-    { segment: "material", name: "Material" },
-    { segment: "aufmass", name: "Aufmaß" },
+    ...(zeigeAnweisungen ? [{ segment: "anweisungen", name: "Arbeitsanweisungen" }] : []),
+    ...(zeigeMaterial ? [{ segment: "material", name: "Material" }, { segment: "aufmass", name: "Aufmaß" }] : []),
   ];
   if (!chips.some((c) => c.segment === rest)) return null;
 

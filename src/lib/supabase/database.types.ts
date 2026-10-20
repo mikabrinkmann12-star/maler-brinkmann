@@ -2126,6 +2126,41 @@ export type Database = {
           },
         ]
       }
+      role_permissions: {
+        Row: {
+          id: string
+          recht: string
+          rolle: Database["public"]["Enums"]["app_rolle"]
+          stufe: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          id?: string
+          recht: string
+          rolle: Database["public"]["Enums"]["app_rolle"]
+          stufe: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          id?: string
+          recht?: string
+          rolle?: Database["public"]["Enums"]["app_rolle"]
+          stufe?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "role_permissions_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       services: {
         Row: {
           archiviert_am: string | null
@@ -2492,6 +2527,7 @@ export type Database = {
         Args: { p_nachname: string; p_telefon: string; p_vorname: string }
         Returns: undefined
       }
+      hat_recht: { Args: { p_recht: string }; Returns: boolean }
       ist_admin: { Args: never; Returns: boolean }
       ist_aktiv: { Args: never; Returns: boolean }
       ist_aktiver_nutzer: { Args: { p_user_id: string }; Returns: boolean }
@@ -2528,6 +2564,9 @@ export type Database = {
       }
       ostersonntag: { Args: { p_jahr: number }; Returns: string }
       projekt_aus_pfad: { Args: { p_pfad: string }; Returns: string }
+      projekt_sicht: { Args: { p_project_id: string }; Returns: boolean }
+      recht_ok: { Args: { p_recht: string }; Returns: boolean }
+      recht_stufe: { Args: { p_recht: string }; Returns: string }
       soll_stunden: { Args: { p_tag: string; p_user: string }; Returns: number }
       zeit_art_erlaubt: {
         Args: { p_art: Database["public"]["Enums"]["zeit_art"] }

@@ -6,7 +6,7 @@ import { BelegFilter } from "@/components/listen/beleg-filter";
 import type { ListenOption } from "@/components/listen/mehrfach-liste";
 import { StatusPille } from "@/components/status-pille";
 import { summe } from "@/lib/angebot-liste";
-import { requireRole } from "@/lib/auth";
+import { requireBueroRecht } from "@/lib/auth";
 import { heuteIso } from "@/lib/datum";
 import {
   EINGANG_ANZEIGE_FARBEN,
@@ -25,7 +25,6 @@ import {
 import { eingangsrechnungenLaden } from "@/lib/eingangsrechnung-daten";
 import { imapKonfiguration } from "@/lib/env";
 import { formatBetrag, formatDatum } from "@/lib/format";
-import { BUERO_ROLLEN } from "@/lib/rollen";
 import { istTag } from "@/lib/zeitraum";
 import { EingangReiter, PostfachAbrufen, RechnungHinzufuegen, ZahlstatusPille, ZuweisungFilter } from "./eingang-bausteine";
 
@@ -35,7 +34,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ZAHL_STATUS = ["offen", "ueberfaellig", "bezahlt"] as const;
 
 export default async function EingangsrechnungenListe({ searchParams }: PageProps<"/buero/eingangsrechnungen">) {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("eingangsrechnungen");
   const params = await searchParams;
   const wert = (n: string) => (typeof params[n] === "string" ? (params[n] as string) : "");
   const q = wert("q").trim();

@@ -2,11 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { requireRole } from "@/lib/auth";
+import { requireBueroRecht } from "@/lib/auth";
 import { ersteMeldung } from "@/lib/nutzer-schema";
 import { projektnummerVorschlag } from "@/lib/projektnummer-daten";
 import { projektSchema } from "@/lib/projekt-schema";
-import { BUERO_ROLLEN } from "@/lib/rollen";
 import { suchtext } from "@/lib/suche";
 import { createClient } from "@/lib/supabase/server";
 
@@ -14,7 +13,7 @@ export type ProjektErgebnis = { fehler?: string; id?: string };
 
 /** Projekt anlegen (id leer) oder ändern. Büro und Admin. Ohne Projektnummer vergibt die App die nächste. */
 export async function projektSpeichern(id: string | null, eingabe: unknown): Promise<ProjektErgebnis> {
-  const nutzer = await requireRole(BUERO_ROLLEN);
+  const nutzer = await requireBueroRecht("projekte_bearbeiten");
   if (id !== null && !z.uuid().safeParse(id).success) return { fehler: "Ungültiges Projekt." };
   const pruefung = projektSchema.safeParse(eingabe);
   if (!pruefung.success) return { fehler: ersteMeldung(pruefung.error) };
@@ -75,7 +74,7 @@ export async function projektSpeichern(id: string | null, eingabe: unknown): Pro
 }
 
 export async function projektnummerVorschlagen(): Promise<{ nummer?: string; fehler?: string }> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("projekte_bearbeiten");
   try {
     return { nummer: await projektnummerVorschlag() };
   } catch {
@@ -87,7 +86,7 @@ export type KundeTreffer = { id: string; name: string; kundennummer: string; str
 
 /** Kunden für die Auswahl im Projektformular suchen (höchstens 12 Treffer, nur nicht archivierte). */
 export async function kundenFinden(suche: string): Promise<KundeTreffer[]> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("projekte_bearbeiten");
   const q = suchtext(suche);
   if (q.length < 2) return [];
   const supabase = await createClient();
@@ -111,7 +110,7 @@ export async function kundenFinden(suche: string): Promise<KundeTreffer[]> {
 
 /** Status eines Projekts direkt in der Liste ändern (wie in Plancraft: Status-Pille antippen). Büro und Admin. */
 export async function projektStatusAendern(projektId: string, statusId: string): Promise<{ fehler?: string }> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("projekte_bearbeiten");
   if (!z.uuid().safeParse(projektId).success || !z.uuid().safeParse(statusId).success) return { fehler: "Ungültige Eingabe." };
   const supabase = await createClient();
   const { data, error } = await supabase.from("projects").update({ status_id: statusId }).eq("id", projektId).select("id");

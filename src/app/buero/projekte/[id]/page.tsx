@@ -17,7 +17,7 @@ import {
 import { cn } from "cn";
 import { AnrufLink } from "@/components/anruf-link";
 import { buttonVariants } from "@/components/ui/button";
-import { requireRole } from "@/lib/auth";
+import { requireBueroRecht } from "@/lib/auth";
 import { angeboteLaden } from "@/lib/angebot-daten";
 import { ungelesenKarte, zaehlerText } from "@/lib/chat";
 import { formatBetrag, formatStunden } from "@/lib/format";
@@ -25,7 +25,6 @@ import { bearbeitetText, personKreis, zeitraumText } from "@/lib/listen-anzeige"
 import { kollegenLaden } from "@/lib/mitarbeiter-daten";
 import { projektZahlenLaden } from "@/lib/projekt-detail-daten";
 import { adresseText, kontaktName, mapsLink } from "@/lib/projekt";
-import { BUERO_ROLLEN } from "@/lib/rollen";
 import { createClient } from "@/lib/supabase/server";
 import { Angebote } from "@/app/(mitarbeiter)/baustellen/[id]/angebote";
 import { Projektliste } from "@/app/(mitarbeiter)/baustellen/[id]/arbeitsanweisung";
@@ -57,7 +56,7 @@ function Kachel({ href, icon: Icon, titel, wert, unter, abzeichen }: KachelProps
 }
 
 export default async function ProjektSeite({ params }: PageProps<"/buero/projekte/[id]">) {
-  const nutzer = await requireRole(BUERO_ROLLEN);
+  const nutzer = await requireBueroRecht("projekte_ansehen");
   const { id } = await params;
   if (!UUID.test(id)) notFound();
 

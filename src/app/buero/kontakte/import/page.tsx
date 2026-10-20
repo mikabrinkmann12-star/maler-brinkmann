@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeftIcon } from "lucide-react";
-import { requireRole } from "@/lib/auth";
+import { requireBueroRecht } from "@/lib/auth";
 import { dublettenSchluessel } from "@/lib/kontakt-import";
 import { createClient } from "@/lib/supabase/server";
 import { ImportAssistent } from "./import-assistent";
@@ -9,7 +9,7 @@ import { ImportAssistent } from "./import-assistent";
 export const metadata: Metadata = { title: "Kontakte importieren" };
 
 export default async function KontakteImportSeite() {
-  await requireRole(["admin"]);
+  await requireBueroRecht("kontakte_importieren");
   const supabase = await createClient();
   const { data } = await supabase.from("contacts").select("kundennummer, firmenname, vorname, nachname, strasse, plz");
   const bestehende = data ?? [];

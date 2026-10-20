@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { requireRole } from "@/lib/auth";
+import { requireBueroRecht } from "@/lib/auth";
 import { istAngebotStatus, type AngebotStatus } from "@/lib/angebot";
 import {
   abschlussSchema,
@@ -18,7 +18,6 @@ import { heuteIso, tageVerschieben } from "@/lib/datum";
 import { istKatalogArt, ordnerPfad, unterordner } from "@/lib/katalog";
 import { ordnerLaden } from "@/lib/katalog-daten";
 import { ersteMeldung } from "@/lib/nutzer-schema";
-import { BUERO_ROLLEN } from "@/lib/rollen";
 import { suchtext } from "@/lib/suche";
 import { createClient } from "@/lib/supabase/server";
 
@@ -50,7 +49,7 @@ function aktualisieren(id?: string) {
  * (0 % beim Kunden bedeutet Reverse-Charge), Texte und Rabatt aus „Angebote – Vorgaben“.
  */
 export async function angebotAnlegen(projektId: string, eingabe: unknown): Promise<AngebotErgebnis> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("angebote");
   if (!uuid.safeParse(projektId).success) return { fehler: "Ungültiges Projekt." };
   const pruefung = neuesAngebotSchema.safeParse(eingabe);
   if (!pruefung.success) return { fehler: ersteMeldung(pruefung.error) };
@@ -65,7 +64,7 @@ export async function angebotAnlegen(projektId: string, eingabe: unknown): Promi
 }
 
 export async function angebotKopfSpeichern(id: string, eingabe: unknown): Promise<AngebotErgebnis> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("angebote");
   if (!uuid.safeParse(id).success) return { fehler: "Ungültiges Angebot." };
   const pruefung = kopfSchema.safeParse(eingabe);
   if (!pruefung.success) return { fehler: ersteMeldung(pruefung.error) };
@@ -90,7 +89,7 @@ export async function angebotKopfSpeichern(id: string, eingabe: unknown): Promis
 }
 
 export async function angebotAbschlussSpeichern(id: string, eingabe: unknown): Promise<AngebotErgebnis> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("angebote");
   if (!uuid.safeParse(id).success) return { fehler: "Ungültiges Angebot." };
   const pruefung = abschlussSchema.safeParse(eingabe);
   if (!pruefung.success) return { fehler: ersteMeldung(pruefung.error) };
@@ -123,7 +122,7 @@ export async function angebotAbschlussSpeichern(id: string, eingabe: unknown): P
 // ---------------------------------------------------------------------------
 
 export async function angebotStatusSetzen(id: string, status: string): Promise<AngebotErgebnis> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("angebote");
   if (!uuid.safeParse(id).success || !istAngebotStatus(status)) return { fehler: "Ungültige Eingabe." };
   const supabase = await createClient();
 
@@ -148,7 +147,7 @@ export async function angebotStatusSetzen(id: string, status: string): Promise<A
  * „Ausstehend“ führt zurück zu „Versendet“, wenn das Angebot schon verschickt wurde, sonst zu „Entwurf“.
  */
 export async function angebotAnnahmeSetzen(id: string, annahme: string): Promise<AngebotErgebnis> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("angebote");
   if (!uuid.safeParse(id).success || !["ausstehend", "angenommen", "abgelehnt"].includes(annahme)) return { fehler: "Ungültige Eingabe." };
   const supabase = await createClient();
   let status: AngebotStatus = annahme as AngebotStatus;
@@ -165,7 +164,7 @@ export async function angebotAnnahmeSetzen(id: string, annahme: string): Promise
 }
 
 export async function angebotArchivieren(id: string, archivieren: boolean): Promise<AngebotErgebnis> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("angebote");
   if (!uuid.safeParse(id).success) return { fehler: "Ungültiges Angebot." };
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -181,7 +180,7 @@ export async function angebotArchivieren(id: string, archivieren: boolean): Prom
 
 /** Angebot kopieren: neuer Entwurf im selben Projekt mit allen Bausteinen, Datum heute. */
 export async function angebotKopieren(id: string): Promise<AngebotErgebnis> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("angebote");
   if (!uuid.safeParse(id).success) return { fehler: "Ungültiges Angebot." };
   const supabase = await createClient();
 
@@ -263,7 +262,7 @@ export async function bausteinSpeichern(
   eingabe: BausteinEingabe,
   nachId?: string | null,
 ): Promise<AngebotErgebnis> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("angebote");
   if (!uuid.safeParse(angebotId).success || (id !== null && !uuid.safeParse(id).success)) return { fehler: "Ungültige Eingabe." };
   const pruefung = bausteinPruefen(eingabe);
   if ("fehler" in pruefung) return { fehler: pruefung.fehler };
@@ -315,7 +314,7 @@ async function sortierungSetzen(angebotId: string, reihenfolge: string[]): Promi
 }
 
 export async function bausteinLoeschen(angebotId: string, id: string): Promise<AngebotErgebnis> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("angebote");
   if (!uuid.safeParse(angebotId).success || !uuid.safeParse(id).success) return { fehler: "Ungültige Eingabe." };
   const supabase = await createClient();
   const { data, error } = await supabase.from("quote_items").delete().eq("id", id).eq("quote_id", angebotId).select("id");
@@ -326,7 +325,7 @@ export async function bausteinLoeschen(angebotId: string, id: string): Promise<A
 }
 
 export async function bausteinVerschieben(angebotId: string, id: string, richtung: "hoch" | "runter"): Promise<AngebotErgebnis> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("angebote");
   if (!uuid.safeParse(angebotId).success || !uuid.safeParse(id).success) return { fehler: "Ungültige Eingabe." };
   const supabase = await createClient();
 
@@ -361,7 +360,7 @@ export type KatalogTreffer = {
 
 /** Katalog durchsuchen (für „Aus Katalog“). Höchstens 25 Treffer, Preise sind die Verkaufspreise. */
 export async function katalogSuchen(art: string, q: string): Promise<{ fehler?: string; treffer?: KatalogTreffer[] }> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("angebote");
   if (!istKatalogArt(art)) return { fehler: "Ungültige Art." };
   const suche = suchtext(q);
   const supabase = await createClient();
@@ -402,7 +401,7 @@ export async function katalogOrdnerInhalt(
   unterordner?: { id: string; name: string }[];
   treffer?: KatalogTreffer[];
 }> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("angebote");
   if (!istKatalogArt(art)) return { fehler: "Ungültige Art." };
   if (ordnerId !== null && !uuid.safeParse(ordnerId).success) return { fehler: "Ungültiger Ordner." };
   const supabase = await createClient();
@@ -439,7 +438,7 @@ export async function katalogOrdnerInhalt(
 
 /** Katalogeintrag als Position ins Angebot kopieren (Menge 1, Preis = Verkaufspreis; beides im Angebot änderbar). */
 export async function positionAusKatalog(angebotId: string, art: string, katalogId: string, nachId?: string | null): Promise<AngebotErgebnis> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("angebote");
   if (!uuid.safeParse(angebotId).success || !uuid.safeParse(katalogId).success || !istKatalogArt(art)) return { fehler: "Ungültige Eingabe." };
   const supabase = await createClient();
 
@@ -471,7 +470,7 @@ export async function positionAusKatalog(angebotId: string, art: string, katalog
 
 /** Nach dem Hochladen (aus dem Browser in den Bucket „angebotsbilder“) den Bild-Baustein anlegen. */
 export async function bildBausteinAnlegen(angebotId: string, pfad: string, unterschrift: string, nachId?: string | null): Promise<AngebotErgebnis> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("angebote");
   if (!uuid.safeParse(angebotId).success) return { fehler: "Ungültiges Angebot." };
   if (!pfad.startsWith(`${angebotId}/`) || pfad.length > 300 || pfad.includes("..")) return { fehler: "Ungültiger Bildpfad." };
   const text = unterschrift.trim().slice(0, 200);

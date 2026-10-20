@@ -1,6 +1,5 @@
-import { requireRole } from "@/lib/auth";
+import { requireBueroRecht } from "@/lib/auth";
 import { istMonat } from "@/lib/datum";
-import { BUERO_ROLLEN } from "@/lib/rollen";
 import { istZeitArt } from "@/lib/zeiten";
 import {
   eintraegeSortieren,
@@ -18,7 +17,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(anfrage: Request) {
   // Route Handler laufen ohne Layout: die Rolle muss hier selbst geprüft werden.
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("zeiten_alle");
 
   const url = new URL(anfrage.url);
   const monat = url.searchParams.get("monat");

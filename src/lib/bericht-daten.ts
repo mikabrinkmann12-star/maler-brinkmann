@@ -1,6 +1,6 @@
 import "server-only";
 import { notFound } from "next/navigation";
-import { requireUser } from "@/lib/auth";
+import { requireRecht } from "@/lib/auth";
 import type { AnzeigeInfo } from "@/components/bericht-anzeige";
 import { firmaLaden } from "@/lib/firma-daten";
 import { adresseText, kontaktName } from "@/lib/projekt";
@@ -17,7 +17,7 @@ export type FotoWahl = { id: string; vorschauUrl: string | null; bildUrl: string
 
 /** Projekt, Rechte, Team und Fotos für die Berichtsseiten. Rechte regelt RLS; ohne Zugriff gibt es 404. */
 export async function berichtKontext(projektId: string) {
-  const nutzer = await requireUser();
+  const nutzer = await requireRecht("berichte");
   if (!UUID.test(projektId)) notFound();
   const supabase = await createClient();
   const [{ data: projekt }, { data: mitglieder }, kollegen] = await Promise.all([

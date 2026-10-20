@@ -4,11 +4,10 @@ import { ArtenFenster } from "@/components/zeiten/arten-fenster";
 import { ZeitenFilter } from "@/components/zeiten/zeiten-filter";
 import { ZeitenTabs } from "@/components/zeiten/zeiten-tabs";
 import { NeueZeitKnopf } from "./neue-zeit-knopf";
-import { requireRole } from "@/lib/auth";
+import { requireBueroRecht } from "@/lib/auth";
 import { heuteIso } from "@/lib/datum";
 import { formatDatum } from "@/lib/format";
 import { bearbeitetText, stundenHM, wochentagName } from "@/lib/listen-anzeige";
-import { BUERO_ROLLEN } from "@/lib/rollen";
 import { createClient } from "@/lib/supabase/server";
 import { ZEIT_ARTEN, ZEIT_ART_NAMEN, istZeitArt } from "@/lib/zeiten";
 import {
@@ -27,7 +26,7 @@ export const metadata: Metadata = { title: "Zeiten" };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export default async function BueroZeitenSeite({ searchParams }: PageProps<"/buero/zeiten">) {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("zeiten_alle");
   const params = await searchParams;
   const wert = (n: string) => (typeof params[n] === "string" ? (params[n] as string) : "");
   const heute = heuteIso();

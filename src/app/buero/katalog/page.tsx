@@ -4,11 +4,11 @@ import { ArchiveIcon, DownloadIcon, PlusIcon, UploadIcon } from "lucide-react";
 import { cn } from "cn";
 import { SuchFeld } from "@/components/listen/such-feld";
 import { buttonVariants } from "@/components/ui/button";
-import { requireRole } from "@/lib/auth";
+import { ladeRechte, requireBueroRecht } from "@/lib/auth";
+import { rechtOk } from "@/lib/rechte";
 import { KATALOG_ART_NAMEN, istKatalogArt, ordnerBaum, ordnerMitNachfahren, ordnerOptionen, ordnerPfadText, type KatalogArt } from "@/lib/katalog";
 import { kalkulationLaden } from "@/lib/kalkulation-daten";
 import { MAX_ZEILEN, eintraegeLaden, ordnerLaden, ordnerZaehler } from "@/lib/katalog-daten";
-import { BUERO_ROLLEN } from "@/lib/rollen";
 import { KalkulationFenster } from "./kalkulation-fenster";
 import { KatalogTabelle } from "./katalog-tabelle";
 import { OrdnerBaum } from "./ordner-baum";
@@ -19,7 +19,8 @@ export const metadata: Metadata = { title: "Stammdaten" };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export default async function KatalogSeite({ searchParams }: PageProps<"/buero/katalog">) {
-  const nutzer = await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("katalog");
+  const rechte = await ladeRechte();
   const params = await searchParams;
   const wert = (n: string) => (typeof params[n] === "string" ? (params[n] as string) : "");
   const art: KatalogArt = istKatalogArt(wert("art")) ? (wert("art") as KatalogArt) : "leistung";
@@ -54,8 +55,8 @@ export default async function KatalogSeite({ searchParams }: PageProps<"/buero/k
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-semibold">Stammdaten</h1>
         <div className="flex flex-wrap items-center gap-2">
-          <KalkulationFenster einstellungen={kalkulation} istAdmin={nutzer.rolle === "admin"} />
-          {nutzer.rolle === "admin" && (
+          <KalkulationFenster einstellungen={kalkulation} istAdmin={rechtOk(rechte, "kalkulation_aendern")} />
+          {rechtOk(rechte, "katalog_importieren") && (
             <Link href={`/buero/katalog/import?art=${art}`} className={buttonVariants({ variant: "outline", className: "h-8 px-3 text-[13px]" })}>
               <UploadIcon className="size-3.5" /> Import
             </Link>

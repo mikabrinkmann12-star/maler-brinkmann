@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import { ZeitenReiter } from "@/components/layout/zeiten-reiter";
-import { requireUser } from "@/lib/auth";
+import { requireRecht } from "@/lib/auth";
 import { heuteIso, istIsoDatum, tageVerschieben } from "@/lib/datum";
 import { formatDatum, formatStunden, formatStundenSaldo } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
@@ -17,7 +17,7 @@ export const metadata: Metadata = { title: "Stundenkonto" };
 
 // Reiter „Stundenkonto“: Stundenbilanz der Woche, Arbeitszeitkonto (Überstunden) und Urlaub des Jahres.
 export default async function StundenkontoSeite({ searchParams }: PageProps<"/zeiten/konto">) {
-  const nutzer = await requireUser();
+  const nutzer = await requireRecht("zeiten_eigene");
   const { woche } = await searchParams;
   const heute = heuteIso();
   const anker = istIsoDatum(woche) && woche <= heute ? woche : heute;

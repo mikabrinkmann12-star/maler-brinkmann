@@ -3,6 +3,7 @@
 import { useState, useSyncExternalStore } from "react";
 import { EinheitenKontext } from "@/components/einheiten-kontext";
 import { STANDARD_EINHEITEN, type EinheitenEinstellungen } from "@/lib/einheiten";
+import type { Rechte } from "@/lib/rechte";
 import type { Rolle } from "@/lib/rollen";
 import { BenachrichtigungenPanel } from "./benachrichtigungen-panel";
 import { BueroKontext } from "./buero-kontext";
@@ -36,6 +37,7 @@ export function BueroRahmen({
   firmenname,
   name,
   rolle,
+  rechte,
   ungelesen: ungelesenStart = 0,
   einheiten,
   children,
@@ -43,6 +45,8 @@ export function BueroRahmen({
   firmenname: string;
   name: string;
   rolle: Rolle;
+  /** Rechte des Nutzers (aus „Rollen & Zugriffsrechte“) */
+  rechte: Rechte;
   /** Ungelesene Benachrichtigungen beim Laden der Seite */
   ungelesen?: number;
   /** Einheiten aus den Einstellungen (Vorschläge und Vorauswahl in den Eingabefeldern) */
@@ -69,7 +73,7 @@ export function BueroRahmen({
   }
 
   return (
-    <BueroKontext.Provider value={{ ungelesen, setUngelesen }}>
+    <BueroKontext.Provider value={{ ungelesen, setUngelesen, rechte }}>
     <EinheitenKontext.Provider value={einheiten ?? STANDARD_EINHEITEN}>
     <div className="flex min-h-dvh flex-1" style={{ "--seitenleiste": eingeklappt ? "3.75rem" : "13rem" } as React.CSSProperties}>
       <SucheDialog />

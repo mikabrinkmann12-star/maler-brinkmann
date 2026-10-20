@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { CalendarClockIcon, ChevronRightIcon, MapPinIcon, PlusIcon } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
-import { requireUser } from "@/lib/auth";
+import { requireRecht } from "@/lib/auth";
 import { heuteIso } from "@/lib/datum";
 import { formatTagKurz } from "@/lib/format";
 import { termineLaden } from "@/lib/termine-daten";
@@ -11,7 +11,7 @@ import { Warteschlange } from "../warteschlange";
 export const metadata: Metadata = { title: "Termine" };
 
 export default async function TermineSeite() {
-  const nutzer = await requireUser();
+  const nutzer = await requireRecht("termine");
   // Auch Büro/Admin sehen hier (Mitarbeiter-Ansicht) nur ihre eigenen Termine
   const termine = await termineLaden({ ab: heuteIso(), nurPerson: nutzer.id });
   const tage = [...new Set(termine.map((t) => t.datum))];

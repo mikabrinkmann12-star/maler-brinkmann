@@ -7,10 +7,9 @@ import { StatusPille } from "@/components/status-pille";
 import { buttonVariants } from "@/components/ui/button";
 import { angeboteLaden } from "@/lib/angebot-daten";
 import { STATUS_FILTER, angeboteFiltern, annahmeVon, istStatusFilterId, summe, versandVon } from "@/lib/angebot-liste";
-import { requireRole } from "@/lib/auth";
+import { requireBueroRecht } from "@/lib/auth";
 import { heuteIso } from "@/lib/datum";
 import { formatBetrag, formatDatum } from "@/lib/format";
-import { BUERO_ROLLEN } from "@/lib/rollen";
 import { istTag } from "@/lib/zeitraum";
 import { AnnahmeWahl } from "./annahme-wahl";
 import { AngebotZeilenMenue } from "./zeilen-menue";
@@ -20,7 +19,7 @@ export const metadata: Metadata = { title: "Angebote" };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export default async function AngebotsListe({ searchParams }: PageProps<"/buero/angebote">) {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("angebote");
   const params = await searchParams;
   const wert = (n: string) => (typeof params[n] === "string" ? (params[n] as string) : "");
   const q = wert("q").trim();

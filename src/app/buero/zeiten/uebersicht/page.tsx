@@ -3,10 +3,9 @@ import Link from "next/link";
 import { PencilIcon } from "lucide-react";
 import { cn } from "cn";
 import { ZeitenTabs } from "@/components/zeiten/zeiten-tabs";
-import { requireRole } from "@/lib/auth";
+import { requireBueroRecht } from "@/lib/auth";
 import { heuteIso } from "@/lib/datum";
 import { formatStundenSaldo } from "@/lib/format";
-import { BUERO_ROLLEN } from "@/lib/rollen";
 import { createClient } from "@/lib/supabase/server";
 import { kontenLaden } from "@/lib/ueberstunden-daten";
 import { urlaubskonto } from "@/lib/urlaub";
@@ -15,7 +14,7 @@ export const metadata: Metadata = { title: "Zeiten – Übersicht" };
 
 /** Übersicht wie in Plancraft: je Mitarbeiter das Arbeitszeitkonto (Überstunden) und der Urlaub des Jahres. */
 export default async function ZeitenUebersichtSeite() {
-  const nutzer = await requireRole(BUERO_ROLLEN);
+  const nutzer = await requireBueroRecht("zeiten_alle");
   const istAdmin = nutzer.rolle === "admin";
   const supabase = await createClient();
   const heute = heuteIso();

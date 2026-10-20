@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import { requireRole } from "@/lib/auth";
+import { requireBueroRecht } from "@/lib/auth";
 import { angebotPdfErzeugen } from "@/lib/angebot-pdf-daten";
-import { BUERO_ROLLEN } from "@/lib/rollen";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -10,7 +9,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
  * die Layouts greifen hier nicht. `?download=1` lädt herunter, sonst wird es im Browser angezeigt.
  */
 export async function GET(anfrage: Request, { params }: RouteContext<"/buero/angebote/[id]/pdf">) {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("angebote");
   const { id } = await params;
   if (!UUID.test(id)) return new NextResponse("Nicht gefunden", { status: 404 });
   const pdf = await angebotPdfErzeugen(id);

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireRole } from "@/lib/auth";
+import { requireBueroRecht } from "@/lib/auth";
 import { einheitenPruefen } from "@/lib/einheiten";
 import { createClient } from "@/lib/supabase/server";
 
@@ -9,7 +9,7 @@ export type EinheitenErgebnis = { fehler?: string };
 
 /** Einheiten und Vorauswahl speichern (nur Admin). */
 export async function einheitenSpeichern(eingabe: unknown): Promise<EinheitenErgebnis> {
-  const admin = await requireRole(["admin"]);
+  const admin = await requireBueroRecht("einstellungen_firma");
   const e = eingabe as { liste?: unknown; position?: unknown; material?: unknown } | null;
   if (!e || !Array.isArray(e.liste) || e.liste.some((x) => typeof x !== "string") || typeof e.position !== "string" || typeof e.material !== "string") {
     return { fehler: "Ungültige Eingabe." };

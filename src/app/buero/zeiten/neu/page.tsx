@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeftIcon } from "lucide-react";
-import { requireRole } from "@/lib/auth";
+import { requireBueroRecht } from "@/lib/auth";
 import { heuteIso, istIsoDatum } from "@/lib/datum";
-import { BUERO_ROLLEN } from "@/lib/rollen";
 import { createClient } from "@/lib/supabase/server";
 import { tagesStandard } from "@/lib/zeiten";
 import { bueroPersonen } from "@/lib/zeiten-buero-daten";
@@ -13,7 +12,7 @@ import { BueroZeitFormular } from "../buero-zeit-formular";
 export const metadata: Metadata = { title: "Zeit nachtragen" };
 
 export default async function ZeitNachtragenSeite({ searchParams }: PageProps<"/buero/zeiten/neu">) {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("zeiten_alle");
   const params = await searchParams;
 
   const supabase = await createClient();

@@ -2,14 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { requireRole } from "@/lib/auth";
+import { requireBueroRecht } from "@/lib/auth";
 import { heuteIso } from "@/lib/datum";
 import { eingangDateiPruefen, eingangPfad, eingangsrechnungSchema } from "@/lib/eingangsrechnung";
 import { eingangsrechnungAufnehmen } from "@/lib/eingangsrechnung-aufnahme";
 import { imapKonfiguration } from "@/lib/env";
 import { firmaLaden } from "@/lib/firma-daten";
 import { postfachAbrufen, type AbrufErgebnis } from "@/lib/postfach-abruf";
-import { BUERO_ROLLEN } from "@/lib/rollen";
 import type { Database } from "@/lib/supabase/database.types";
 import { createClient } from "@/lib/supabase/server";
 
@@ -26,7 +25,7 @@ const aufnahmeSchema = z.object({
 
 /** Nach dem Hochladen: Datei auslesen und die Rechnung anlegen. Zweimal senden legt nichts doppelt an. */
 export async function eingangsrechnungAnlegen(eingabe: unknown): Promise<AufnahmeAntwort> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("eingangsrechnungen");
   const p = aufnahmeSchema.safeParse(eingabe);
   if (!p.success) return { fehler: p.error.issues[0]?.message ?? "Ungültige Eingabe." };
   const d = p.data;
@@ -56,7 +55,7 @@ export async function eingangsrechnungAnlegen(eingabe: unknown): Promise<Aufnahm
 
 /** Vorab prüfen, ob es diese Datei (SHA-256) schon gibt, damit sie gar nicht erst hochgeladen wird. */
 export async function eingangsrechnungHashPruefen(hash: string): Promise<{ vorhanden: { id: string; lieferant: string } | null }> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("eingangsrechnungen");
   if (!/^[0-9a-f]{64}$/.test(hash)) return { vorhanden: null };
   const supabase = await createClient();
   const { data } = await supabase.from("incoming_invoices").select("id, lieferant").eq("datei_hash", hash).is("archiviert_am", null).maybeSingle();
@@ -65,7 +64,7 @@ export async function eingangsrechnungHashPruefen(hash: string): Promise<{ vorha
 
 /** Felder speichern. `bestaetigen` = als geprüft markieren (nimmt die Rechnung aus „Zu prüfen“). */
 export async function eingangsrechnungSpeichern(id: string, eingabe: unknown, bestaetigen: boolean): Promise<EingangErgebnis> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("eingangsrechnungen");
   if (!z.uuid().safeParse(id).success) return { fehler: "Ungültige Eingabe." };
   const p = eingangsrechnungSchema.safeParse(eingabe);
   if (!p.success) return { fehler: p.error.issues[0]?.message ?? "Ungültige Eingabe." };
@@ -100,7 +99,7 @@ export async function eingangsrechnungSpeichern(id: string, eingabe: unknown, be
 
 /** Zahlstatus mit einem Klick umschalten (Pille in der Liste). */
 export async function eingangsrechnungZahlstatus(id: string, bezahlt: boolean): Promise<EingangErgebnis> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("eingangsrechnungen");
   if (!z.uuid().safeParse(id).success) return { fehler: "Ungültige Eingabe." };
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -116,7 +115,7 @@ export async function eingangsrechnungZahlstatus(id: string, bezahlt: boolean): 
 
 /** Rechnung ins Archiv legen bzw. zurückholen. Nichts wird gelöscht. */
 export async function eingangsrechnungArchivieren(id: string, archivieren: boolean): Promise<EingangErgebnis> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("eingangsrechnungen");
   if (!z.uuid().safeParse(id).success) return { fehler: "Ungültige Eingabe." };
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -136,7 +135,7 @@ export async function eingangsrechnungArchivieren(id: string, archivieren: boole
 
 /** Das Rechnungs-Postfach sofort abrufen (sonst läuft der Abruf einmal täglich von selbst). Büro und Admin. */
 export async function postfachJetztAbrufen(): Promise<{ fehler?: string; ergebnis?: AbrufErgebnis }> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("eingangsrechnungen");
   const konfig = imapKonfiguration();
   if (!konfig) return { fehler: "Das Postfach ist noch nicht eingerichtet (siehe Einstellungen → Postfach)." };
   const supabase = await createClient();

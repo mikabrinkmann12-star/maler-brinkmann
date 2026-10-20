@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeftIcon } from "lucide-react";
-import { requireRole } from "@/lib/auth";
+import { requireBueroRecht } from "@/lib/auth";
 import { KATALOG_ART_NAMEN, istKatalogArt, type KatalogArt } from "@/lib/katalog";
 import { katalogSchluesselLaden } from "@/lib/katalog-daten";
 import { ImportAssistent } from "./import-assistent";
@@ -9,7 +9,7 @@ import { ImportAssistent } from "./import-assistent";
 export const metadata: Metadata = { title: "Katalog importieren" };
 
 export default async function KatalogImportSeite({ searchParams }: PageProps<"/buero/katalog/import">) {
-  await requireRole(["admin"]);
+  await requireBueroRecht("katalog_importieren");
   const params = await searchParams;
   const art: KatalogArt = istKatalogArt(params.art) ? params.art : "material";
   const schluessel = await katalogSchluesselLaden(art);

@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
-import { requireRole } from "@/lib/auth";
+import { requireBueroRecht } from "@/lib/auth";
 import { heuteIso, istIsoDatum } from "@/lib/datum";
 import { stoppsSortieren } from "@/lib/einsatz";
 import { adresseText } from "@/lib/projekt";
-import { BUERO_ROLLEN } from "@/lib/rollen";
 import { createClient } from "@/lib/supabase/server";
 import { Einteilung, type ProjektOption } from "./einteilung";
 import { PlantafelTabs } from "./tabs";
@@ -14,7 +13,7 @@ export const metadata: Metadata = { title: "Einteilung" };
 const AKTUELL = ["In Arbeit", "Auftrag erteilt"];
 
 export default async function EinteilungSeite({ searchParams }: PageProps<"/buero/plantafel">) {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("einteilung_bearbeiten");
   const { datum: datumParam } = await searchParams;
   const datum = istIsoDatum(datumParam) ? datumParam : heuteIso();
 

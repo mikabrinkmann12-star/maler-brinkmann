@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { requireRole } from "@/lib/auth";
+import { requireBueroRecht } from "@/lib/auth";
 import { firmaLaden } from "@/lib/firma-daten";
 import { createClient } from "@/lib/supabase/server";
 import { FirmaFormular } from "./formular";
@@ -8,7 +8,7 @@ import { LogoBereich } from "./logo-bereich";
 export const metadata: Metadata = { title: "Firmendaten" };
 
 export default async function FirmaSeite() {
-  await requireRole(["admin"]);
+  await requireBueroRecht("einstellungen_firma");
   const firma = await firmaLaden();
   let logoUrl: string | null = null;
   if (firma.logo) {

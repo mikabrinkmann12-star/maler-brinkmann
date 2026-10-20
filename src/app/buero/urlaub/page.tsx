@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { cn } from "cn";
 import { UrlaubskontoAnzeige } from "@/components/urlaubskonto-anzeige";
 import { ZeitenTabs } from "@/components/zeiten/zeiten-tabs";
-import { requireRole } from "@/lib/auth";
+import { ladeRechte, requireRole } from "@/lib/auth";
+import { rechtOk } from "@/lib/rechte";
 import { heuteIso, tageVerschieben } from "@/lib/datum";
 import { formatDatum, formatDatumZeit, formatStunden, formatStundenSaldo } from "@/lib/format";
 import { BUERO_ROLLEN } from "@/lib/rollen";
@@ -17,7 +18,8 @@ export const metadata: Metadata = { title: "Zeiten – Urlaubsanträge" };
 
 export default async function BueroUrlaubSeite() {
   const nutzer = await requireRole(BUERO_ROLLEN);
-  const istAdmin = nutzer.rolle === "admin";
+  // Entscheiden darf der Admin und wer das Recht „Urlaub genehmigen“ bekommen hat
+  const istAdmin = nutzer.rolle === "admin" || rechtOk(await ladeRechte(), "urlaub_genehmigen");
   const supabase = await createClient();
   const jahr = Number(heuteIso().slice(0, 4));
   const [{ data: antraege, error }, { data: profile }, { data: fuerKonto }, ueberstundenkonten] = await Promise.all([
@@ -100,7 +102,7 @@ export default async function BueroUrlaubSeite() {
       <h1 className="text-xl font-semibold">Zeiten</h1>
       <ZeitenTabs aktiv="urlaub" offeneAntraege={offen.length} />
       {!istAdmin && (
-        <p className="rounded-lg bg-muted p-3 text-sm">Urlaubsanträge genehmigt nur der Admin. Du siehst hier alle Anträge.</p>
+        <p className="rounded-lg bg-muted p-3 text-sm">Urlaubsanträge genehmigt der Admin (oder wer das Recht dazu bekommen hat). Du siehst hier alle Anträge.</p>
       )}
 
       <section className="flex flex-col gap-3">

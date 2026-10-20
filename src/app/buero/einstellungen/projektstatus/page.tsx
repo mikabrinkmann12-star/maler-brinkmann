@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
-import { requireRole } from "@/lib/auth";
+import { requireBueroRecht } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { StatusVerwaltung } from "./status-verwaltung";
 
 export const metadata: Metadata = { title: "Projektstatus" };
 
 export default async function ProjektstatusSeite() {
-  await requireRole(["admin"]);
+  await requireBueroRecht("einstellungen_firma");
   const supabase = await createClient();
   const { data, error } = await supabase.from("project_statuses").select("id, name, farbe, aktiv").order("sortierung").order("name");
   if (error) throw new Error("Die Projektstatus konnten nicht geladen werden.");

@@ -2,12 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { requireRole } from "@/lib/auth";
+import { requireBueroRecht } from "@/lib/auth";
 import { istIsoDatum, tageVerschieben } from "@/lib/datum";
 import { kennzeichenNormalisieren } from "@/lib/fahrzeug";
 import { formatDatum } from "@/lib/format";
 import { istUhrzeit } from "@/lib/zeiten";
-import { BUERO_ROLLEN } from "@/lib/rollen";
 import { createClient } from "@/lib/supabase/server";
 
 const SEITE = "/buero/plantafel";
@@ -44,7 +43,7 @@ export async function einsaetzeSpeichern(
   datum: string,
   eingabe: EinsatzKarte[],
 ): Promise<SpeichernErgebnis> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("einteilung_bearbeiten");
   if (!istIsoDatum(datum)) return { fehler: "Ungültiges Datum." };
   const pruefung = kartenSchema.safeParse(eingabe);
   if (!pruefung.success) return { fehler: pruefung.error.issues[0]?.message ?? "Ungültige Eingabe." };
@@ -149,7 +148,7 @@ export type WieGesternErgebnis = { fehler?: string; hinweis?: string };
  * kopiert, Notizen und Zeiten nicht (die gelten nur für den jeweiligen Tag).
  */
 export async function wieGestern(datum: string): Promise<WieGesternErgebnis> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("einteilung_bearbeiten");
   if (!istIsoDatum(datum)) return { fehler: "Ungültiges Datum." };
   const supabase = await createClient();
 
@@ -211,7 +210,7 @@ export type AutoErgebnis = {
 };
 
 export async function fahrzeugHinzufuegen(eingabe: unknown): Promise<AutoErgebnis> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("einteilung_bearbeiten");
   const kennzeichen = typeof eingabe === "string" ? kennzeichenNormalisieren(eingabe) : null;
   if (!kennzeichen) return { fehler: "Bitte ein gültiges Kennzeichen eingeben (z. B. CLP-AB 123)." };
 

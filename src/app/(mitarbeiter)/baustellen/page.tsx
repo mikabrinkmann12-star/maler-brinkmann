@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ArchiveIcon, ChevronRightIcon, MessageCircleIcon, SearchIcon } from "lucide-react";
 import { StatusPille } from "@/components/status-pille";
 import { Input } from "@/components/ui/input";
-import { requireUser } from "@/lib/auth";
+import { requireRecht } from "@/lib/auth";
 import { ungelesenKarte, zaehlerText } from "@/lib/chat";
 import { heuteIso } from "@/lib/datum";
 import { formatDatum } from "@/lib/format";
@@ -14,7 +14,7 @@ import { createClient } from "@/lib/supabase/server";
 export const metadata: Metadata = { title: "Baustellen" };
 
 export default async function BaustellenSeite({ searchParams }: PageProps<"/baustellen">) {
-  const nutzer = await requireUser();
+  const nutzer = await requireRecht("projekte_ansehen");
   const { q: qParam } = await searchParams;
   const suche = (typeof qParam === "string" ? qParam : "").trim().toLowerCase().slice(0, 60);
   const [ids, heute] = await Promise.all([meineProjektIds(nutzer.id), meineEinsaetze(nutzer.id, heuteIso())]);

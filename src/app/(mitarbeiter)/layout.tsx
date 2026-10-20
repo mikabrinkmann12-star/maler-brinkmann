@@ -2,7 +2,8 @@ import Link from "next/link";
 import { ArrowLeftIcon } from "lucide-react";
 import { TabKopf, ZeiterfassungKnopf } from "@/components/layout/mitarbeiter-kopf";
 import { UntereNavigation } from "@/components/layout/untere-navigation";
-import { requireUser } from "@/lib/auth";
+import { ladeRechte, requireUser } from "@/lib/auth";
+import { rechtOk } from "@/lib/rechte";
 import { istBueroRolle } from "@/lib/rollen";
 
 // Mitarbeiter-Ansicht: für alle Rollen. Admin/Büro kommen über den Umschalter hierher.
@@ -12,6 +13,7 @@ export default async function MitarbeiterLayout({
   children: React.ReactNode;
 }) {
   const nutzer = await requireUser();
+  const rechte = await ladeRechte();
 
   return (
     <div className="flex min-h-dvh flex-1 flex-col">
@@ -31,8 +33,8 @@ export default async function MitarbeiterLayout({
       <main className="mx-auto flex w-full max-w-lg flex-1 flex-col px-4 pt-4 pb-28">
         {children}
       </main>
-      <ZeiterfassungKnopf href="/zeiterfassung" />
-      <UntereNavigation />
+      {rechtOk(rechte, "zeiten_eigene") && <ZeiterfassungKnopf href="/zeiterfassung" />}
+      <UntereNavigation rechte={rechte} />
     </div>
   );
 }

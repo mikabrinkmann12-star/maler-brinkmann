@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeftIcon } from "lucide-react";
-import { requireRole } from "@/lib/auth";
+import { requireBueroRecht } from "@/lib/auth";
 import { heuteIso, istIsoDatum } from "@/lib/datum";
-import { BUERO_ROLLEN } from "@/lib/rollen";
 import { createClient } from "@/lib/supabase/server";
 import { Warteschlange } from "../../../../(mitarbeiter)/warteschlange";
 import { TerminFormular } from "../../../../(mitarbeiter)/termine/termin-formular";
@@ -11,7 +10,7 @@ import { TerminFormular } from "../../../../(mitarbeiter)/termine/termin-formula
 export const metadata: Metadata = { title: "Termin eintragen" };
 
 export default async function BueroNeuerTerminSeite({ searchParams }: PageProps<"/buero/plantafel/termine/neu">) {
-  const nutzer = await requireRole(BUERO_ROLLEN);
+  const nutzer = await requireBueroRecht("termine");
   const { datum } = await searchParams;
   const supabase = await createClient();
   const [{ data: projekte }, { data: profile }] = await Promise.all([

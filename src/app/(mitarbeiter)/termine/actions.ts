@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { requireUser } from "@/lib/auth";
+import { requireRecht } from "@/lib/auth";
 import { ersteMeldung } from "@/lib/nutzer-schema";
 import { istBueroRolle } from "@/lib/rollen";
 import { createClient } from "@/lib/supabase/server";
@@ -21,7 +21,7 @@ function aktualisieren() {
 
 /** Neuen Termin anlegen oder einen vorhandenen ändern (gleiche ID). */
 export async function terminSpeichern(eingabe: unknown): Promise<TerminErgebnis> {
-  const nutzer = await requireUser();
+  const nutzer = await requireRecht("termine");
   const pruefung = terminSchema.safeParse(eingabe);
   if (!pruefung.success) return { fehler: ersteMeldung(pruefung.error) };
   const t = pruefung.data;
@@ -72,7 +72,7 @@ export async function terminSpeichern(eingabe: unknown): Promise<TerminErgebnis>
 
 /** Löschen = archivieren (eigener Termin oder Büro/Admin, RLS prüft). */
 export async function terminArchivieren(terminId: string): Promise<TerminErgebnis> {
-  await requireUser();
+  await requireRecht("termine");
   if (!z.uuid().safeParse(terminId).success) return { fehler: "Ungültiger Termin." };
   const supabase = await createClient();
   const { data, error } = await supabase

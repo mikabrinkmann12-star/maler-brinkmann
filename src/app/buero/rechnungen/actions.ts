@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { requireRole } from "@/lib/auth";
+import { requireBueroRecht } from "@/lib/auth";
 import { steuerAusAuswahl } from "@/lib/angebot-schema";
 import { aktuellerAnbieter, sevdeskClient, sevdeskFinalisieren } from "@/lib/buchhaltung";
 import { heuteIso, istIsoDatum } from "@/lib/datum";
@@ -21,7 +21,6 @@ import {
 import { rechnungLaden } from "@/lib/rechnung-daten";
 import { rechnungEntwurfAusAngebot } from "@/lib/rechnung-erstellen";
 import { rechnungBausteinPruefen, rechnungKopfSchema, type RechnungBausteinEingabe } from "@/lib/rechnung-schema";
-import { BUERO_ROLLEN } from "@/lib/rollen";
 import { createClient } from "@/lib/supabase/server";
 
 // Rechnungen (Büro und Admin). Verbindlich regeln RLS und Trigger der Datenbank die Rechte und die Sperre nach der Übertragung.
@@ -56,7 +55,7 @@ function aktualisieren(id?: string, projektId?: string) {
  * Rechnung, wird diese geöffnet.
  */
 export async function rechnungAusAngebotErstellen(angebotId: string): Promise<RechnungErgebnis> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("rechnungen");
   if (!uuid.safeParse(angebotId).success) return { fehler: "Ungültiges Angebot." };
   const supabase = await createClient();
   const r = await rechnungEntwurfAusAngebot(supabase, angebotId);
@@ -69,7 +68,7 @@ export async function rechnungAusAngebotErstellen(angebotId: string): Promise<Re
 // ---------------------------------------------------------------------------
 
 export async function rechnungKopfSpeichern(id: string, eingabe: unknown): Promise<RechnungErgebnis> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("rechnungen");
   if (!uuid.safeParse(id).success) return { fehler: "Ungültige Rechnung." };
   const pruefung = rechnungKopfSchema.safeParse(eingabe);
   if (!pruefung.success) return { fehler: ersteMeldung(pruefung.error) };
@@ -102,7 +101,7 @@ export async function rechnungKopfSpeichern(id: string, eingabe: unknown): Promi
 }
 
 export async function rechnungBausteinSpeichern(rechnungId: string, id: string | null, eingabe: RechnungBausteinEingabe): Promise<RechnungErgebnis> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("rechnungen");
   if (!uuid.safeParse(rechnungId).success || (id !== null && !uuid.safeParse(id).success)) return { fehler: "Ungültige Eingabe." };
   const pruefung = rechnungBausteinPruefen(eingabe);
   if ("fehler" in pruefung) return { fehler: pruefung.fehler };
@@ -135,7 +134,7 @@ export async function rechnungBausteinSpeichern(rechnungId: string, id: string |
 }
 
 export async function rechnungBausteinLoeschen(rechnungId: string, id: string): Promise<RechnungErgebnis> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("rechnungen");
   if (!uuid.safeParse(rechnungId).success || !uuid.safeParse(id).success) return { fehler: "Ungültige Eingabe." };
   const supabase = await createClient();
   const { data, error } = await supabase.from("invoice_items").delete().eq("id", id).eq("invoice_id", rechnungId).select("id");
@@ -146,7 +145,7 @@ export async function rechnungBausteinLoeschen(rechnungId: string, id: string): 
 }
 
 export async function rechnungBausteinVerschieben(rechnungId: string, id: string, richtung: "hoch" | "runter"): Promise<RechnungErgebnis> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("rechnungen");
   if (!uuid.safeParse(rechnungId).success || !uuid.safeParse(id).success) return { fehler: "Ungültige Eingabe." };
   const supabase = await createClient();
   const { data: r } = await supabase.from("invoices").select("status").eq("id", rechnungId).maybeSingle();
@@ -170,7 +169,7 @@ export async function rechnungBausteinVerschieben(rechnungId: string, id: string
 
 /** Einen Rechnungsentwurf ausblenden (archivieren). Übertragene Rechnungen bleiben sichtbar. */
 export async function rechnungArchivieren(id: string): Promise<RechnungErgebnis> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("rechnungen");
   if (!uuid.safeParse(id).success) return { fehler: "Ungültige Rechnung." };
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -206,7 +205,7 @@ async function mitSevdesk(
 
 /** Rechnung per E-Mail an den Kunden schicken (über die Buchhaltung, die PDF bzw. XML anhängt). */
 export async function rechnungPerMailSenden(id: string, eingabe: unknown): Promise<RechnungErgebnis> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("rechnungen");
   if (!uuid.safeParse(id).success) return { fehler: "Ungültige Rechnung." };
   const pruefung = rechnungMailSchema.safeParse(eingabe);
   if (!pruefung.success) return { fehler: ersteMeldung(pruefung.error) };
@@ -215,7 +214,7 @@ export async function rechnungPerMailSenden(id: string, eingabe: unknown): Promi
 
 /** Zahlung buchen: die Rechnung gilt danach als bezahlt. */
 export async function rechnungAlsBezahltBuchen(id: string, datum: string): Promise<RechnungErgebnis> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("rechnungen");
   if (!uuid.safeParse(id).success) return { fehler: "Ungültige Rechnung." };
   if (!istIsoDatum(datum) || datum > heuteIso()) return { fehler: "Bitte ein Zahlungsdatum angeben, das nicht in der Zukunft liegt." };
   return mitSevdesk(id, (db, client, detail) => sevdeskBezahltBuchen(db, client, detail, datum));
@@ -223,7 +222,7 @@ export async function rechnungAlsBezahltBuchen(id: string, datum: string): Promi
 
 /** Zahlungserinnerung bzw. Mahnung anlegen und per E-Mail senden. */
 export async function rechnungMahnen(id: string, stufe: number, eingabe: unknown): Promise<RechnungErgebnis> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("rechnungen");
   if (!uuid.safeParse(id).success || !istMahnstufe(stufe)) return { fehler: "Ungültige Eingabe." };
   const pruefung = rechnungMailSchema.safeParse(eingabe);
   if (!pruefung.success) return { fehler: ersteMeldung(pruefung.error) };
@@ -232,7 +231,7 @@ export async function rechnungMahnen(id: string, stufe: number, eingabe: unknown
 
 /** Rechnung stornieren (Stornorechnung in der Buchhaltung, nicht rücknehmbar). */
 export async function rechnungStornieren(id: string): Promise<RechnungErgebnis> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("rechnungen");
   if (!uuid.safeParse(id).success) return { fehler: "Ungültige Rechnung." };
   return mitSevdesk(id, (db, client, detail) => sevdeskStornieren(db, client, detail));
 }
@@ -265,7 +264,7 @@ async function dateiSichern(rechnungId: string, lexwareId: string): Promise<bool
  * Zuerst wird die Rechnung hier „reserviert“ (Status wird_uebertragen), damit ein Doppelklick nie zwei Rechnungen erzeugt.
  */
 export async function rechnungUebertragen(id: string): Promise<RechnungErgebnis> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("rechnungen");
   if (!uuid.safeParse(id).success) return { fehler: "Ungültige Rechnung." };
   if (aktuellerAnbieter() === "sevdesk") return mitSevdesk(id, (db, client, detail) => sevdeskUebertragen(db, client, detail, sevdeskFinalisieren()));
   const client = lexwareClient();
@@ -371,7 +370,7 @@ export async function rechnungUebertragen(id: string): Promise<RechnungErgebnis>
 
 /** Nummer, Status, Summen und (falls noch nicht vorhanden) das PDF aus Lexware holen. */
 export async function rechnungAbgleichen(id: string): Promise<RechnungErgebnis> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("rechnungen");
   if (!uuid.safeParse(id).success) return { fehler: "Ungültige Rechnung." };
   const detail = await rechnungLaden(id);
   if (!detail) return { fehler: "Rechnung nicht gefunden." };
@@ -413,7 +412,7 @@ export async function rechnungAbgleichen(id: string): Promise<RechnungErgebnis> 
  * fünf Minuten zurück auf „Entwurf“. Nur wenn Lexware noch keine Rechnung dazu hat (keine Lexware-ID), sonst könnte sie doppelt entstehen.
  */
 export async function rechnungWiederFreigeben(id: string): Promise<RechnungErgebnis> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("rechnungen");
   if (!uuid.safeParse(id).success) return { fehler: "Ungültige Rechnung." };
   const supabase = await createClient();
   const grenze = new Date(Date.now() - 5 * 60_000).toISOString();
@@ -436,7 +435,7 @@ export async function rechnungWiederFreigeben(id: string): Promise<RechnungErgeb
  * Die Mahnung selbst schreibt das Büro in Lexware; hier steht nur der Vermerk, der in den offenen Forderungen als „Angemahnt“ erscheint.
  */
 export async function rechnungMahnstufeSetzen(id: string, stufe: number): Promise<RechnungErgebnis> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("rechnungen");
   if (!uuid.safeParse(id).success || !istMahnstufe(stufe)) return { fehler: "Ungültige Eingabe." };
   const supabase = await createClient();
   const { data: r } = await supabase.from("invoices").select("status, lexware_status, project_id").eq("id", id).maybeSingle();
@@ -451,7 +450,7 @@ export async function rechnungMahnstufeSetzen(id: string, stufe: number): Promis
 
 /** Notiz zur Rechnung (intern, nicht auf dem PDF). Bleibt auch nach der Übertragung änderbar. */
 export async function rechnungNotizSpeichern(id: string, text: string): Promise<RechnungErgebnis> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("rechnungen");
   if (!uuid.safeParse(id).success) return { fehler: "Ungültige Rechnung." };
   const t = text.trim();
   if (t.length > 2000) return { fehler: "Die Notiz ist zu lang (höchstens 2.000 Zeichen)." };

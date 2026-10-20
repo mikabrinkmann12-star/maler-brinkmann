@@ -2,10 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { CalendarClockIcon, ChevronRightIcon, MapPinIcon, PlusIcon } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
-import { requireRole } from "@/lib/auth";
+import { requireBueroRecht } from "@/lib/auth";
 import { heuteIso, istIsoDatum, tageVerschieben } from "@/lib/datum";
 import { formatDatumLang } from "@/lib/format";
-import { BUERO_ROLLEN } from "@/lib/rollen";
 import { createClient } from "@/lib/supabase/server";
 import { termineLaden } from "@/lib/termine-daten";
 import { Warteschlange } from "../../../(mitarbeiter)/warteschlange";
@@ -14,7 +13,7 @@ import { PlantafelTabs } from "../tabs";
 export const metadata: Metadata = { title: "Termine" };
 
 export default async function BueroTermineSeite({ searchParams }: PageProps<"/buero/plantafel/termine">) {
-  const nutzer = await requireRole(BUERO_ROLLEN);
+  const nutzer = await requireBueroRecht("termine");
   const { datum: datumParam } = await searchParams;
   const datum = istIsoDatum(datumParam) ? datumParam : heuteIso();
   const supabase = await createClient();

@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { requireRole } from "@/lib/auth";
+import { requireBueroRecht } from "@/lib/auth";
 import { heuteIso } from "@/lib/datum";
 import { kollegenLaden } from "@/lib/mitarbeiter-daten";
-import { BUERO_ROLLEN } from "@/lib/rollen";
 import { createClient } from "@/lib/supabase/server";
 import { ProjektFormular } from "../../projekt-formular";
 
@@ -12,7 +11,7 @@ export const metadata: Metadata = { title: "Projekt bearbeiten" };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export default async function ProjektBearbeitenSeite({ params }: PageProps<"/buero/projekte/[id]/bearbeiten">) {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("projekte_bearbeiten");
   const { id } = await params;
   if (!UUID.test(id)) notFound();
   const supabase = await createClient();

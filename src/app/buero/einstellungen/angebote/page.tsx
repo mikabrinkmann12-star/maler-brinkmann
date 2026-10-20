@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
-import { requireRole } from "@/lib/auth";
+import { requireBueroRecht } from "@/lib/auth";
 import { angebotEinstellungenLaden } from "@/lib/firma-daten";
 import { AngebotEinstellungenFormular } from "./formular";
 
 export const metadata: Metadata = { title: "Angebote – Vorgaben" };
 
 export default async function AngebotEinstellungenSeite() {
-  await requireRole(["admin"]);
+  await requireBueroRecht("einstellungen_firma");
   const werte = await angebotEinstellungenLaden();
 
   return (

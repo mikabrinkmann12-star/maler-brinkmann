@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeftIcon } from "lucide-react";
-import { requireUser } from "@/lib/auth";
+import { requireRecht } from "@/lib/auth";
 import { meineProjektIds } from "@/lib/mitarbeiter-daten";
 import { createClient } from "@/lib/supabase/server";
 import { Warteschlange } from "../../warteschlange";
@@ -13,7 +13,7 @@ export const metadata: Metadata = { title: "Termin" };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export default async function TerminSeite({ params }: PageProps<"/termine/[id]">) {
-  const nutzer = await requireUser();
+  const nutzer = await requireRecht("termine");
   const { id } = await params;
   if (!UUID.test(id)) notFound();
 

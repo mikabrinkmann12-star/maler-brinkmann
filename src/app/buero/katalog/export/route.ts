@@ -1,7 +1,6 @@
-import { requireRole } from "@/lib/auth";
+import { requireBueroRecht } from "@/lib/auth";
 import { KATALOG_ART_NAMEN, istKatalogArt, ordnerPfadText } from "@/lib/katalog";
 import { ordnerLaden } from "@/lib/katalog-daten";
-import { BUERO_ROLLEN } from "@/lib/rollen";
 import { createClient } from "@/lib/supabase/server";
 import { csvText, csvZusammensetzen } from "@/lib/zeiten-auswertung";
 
@@ -14,7 +13,7 @@ const zahl = (n: number) => String(n).replace(".", ",");
 
 export async function GET(anfrage: Request) {
   // Route Handler laufen ohne Layout: die Rolle muss hier selbst geprüft werden.
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("katalog");
   const art = new URL(anfrage.url).searchParams.get("art");
   if (!istKatalogArt(art)) return new Response("Bitte die Art angeben (material oder leistung).", { status: 400 });
 

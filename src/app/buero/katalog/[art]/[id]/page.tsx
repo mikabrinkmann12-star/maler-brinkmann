@@ -2,13 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeftIcon } from "lucide-react";
-import { requireRole } from "@/lib/auth";
+import { requireBueroRecht } from "@/lib/auth";
 import { formatDatumZeit } from "@/lib/format";
 import { istKatalogArt, preisFuerFeld, ordnerPfadText } from "@/lib/katalog";
 import { kalkulationAusJson } from "@/lib/kalkulation";
 import { kalkulationLaden } from "@/lib/kalkulation-daten";
 import { ordnerLaden } from "@/lib/katalog-daten";
-import { BUERO_ROLLEN } from "@/lib/rollen";
 import { createClient } from "@/lib/supabase/server";
 import { KatalogFormular, type KatalogStart } from "../../katalog-formular";
 
@@ -17,7 +16,7 @@ export const metadata: Metadata = { title: "Katalog-Eintrag" };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export default async function KatalogEintragSeite({ params }: PageProps<"/buero/katalog/[art]/[id]">) {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("katalog");
   const { art, id } = await params;
   if (!istKatalogArt(art) || !UUID.test(id)) notFound();
 

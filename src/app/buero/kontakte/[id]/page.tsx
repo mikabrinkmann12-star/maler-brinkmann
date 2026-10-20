@@ -3,11 +3,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeftIcon, PencilIcon } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
-import { requireRole } from "@/lib/auth";
+import { requireBueroRecht } from "@/lib/auth";
 import { formatDatum, formatZahl } from "@/lib/format";
 import { briefanschrift, kontaktAnzeigename } from "@/lib/kontakt-schema";
 import { telLink } from "@/lib/projekt";
-import { BUERO_ROLLEN } from "@/lib/rollen";
 import { createClient } from "@/lib/supabase/server";
 import { ArchivierenKnopf } from "./archivieren-knopf";
 
@@ -34,7 +33,7 @@ function Abschnitt({ titel, children }: { titel: string; children: React.ReactNo
 }
 
 export default async function KontaktSeite({ params }: PageProps<"/buero/kontakte/[id]">) {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("kontakte_ansehen");
   const { id } = await params;
   if (!UUID.test(id)) notFound();
   const supabase = await createClient();

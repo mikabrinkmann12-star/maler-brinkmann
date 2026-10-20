@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArchiveIcon, ArrowLeftIcon, ChevronRightIcon, SearchIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { requireUser } from "@/lib/auth";
+import { requireRecht } from "@/lib/auth";
 import { formatDatum } from "@/lib/format";
 import { adresseText } from "@/lib/projekt";
 import { projekteSuchen } from "@/lib/projekt-liste";
@@ -11,7 +11,7 @@ export const metadata: Metadata = { title: "Archiv" };
 
 /** Alle archivierten Projekte: für alle Mitarbeiter lesbar (zum Nachschauen, z. B. welche Farbe verwendet wurde). */
 export default async function ArchivSeite({ searchParams }: PageProps<"/baustellen/archiv">) {
-  await requireUser();
+  await requireRecht("archiv_ansehen");
   const { q } = await searchParams;
   const suche = typeof q === "string" ? q : "";
   const { projekte, gesamt } = await projekteSuchen({ q: suche, archiv: true, sortierung: "geaendert", limit: 100 });

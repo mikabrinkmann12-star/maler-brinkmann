@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { requireUser } from "@/lib/auth";
+import { requireRecht } from "@/lib/auth";
 import { heuteIso, istIsoDatum } from "@/lib/datum";
 import { formatDatum, formatStunden, formatStundenSaldo } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
@@ -34,7 +34,7 @@ function aktualisieren() {
 }
 
 export async function urlaubBeantragen(eingabe: unknown): Promise<UrlaubErgebnis> {
-  const nutzer = await requireUser();
+  const nutzer = await requireRecht("urlaub_beantragen");
   const pruefung = antragSchema.safeParse(eingabe);
   if (!pruefung.success) return { fehler: pruefung.error.issues[0]?.message ?? "Ungültige Eingabe." };
   const a = pruefung.data;
@@ -105,7 +105,7 @@ async function abbauFehler(userId: string, von: string, bis: string): Promise<st
 }
 
 export async function urlaubZurueckziehen(antragId: string): Promise<UrlaubErgebnis> {
-  const nutzer = await requireUser();
+  const nutzer = await requireRecht("urlaub_beantragen");
   if (!z.uuid().safeParse(antragId).success) return { fehler: "Ungültiger Antrag." };
 
   const supabase = await createClient();

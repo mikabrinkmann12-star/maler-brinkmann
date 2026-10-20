@@ -2,8 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeftIcon } from "lucide-react";
-import { requireRole } from "@/lib/auth";
-import { BUERO_ROLLEN } from "@/lib/rollen";
+import { requireBueroRecht } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { Warteschlange } from "../../../../(mitarbeiter)/warteschlange";
 import { TerminFormular } from "../../../../(mitarbeiter)/termine/termin-formular";
@@ -13,7 +12,7 @@ export const metadata: Metadata = { title: "Termin" };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export default async function BueroTerminSeite({ params }: PageProps<"/buero/plantafel/termine/[id]">) {
-  const nutzer = await requireRole(BUERO_ROLLEN);
+  const nutzer = await requireBueroRecht("termine");
   const { id } = await params;
   if (!UUID.test(id)) notFound();
 

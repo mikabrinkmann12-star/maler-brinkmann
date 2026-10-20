@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
-import { requireRole } from "@/lib/auth";
+import { requireBueroRecht } from "@/lib/auth";
 import { textvorlagenLaden } from "@/lib/textvorlagen-daten";
 import { VorlagenVerwaltung } from "./vorlagen-verwaltung";
 
 export const metadata: Metadata = { title: "Textvorlagen" };
 
 export default async function TextvorlagenSeite() {
-  await requireRole(["admin"]);
+  await requireBueroRecht("einstellungen_firma");
   const vorlagen = await textvorlagenLaden();
 
   return (

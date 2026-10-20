@@ -2,9 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { requireRole, requireUser } from "@/lib/auth";
+import { requireBueroRecht, requireUser } from "@/lib/auth";
 import { CONTAINER_NAMEN, istContainerArt } from "@/lib/container";
-import { BUERO_ROLLEN } from "@/lib/rollen";
 import { createClient } from "@/lib/supabase/server";
 
 // Container melden: jeder aktive Nutzer; die 7-Tage-Sperre pro Art steht in der Datenbank (Trigger). Erledigt/Sperre aufheben: Büro/Admin.
@@ -34,7 +33,7 @@ const bueroSchema = z.object({ id: z.uuid(), notiz: z.string().trim().max(300, "
 
 /** Büro/Admin: Meldung ist erledigt (z. B. bestellt). Die Sperre läuft trotzdem weiter. */
 export async function containerErledigt(eingabe: unknown): Promise<ContainerErgebnis> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("container_verwalten");
   const p = bueroSchema.safeParse(eingabe);
   if (!p.success) return { fehler: p.error.issues[0]?.message ?? "Ungültige Eingabe." };
   const supabase = await createClient();
@@ -51,7 +50,7 @@ export async function containerErledigt(eingabe: unknown): Promise<ContainerErge
 
 /** Büro/Admin: Sperre vorzeitig aufheben, dann kann die Art sofort wieder gemeldet werden. */
 export async function containerSperreAufheben(id: unknown): Promise<ContainerErgebnis> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("container_verwalten");
   if (!z.uuid().safeParse(id).success) return { fehler: "Ungültige Eingabe." };
   const supabase = await createClient();
   const { data, error } = await supabase

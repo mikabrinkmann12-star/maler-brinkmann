@@ -1,8 +1,7 @@
 "use server";
 
-import { requireRole } from "@/lib/auth";
+import { requireBueroRecht } from "@/lib/auth";
 import { kontaktName } from "@/lib/projekt";
-import { BUERO_ROLLEN } from "@/lib/rollen";
 import { suchtext } from "@/lib/suche";
 import { createClient } from "@/lib/supabase/server";
 
@@ -23,7 +22,7 @@ const PRO_ART = 8;
  * Mehrere Wörter müssen alle vorkommen (Reihenfolge egal). Gesucht wird mit den Rechten des eingeloggten Nutzers.
  */
 export async function suchen(eingabe: string): Promise<SuchTreffer[]> {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("buero_zugang");
   const woerter = suchtext(String(eingabe ?? "")).split(" ").filter((w) => w.length > 0).slice(0, 4);
   if (woerter.length === 0) return [];
   const supabase = await createClient();

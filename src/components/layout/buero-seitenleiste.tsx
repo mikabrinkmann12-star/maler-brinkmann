@@ -14,8 +14,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { abmelden } from "@/lib/auth-aktionen";
+import { rechtOk } from "@/lib/rechte";
 import { ROLLEN_NAMEN, type Rolle } from "@/lib/rollen";
 import { BueroNavigation } from "./buero-navigation";
+import { useBuero } from "./buero-kontext";
 
 const KREIS_FARBEN = ["#e9b8d4", "#b8d4e9", "#d4e9b8", "#e9d4b8", "#c9b8e9", "#b8e9d4"];
 
@@ -49,6 +51,9 @@ export function BueroSeitenleiste({
 }) {
   const { initialen, farbe } = kreis(name);
   const istAdmin = rolle === "admin";
+  const { rechte } = useBuero();
+  // Büro sieht die Einstellungen nur, wenn der Admin ihm dort etwas erlaubt hat (Firmeneinstellungen oder Kalkulation)
+  const darfEinstellungen = istAdmin || rechtOk(rechte, "einstellungen_firma") || rechtOk(rechte, "kalkulation_aendern");
 
   return (
     <div className="flex h-full flex-col gap-3 p-2.5">
@@ -74,11 +79,11 @@ export function BueroSeitenleiste({
           <DropdownMenuContent className="w-56" align="start">
             <DropdownMenuGroup>
               <DropdownMenuLabel>{firmenname}</DropdownMenuLabel>
-              {istAdmin ? (
+              {darfEinstellungen ? (
                 <>
                   <DropdownMenuItem render={<Link href="/buero/einstellungen" />}><SettingsIcon /> Einstellungen</DropdownMenuItem>
-                  <DropdownMenuItem render={<Link href="/buero/einstellungen/firma" />}><BuildingIcon /> Unternehmensdetails</DropdownMenuItem>
-                  <DropdownMenuItem render={<Link href="/buero/einstellungen/benutzer/neu" />}><UserPlusIcon /> Mitarbeiter einladen</DropdownMenuItem>
+                  {rechtOk(rechte, "einstellungen_firma") && <DropdownMenuItem render={<Link href="/buero/einstellungen/firma" />}><BuildingIcon /> Unternehmensdetails</DropdownMenuItem>}
+                  {istAdmin && <DropdownMenuItem render={<Link href="/buero/einstellungen/benutzer/neu" />}><UserPlusIcon /> Mitarbeiter einladen</DropdownMenuItem>}
                 </>
               ) : (
                 <DropdownMenuItem render={<Link href="/buero" />}>Übersicht</DropdownMenuItem>
@@ -104,7 +109,7 @@ export function BueroSeitenleiste({
       </div>
 
       <div className={cn("flex items-center gap-1 border-t border-sidebar-border pt-3", eingeklappt && "flex-col")}>
-        {istAdmin && (
+        {darfEinstellungen && (
           <Link
             href="/buero/einstellungen"
             onClick={onNavigiert}

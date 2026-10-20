@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireRole } from "@/lib/auth";
+import { requireBueroRecht } from "@/lib/auth";
 import { angebotEinstellungenSchema } from "@/lib/firma";
 import { ersteMeldung } from "@/lib/nutzer-schema";
 import { zahlLesen } from "@/lib/angebot";
@@ -14,7 +14,7 @@ export async function angebotEinstellungenSpeichern(
   _vorher: AngebotEinstellungenZustand,
   formData: FormData,
 ): Promise<AngebotEinstellungenZustand> {
-  const admin = await requireRole(["admin"]);
+  const admin = await requireBueroRecht("einstellungen_firma");
   const rabatt = zahlLesen(String(formData.get("standard_rabatt") ?? "0") || "0", 2);
   const pruefung = angebotEinstellungenSchema.safeParse({
     einleitung: String(formData.get("einleitung") ?? ""),

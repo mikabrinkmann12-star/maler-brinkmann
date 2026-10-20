@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { ProjektKopf } from "@/components/layout/projekt-kopf";
-import { requireUser } from "@/lib/auth";
+import { ladeRechte, requireUser } from "@/lib/auth";
+import { rechtOk } from "@/lib/rechte";
 import { ungelesenKarte, zaehlerText } from "@/lib/chat";
 import { istBueroRolle } from "@/lib/rollen";
 import { createClient } from "@/lib/supabase/server";
@@ -32,6 +33,7 @@ export default async function ProjektLayout({
   // Chat und Berichte sehen nur das Team und das Büro (auch bei archivierten Projekten)
   const darfTeamBereiche = istBuero || istMitglied;
   const neu = ungelesenKarte(ungelesen).get(id) ?? 0;
+  const rechte = await ladeRechte();
 
   return (
     <div className="flex flex-1 flex-col">
@@ -39,8 +41,10 @@ export default async function ProjektLayout({
         projektId={p.id}
         name={p.name}
         zurueck={p.archiviert_am && !istMitglied ? "/baustellen/archiv" : istBuero ? "/buero/projekte" : "/baustellen"}
-        zeigeChat={darfTeamBereiche}
-        zeigeBerichte={darfTeamBereiche}
+        zeigeChat={darfTeamBereiche && rechtOk(rechte, "chat")}
+        zeigeBerichte={darfTeamBereiche && rechtOk(rechte, "berichte")}
+        zeigeAnweisungen={rechtOk(rechte, "anweisungen_ansehen")}
+        zeigeMaterial={rechtOk(rechte, "baustelle_eintragen")}
         chatNeu={neu > 0 ? zaehlerText(neu) : ""}
       />
       {children}

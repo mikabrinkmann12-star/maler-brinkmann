@@ -1,9 +1,15 @@
 "use client";
 
 import { createContext, useContext } from "react";
+import { standardRechte, type Rechte } from "@/lib/rechte";
 
 /** Zahl der ungelesenen Benachrichtigungen (Glocke in der Seitenleiste); die Fenster aktualisieren sie, die Navigation zeigt sie an. */
-export const BueroKontext = createContext<{ ungelesen: number; setUngelesen: (n: number) => void }>({ ungelesen: 0, setUngelesen: () => {} });
+/** `rechte` = Rechte des eingeloggten Nutzers (das Menü zeigt nur, was er darf; durchgesetzt wird es von Server und Datenbank). */
+export const BueroKontext = createContext<{ ungelesen: number; setUngelesen: (n: number) => void; rechte: Rechte }>({
+  ungelesen: 0,
+  setUngelesen: () => {},
+  rechte: standardRechte("admin"),
+});
 
 export const useBuero = () => useContext(BueroKontext);
 

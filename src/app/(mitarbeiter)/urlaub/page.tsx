@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { cn } from "cn";
 import { ZeitenReiter } from "@/components/layout/zeiten-reiter";
 import { UrlaubskontoAnzeige } from "@/components/urlaubskonto-anzeige";
-import { requireUser } from "@/lib/auth";
+import { requireRecht } from "@/lib/auth";
 import { heuteIso } from "@/lib/datum";
 import { formatDatum, formatDatumZeit } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
@@ -15,7 +15,7 @@ import { Zurueckziehen } from "./zurueckziehen";
 export const metadata: Metadata = { title: "Urlaubsanträge" };
 
 export default async function UrlaubSeite() {
-  const nutzer = await requireUser();
+  const nutzer = await requireRecht("urlaub_beantragen");
   const heute = heuteIso();
   const jahr = Number(heute.slice(0, 4));
   const supabase = await createClient();

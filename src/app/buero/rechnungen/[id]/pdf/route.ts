@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireRole } from "@/lib/auth";
-import { BUERO_ROLLEN } from "@/lib/rollen";
+import { requireBueroRecht } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -10,7 +9,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
  * Route Handler brauchen eine eigene Rollenprüfung, die Layouts greifen hier nicht.
  */
 export async function GET(anfrage: Request, { params }: RouteContext<"/buero/rechnungen/[id]/pdf">) {
-  await requireRole(BUERO_ROLLEN);
+  await requireBueroRecht("rechnungen");
   const { id } = await params;
   if (!UUID.test(id)) return new NextResponse("Nicht gefunden", { status: 404 });
 
