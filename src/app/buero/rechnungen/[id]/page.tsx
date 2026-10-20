@@ -1,7 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeftIcon, LockIcon } from "lucide-react";
+import { ArrowLeftIcon, DownloadIcon, EyeIcon, LockIcon } from "lucide-react";
+import { cn } from "cn";
+import { StatusPille } from "@/components/status-pille";
+import { heuteIso } from "@/lib/datum";
+import { faelligAm } from "@/lib/dashboard";
+import { RECHNUNG_ANZEIGE_FARBEN, RECHNUNG_ANZEIGE_NAMEN, anzeigeStatus, faelligBeschreibung, offenerBetrag } from "@/lib/rechnung-liste";
+import { RechnungNotiz } from "./rechnung-notiz";
 import { requireRole } from "@/lib/auth";
 import { auswahlAusSteuer } from "@/lib/angebot-schema";
 import { formatBetrag, formatDatum, formatDatumZeit, formatZahl } from "@/lib/format";
@@ -10,7 +16,6 @@ import { lexwareLink, rechnungBerechnen } from "@/lib/rechnung";
 import { rechnungLaden } from "@/lib/rechnung-daten";
 import { kopfStart } from "@/lib/rechnung-formular";
 import { BUERO_ROLLEN } from "@/lib/rollen";
-import { RechnungStatusBadge } from "../status-badge";
 import { LexwareLeiste } from "./lexware-leiste";
 import { MahnungKarte } from "./mahnung-karte";
 import { mahnungsHinweis } from "@/lib/rechnung-einstellungen";
@@ -40,32 +45,110 @@ export default async function RechnungSeite({ params }: PageProps<"/buero/rechnu
   const vorgaben = await rechnungsEinstellungenLaden();
   const mahnHinweise = Object.fromEntries([1, 2, 3].map((n) => [n, mahnungsHinweis(vorgaben, n) ?? ""]).filter(([, t]) => t));
 
-  return (
-    <div className="flex max-w-4xl flex-col gap-5">
-      <Link href="/buero/rechnungen" className="flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeftIcon className="size-4" /> Ausgangsrechnungen
-      </Link>
+  const heute = heuteIso();
+  const anzeige = anzeigeStatus(
+    { status: r.status, lexwareStatus: r.lexwareStatus, rechnungsdatum: r.rechnungsdatum, zahlungszielTage: r.zahlungszielTage, mahnstufe: r.mahnstufe },
+    heute,
+  );
+  const faellig = faelligAm(r.rechnungsdatum, r.zahlungszielTage);
+  const offen = offenerBetrag({ brutto: brutto ?? 0 }, anzeige);
+  const faelligText = anzeige === "bezahlt" || anzeige === "storniert" || anzeige === "entwurf" ? "–" : faelligBeschreibung(faellig, heute);
+  const ueberfaellig = anzeige === "ueberfaellig" || anzeige === "angemahnt";
+  const titel = `${r.betreff}${r.rechnungsnummer ? ` (${r.rechnungsnummer})` : ""}`;
+  const abschnitt = "flex flex-col gap-3 border-t px-1 py-5";
+  const ueberschrift = "px-3 text-[13px] font-semibold";
 
-      <div className="flex flex-col gap-2">
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-2xl font-semibold">{r.rechnungsnummer ? `Rechnung ${r.rechnungsnummer}` : "Rechnung"}: {r.betreff}</h1>
-          <RechnungStatusBadge status={r.status} lexwareStatus={r.lexwareStatus} />
-        </div>
-        <p className="text-sm text-muted-foreground">
-          Projekt{" "}
-          <Link href={`/buero/projekte/${projekt.id}`} className="font-medium text-foreground hover:underline">{projekt.projektnummer} · {projekt.name}</Link>
-          {" · "}Kunde{" "}
-          <Link href={`/buero/kontakte/${kunde.id}`} className="font-medium text-foreground hover:underline">{kunde.name}</Link>
-          {kunde.kundennummer && ` (${kunde.kundennummer})`}
-          {angebot && <> · aus Angebot <Link href={`/buero/angebote/${angebot.id}`} className="font-medium text-foreground hover:underline">{angebot.betreff}</Link></>}
-        </p>
-        {r.uebertragenAm && (
-          <p className="text-sm text-muted-foreground">
-            An Lexware übertragen am {formatDatumZeit(r.uebertragenAm)}
-            {r.abgeglichenAm && <>, zuletzt abgeglichen am {formatDatumZeit(r.abgeglichenAm)}</>}.
-          </p>
-        )}
+  return (
+    <div className="flex max-w-6xl flex-col gap-4">
+      <div className="flex items-center gap-3">
+        <Link href="/buero/rechnungen" aria-label="Zurück zu den Ausgangsrechnungen" className="flex size-9 items-center justify-center rounded-md border bg-white hover:bg-muted">
+          <ArrowLeftIcon className="size-4" />
+        </Link>
+        <h1 className="text-lg font-semibold">{titel}</h1>
       </div>
+
+      <section className="rounded-lg border bg-white px-5 py-4" aria-label="Rechnungsübersicht">
+        <div className="flex flex-wrap items-center justify-between gap-3 pb-4 text-[13px]">
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+            <span className="flex items-center gap-2"><span className="font-semibold">Status:</span> <StatusPille name={RECHNUNG_ANZEIGE_NAMEN[anzeige]} farbe={RECHNUNG_ANZEIGE_FARBEN[anzeige]} /></span>
+            <span><span className="font-semibold">Offene Forderung:</span> {offen > 0 ? formatBetrag(offen) : anzeige === "bezahlt" ? formatBetrag(0) : "–"}</span>
+            <span className={cn(ueberfaellig && "text-destructive")}><span className="font-semibold text-foreground">Fällig:</span> {faelligText}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            {r.pdfPfad && (
+              <>
+                <a href={`/buero/rechnungen/${r.id}/pdf`} target="_blank" rel="noreferrer" aria-label="Rechnung ansehen" title="Rechnung ansehen" className="flex size-8 items-center justify-center rounded-md hover:bg-muted"><EyeIcon className="size-4" /></a>
+                <a href={`/buero/rechnungen/${r.id}/pdf?download=1`} aria-label="Rechnung herunterladen" title="Rechnung herunterladen" className="flex size-8 items-center justify-center rounded-md hover:bg-muted"><DownloadIcon className="size-4" /></a>
+              </>
+            )}
+          </div>
+        </div>
+
+        <div className="grid gap-6 border-t py-5 text-[13px] md:grid-cols-2 xl:grid-cols-4">
+          <div className="flex flex-col gap-0.5">
+            <h2 className="mb-1 font-semibold">Allgemein</h2>
+            <p>Rechnung</p>
+            <p>{r.betreff}</p>
+            {r.rechnungsnummer && <p>{r.rechnungsnummer}</p>}
+            <p>{formatDatum(r.rechnungsdatum)}</p>
+          </div>
+          <div className="flex flex-col gap-0.5">
+            <h2 className="mb-1 font-semibold">Empfänger</h2>
+            {kunde.anschrift.length ? kunde.anschrift.map((z, i) => <p key={i}>{z}</p>) : <p>{kunde.name}</p>}
+          </div>
+          <div className="flex flex-col gap-0.5">
+            <h2 className="mb-1 font-semibold">Gesamtbetrag</h2>
+            <p className="flex max-w-56 justify-between gap-6"><span>Netto</span><span className="tabular-nums">{formatBetrag(netto)}</span></p>
+            {rechnung.reverseCharge ? (
+              <p className="max-w-56 text-muted-foreground">Reverse-Charge (§ 13b UStG)</p>
+            ) : (
+              <p className="flex max-w-56 justify-between gap-6"><span>{rechnung.steuersatz} % USt</span><span className="tabular-nums">{formatBetrag(r.brutto !== null && r.netto !== null ? r.brutto - r.netto : rechnung.ust)}</span></p>
+            )}
+            <p className="flex max-w-56 justify-between gap-6 border-t pt-0.5 font-semibold"><span>Brutto</span><span className="tabular-nums">{formatBetrag(brutto)}</span></p>
+          </div>
+          <div className="flex flex-col gap-0.5">
+            <h2 className="mb-1 font-semibold">Zahlungsbedingungen</h2>
+            <p>Zahlungsziel: {r.zahlungszielTage} {r.zahlungszielTage === 1 ? "Tag" : "Tage"}</p>
+            {r.skontoProzent != null && r.skontoTage != null && <p>Skonto: {formatZahl(r.skontoProzent)} % bei Zahlung in {r.skontoTage} {r.skontoTage === 1 ? "Tag" : "Tagen"}</p>}
+            <p className="text-muted-foreground">Leistungszeitraum {formatDatum(r.leistungVon)} bis {formatDatum(r.leistungBis)}</p>
+          </div>
+        </div>
+
+        <div className={abschnitt}>
+          <h2 className={ueberschrift}>Zahlungen</h2>
+          {anzeige === "bezahlt" ? (
+            <p className="px-3 text-[13px]">Diese Rechnung ist bezahlt ({formatBetrag(brutto)}). Die einzelnen Zahlungen stehen in Lexware.</p>
+          ) : r.status === "uebertragen" ? (
+            <p className="px-3 text-[13px] text-muted-foreground">Noch keine Zahlung gemeldet. Zahlungen trägst du in Lexware ein; danach „Aus Lexware abgleichen“.</p>
+          ) : (
+            <p className="px-3 text-[13px] text-muted-foreground">Zahlungen gibt es erst, wenn die Rechnung an Lexware übertragen ist.</p>
+          )}
+        </div>
+
+        <div className={abschnitt}>
+          <h2 className={ueberschrift}>Abzüge</h2>
+          {rechnung.rabattProzent > 0 ? (
+            <p className="px-3 text-[13px]">Rabatt {formatZahl(rechnung.rabattProzent)} % = {formatBetrag(-rechnung.rabatt)} (auf die Nettosumme {formatBetrag(rechnung.netto)})</p>
+          ) : (
+            <p className="px-3 text-[13px] text-muted-foreground">Keine Abzüge. Einen Rabatt stellst du im Rechnungsentwurf unten ein.</p>
+          )}
+        </div>
+
+        <div className={abschnitt}>
+          <h2 className={ueberschrift}>Notiz</h2>
+          <RechnungNotiz key={r.notiz} rechnungId={r.id} start={r.notiz} />
+        </div>
+      </section>
+
+      <p className="text-[13px] text-muted-foreground">
+        Projekt{" "}
+        <Link href={`/buero/projekte/${projekt.id}`} className="font-medium text-foreground hover:underline">{projekt.projektnummer} · {projekt.name}</Link>
+        {" · "}Kunde{" "}
+        <Link href={`/buero/kontakte/${kunde.id}`} className="font-medium text-foreground hover:underline">{kunde.name}</Link>
+        {kunde.kundennummer && ` (${kunde.kundennummer})`}
+        {angebot && <> · aus Angebot <Link href={`/buero/angebote/${angebot.id}`} className="font-medium text-foreground hover:underline">{angebot.betreff}</Link></>}
+        {r.uebertragenAm && <> · An Lexware übertragen am {formatDatumZeit(r.uebertragenAm)}{r.abgeglichenAm && <>, zuletzt abgeglichen am {formatDatumZeit(r.abgeglichenAm)}</>}</>}
+      </p>
 
       <LexwareLeiste
         rechnungId={r.id}
@@ -104,32 +187,9 @@ export default async function RechnungSeite({ params }: PageProps<"/buero/rechnu
         <PositionenEditor rechnungId={r.id} projektId={projekt.id} bausteine={bausteine} gesperrt={gesperrt} />
       </section>
 
-      <section aria-labelledby="summen-titel" className="ml-auto flex w-full max-w-md flex-col gap-1 rounded-xl border p-4">
-        <h2 id="summen-titel" className="sr-only">Summen</h2>
-        <p className="flex justify-between gap-4"><span className="text-muted-foreground">Nettosumme</span><span className="tabular-nums">{formatBetrag(rechnung.netto)}</span></p>
-        {rechnung.rabattProzent > 0 && (
-          <>
-            <p className="flex justify-between gap-4"><span className="text-muted-foreground">Rabatt {formatZahl(rechnung.rabattProzent)} %</span><span className="tabular-nums">{formatBetrag(-rechnung.rabatt)}</span></p>
-            <p className="flex justify-between gap-4"><span className="text-muted-foreground">Netto nach Rabatt</span><span className="tabular-nums">{formatBetrag(rechnung.nettoNachRabatt)}</span></p>
-          </>
-        )}
-        {rechnung.reverseCharge ? (
-          <p className="mt-2 text-sm text-muted-foreground">Reverse-Charge (§ 13b UStG): keine Umsatzsteuer, den Hinweis setzt Lexware.</p>
-        ) : rechnung.steuersatz > 0 ? (
-          <>
-            <p className="flex justify-between gap-4"><span className="text-muted-foreground">Umsatzsteuer {rechnung.steuersatz} %</span><span className="tabular-nums">{formatBetrag(rechnung.ust)}</span></p>
-            <p className="flex justify-between gap-4 border-t pt-2 text-lg font-semibold"><span>Gesamtsumme brutto</span><span className="tabular-nums">{formatBetrag(rechnung.brutto)}</span></p>
-          </>
-        ) : null}
-        {r.netto !== null && (
-          <p className={`mt-2 border-t pt-2 text-sm ${abweichung ? "text-destructive" : "text-muted-foreground"}`}>
-            Laut Lexware: netto {formatBetrag(netto)}{brutto !== null && <>, brutto {formatBetrag(brutto)}</>}
-            {abweichung && " – weicht von der App ab, bitte in Lexware prüfen!"}
-          </p>
-        )}
-      </section>
-
-      <p className="text-sm text-muted-foreground">Leistungszeitraum {formatDatum(r.leistungVon)} bis {formatDatum(r.leistungBis)}, Rechnungsdatum {formatDatum(r.rechnungsdatum)}.</p>
+      {r.netto !== null && abweichung && (
+        <p className="text-sm text-destructive">Laut Lexware: netto {formatBetrag(netto)}{brutto !== null && <>, brutto {formatBetrag(brutto)}</>} – weicht von der App ab, bitte in Lexware prüfen!</p>
+      )}
     </div>
   );
 }

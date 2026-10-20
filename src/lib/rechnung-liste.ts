@@ -79,3 +79,12 @@ export function faelligText(r: Pick<RechnungZeile, "rechnungsdatum" | "zahlungsz
 export function offenerBetrag(r: Pick<RechnungZeile, "brutto">, status: RechnungAnzeigeStatus): number {
   return status === "offen" || status === "ueberfaellig" || status === "angemahnt" ? r.brutto : 0;
 }
+
+/** Fälligkeit für die Rechnungsseite: „In 7 Tagen“, „Heute“, „3 Tage überfällig“; ohne Fälligkeit „–“. */
+export function faelligBeschreibung(faellig: string | null, heute: string): string {
+  if (!faellig) return "–";
+  const tage = tageZwischen(heute, faellig);
+  if (tage === 0) return "Heute";
+  if (tage > 0) return `In ${tage} ${tage === 1 ? "Tag" : "Tagen"}`;
+  return `${-tage} ${tage === -1 ? "Tag" : "Tage"} überfällig`;
+}

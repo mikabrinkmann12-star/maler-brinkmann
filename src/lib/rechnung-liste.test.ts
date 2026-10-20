@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { anzeigeStatus, faelligText, offenerBetrag, rechnungenFiltern } from "./rechnung-liste";
+import { anzeigeStatus, faelligBeschreibung, faelligText, offenerBetrag, rechnungenFiltern } from "./rechnung-liste";
 
 const heute = "2026-10-18";
 const r = (teil: Partial<Parameters<typeof anzeigeStatus>[0]> = {}) => ({
@@ -51,5 +51,16 @@ describe("faelligText und offenerBetrag", () => {
     expect(offenerBetrag({ brutto: 119 }, "angemahnt")).toBe(119);
     expect(offenerBetrag({ brutto: 119 }, "bezahlt")).toBe(0);
     expect(offenerBetrag({ brutto: 119 }, "entwurf")).toBe(0);
+  });
+});
+
+describe("faelligBeschreibung", () => {
+  it("beschreibt die Fälligkeit in Worten", () => {
+    expect(faelligBeschreibung("2026-10-27", "2026-10-20")).toBe("In 7 Tagen");
+    expect(faelligBeschreibung("2026-10-21", "2026-10-20")).toBe("In 1 Tag");
+    expect(faelligBeschreibung("2026-10-20", "2026-10-20")).toBe("Heute");
+    expect(faelligBeschreibung("2026-10-19", "2026-10-20")).toBe("1 Tag überfällig");
+    expect(faelligBeschreibung("2026-10-10", "2026-10-20")).toBe("10 Tage überfällig");
+    expect(faelligBeschreibung(null, "2026-10-20")).toBe("–");
   });
 });

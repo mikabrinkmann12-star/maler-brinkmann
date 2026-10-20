@@ -2,14 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ClockIcon, HardHatIcon, MenuIcon, SunIcon } from "lucide-react";
+import { CalendarDaysIcon, ClockIcon, FolderOpenIcon, UsersIcon } from "lucide-react";
 import { cn } from "cn";
 
+// `auch`: weitere Pfade, bei denen der Reiter als aktiv gilt (Termine gehören zu den Einsätzen, Urlaub zu den Zeiten).
 const EINTRAEGE = [
-  { href: "/heute", name: "Heute", icon: SunIcon, auch: [] },
-  { href: "/baustellen", name: "Baustellen", icon: HardHatIcon, auch: [] },
-  { href: "/zeiten", name: "Zeiten", icon: ClockIcon, auch: [] },
-  { href: "/mehr", name: "Mehr", icon: MenuIcon, auch: ["/urlaub", "/termine"] },
+  { href: "/heute", name: "Einsätze", icon: CalendarDaysIcon, auch: ["/termine"] },
+  { href: "/baustellen", name: "Projekte", icon: FolderOpenIcon, auch: [] },
+  { href: "/zeiten", name: "Zeiten", icon: ClockIcon, auch: ["/urlaub"] },
+  { href: "/kontakte", name: "Kontakte", icon: UsersIcon, auch: [] },
 ] as const;
 
 /** Untere Navigation der Mitarbeiter-App: 4 große Felder, kein Untermenü. */
@@ -31,11 +32,10 @@ export function UntereNavigation() {
                 aria-current={aktiv ? "page" : undefined}
                 className={cn(
                   "relative flex h-16 flex-col items-center justify-center gap-1 text-xs font-medium transition-colors",
-                  aktiv ? "text-foreground" : "text-muted-foreground hover:text-foreground",
+                  aktiv ? "text-primary" : "text-muted-foreground hover:text-foreground",
                 )}
               >
-                {aktiv && <span aria-hidden className="absolute top-0 h-1 w-10 rounded-b-full bg-primary" />}
-                <Icon className={cn("size-6", aktiv && "stroke-[2.5]")} />
+                <Icon className={cn("size-6", aktiv && "stroke-[2.25]")} />
                 {name}
               </Link>
             </li>

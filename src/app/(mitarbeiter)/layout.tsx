@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowLeftIcon } from "lucide-react";
+import { TabKopf, ZeiterfassungKnopf } from "@/components/layout/mitarbeiter-kopf";
 import { UntereNavigation } from "@/components/layout/untere-navigation";
 import { requireUser } from "@/lib/auth";
 import { istBueroRolle } from "@/lib/rollen";
@@ -26,9 +27,11 @@ export default async function MitarbeiterLayout({
           </Link>
         </div>
       )}
-      <main className="mx-auto flex w-full max-w-lg flex-1 flex-col px-4 pt-5 pb-28">
+      <TabKopf />
+      <main className="mx-auto flex w-full max-w-lg flex-1 flex-col px-4 pt-4 pb-28">
         {children}
       </main>
+      <ZeiterfassungKnopf href="/zeiten/neu" />
       <UntereNavigation />
     </div>
   );

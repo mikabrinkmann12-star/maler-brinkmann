@@ -3,16 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireRole } from "@/lib/auth";
-import { rechnungsEinstellungenLaden } from "@/lib/rechnung-einstellungen-daten";
 import { steuerAusAuswahl } from "@/lib/angebot-schema";
-import { angebotLaden } from "@/lib/angebot-daten";
 import { heuteIso } from "@/lib/datum";
 import { lexwareClient, lexwareFinalisieren } from "@/lib/lexware";
 import { istMahnstufe } from "@/lib/mahnung";
 import { LexwareFehler } from "@/lib/lexware-client";
 import { ersteMeldung } from "@/lib/nutzer-schema";
 import {
-  bausteineAusAngebot,
   lexwareKontaktPayload,
   lexwareRechnungPayload,
   rechnungBerechnen,
@@ -397,4 +394,17 @@ export async function rechnungMahnstufeSetzen(id: string, stufe: number): Promis
   aktualisieren(id, r.project_id);
   revalidatePath("/buero");
   return { id };
+}
+
+/** Notiz zur Rechnung (intern, nicht auf dem PDF). Bleibt auch nach der Übertragung änderbar. */
+export async function rechnungNotizSpeichern(id: string, text: string): Promise<RechnungErgebnis> {
+  await requireRole(BUERO_ROLLEN);
+  if (!uuid.safeParse(id).success) return { fehler: "Ungültige Rechnung." };
+  const t = text.trim();
+  if (t.length > 2000) return { fehler: "Die Notiz ist zu lang (höchstens 2.000 Zeichen)." };
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("invoices").update({ notiz: t || null }).eq("id", id).select("id, project_id");
+  if (error || !data?.length) return { fehler: "Die Notiz konnte nicht gespeichert werden." };
+  aktualisieren(id, data[0].project_id);
+  return {};
 }

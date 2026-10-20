@@ -1,4 +1,5 @@
 import "server-only";
+import { briefanschrift } from "@/lib/kontakt-schema";
 import { kontaktName, adresseText } from "@/lib/projekt";
 import { rechnungBerechnen, type RechnungStatus, type RechnungsBaustein } from "@/lib/rechnung";
 import { suchtext } from "@/lib/suche";
@@ -36,13 +37,14 @@ export type RechnungKopf = {
   archiviert: boolean;
   mahnstufe: number;
   angemahntAm: string | null;
+  notiz: string;
 };
 
 export type RechnungDetail = {
   rechnung: RechnungKopf;
   bausteine: (RechnungsBaustein & { id: string })[];
   projekt: { id: string; name: string; projektnummer: string; adresse: string };
-  kunde: { id: string; name: string; kundennummer: string; lexwareKontaktId: string | null; leitwegId: string };
+  kunde: { id: string; name: string; kundennummer: string; lexwareKontaktId: string | null; leitwegId: string; anschrift: string[] };
   angebot: { id: string; betreff: string } | null;
 };
 
@@ -51,7 +53,7 @@ export async function rechnungLaden(id: string): Promise<RechnungDetail | null> 
   const { data: r, error } = await supabase
     .from("invoices")
     .select(
-      "id, project_id, quote_id, contact_id, status, betreff, rechnungsdatum, leistung_von, leistung_bis, zahlungsziel_tage, skonto_prozent, skonto_tage, steuersatz, reverse_charge, rabatt_prozent, einleitung, schlusstext, lexware_id, rechnungsnummer, lexware_status, netto, brutto, uebertragen_am, abgeglichen_am, pdf_pfad, archiviert_am, mahnstufe, angemahnt_am, projects(id, name, projektnummer, baustelle_strasse, baustelle_plz, baustelle_ort), contacts(id, kundennummer, firmenname, vorname, nachname, lexware_contact_id, leitweg_id), quotes(id, betreff)",
+      "id, project_id, quote_id, contact_id, status, betreff, rechnungsdatum, leistung_von, leistung_bis, zahlungsziel_tage, skonto_prozent, skonto_tage, steuersatz, reverse_charge, rabatt_prozent, einleitung, schlusstext, lexware_id, rechnungsnummer, lexware_status, netto, brutto, uebertragen_am, abgeglichen_am, pdf_pfad, archiviert_am, mahnstufe, angemahnt_am, notiz, projects(id, name, projektnummer, baustelle_strasse, baustelle_plz, baustelle_ort), contacts(id, kundennummer, typ, anrede, firmenname, ansprechpartner, vorname, nachname, strasse, plz, ort, land, empfaenger, lexware_contact_id, leitweg_id), quotes(id, betreff)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -99,6 +101,7 @@ export async function rechnungLaden(id: string): Promise<RechnungDetail | null> 
       archiviert: r.archiviert_am != null,
       mahnstufe: r.mahnstufe,
       angemahntAm: r.angemahnt_am,
+      notiz: r.notiz ?? "",
     },
     bausteine: items.map((i) => ({
       id: i.id,
@@ -121,6 +124,7 @@ export async function rechnungLaden(id: string): Promise<RechnungDetail | null> 
       kundennummer: k?.kundennummer ?? "",
       lexwareKontaktId: k?.lexware_contact_id ?? null,
       leitwegId: k?.leitweg_id ?? "",
+      anschrift: k ? briefanschrift(k) : [],
     },
     angebot: r.quotes ? { id: r.quotes.id, betreff: r.quotes.betreff } : null,
   };

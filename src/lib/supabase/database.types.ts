@@ -811,6 +811,7 @@ export type Database = {
           lexware_status: string | null
           mahnstufe: number
           netto: number | null
+          notiz: string | null
           pdf_pfad: string | null
           project_id: string
           quote_id: string | null
@@ -844,6 +845,7 @@ export type Database = {
           lexware_status?: string | null
           mahnstufe?: number
           netto?: number | null
+          notiz?: string | null
           pdf_pfad?: string | null
           project_id: string
           quote_id?: string | null
@@ -877,6 +879,7 @@ export type Database = {
           lexware_status?: string | null
           mahnstufe?: number
           netto?: number | null
+          notiz?: string | null
           pdf_pfad?: string | null
           project_id?: string
           quote_id?: string | null
@@ -1301,6 +1304,7 @@ export type Database = {
         Row: {
           aktiv: boolean
           arbeitszeitmodell: string | null
+          benachrichtigungen: Json
           benutzername: string
           created_at: string
           email: string | null
@@ -1323,6 +1327,7 @@ export type Database = {
         Insert: {
           aktiv?: boolean
           arbeitszeitmodell?: string | null
+          benachrichtigungen?: Json
           benutzername: string
           created_at?: string
           email?: string | null
@@ -1345,6 +1350,7 @@ export type Database = {
         Update: {
           aktiv?: boolean
           arbeitszeitmodell?: string | null
+          benachrichtigungen?: Json
           benutzername?: string
           created_at?: string
           email?: string | null
@@ -2309,6 +2315,14 @@ export type Database = {
           anzahl: number
           project_id: string
         }[]
+      }
+      eigene_benachrichtigungen_speichern: {
+        Args: { p_wert: Json }
+        Returns: undefined
+      }
+      eigenes_profil_speichern: {
+        Args: { p_nachname: string; p_telefon: string; p_vorname: string }
+        Returns: undefined
       }
       ist_admin: { Args: never; Returns: boolean }
       ist_aktiv: { Args: never; Returns: boolean }
