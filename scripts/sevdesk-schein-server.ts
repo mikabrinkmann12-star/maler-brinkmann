@@ -15,7 +15,7 @@ const server = createServer((req, res) => {
     const u = new URL(req.url ?? "/", "http://x");
     const pfad = u.pathname.replace("/api/v1", "");
     const m = req.method ?? "GET";
-    let body: Record<string, any> = {};
+    let body: { invoicePosSave?: { quantity: number; price: number; taxRate: number }[]; [k: string]: unknown } = {};
     try {
       body = JSON.parse(Buffer.concat(chunks).toString() || "{}");
     } catch {
@@ -34,7 +34,7 @@ const server = createServer((req, res) => {
     if (m === "POST" && (pfad === "/ContactAddress" || pfad === "/CommunicationWay")) return senden({ objects: { id: "1" } }, 201);
     if (m === "POST" && pfad === "/Invoice/Factory/saveInvoice") {
       const id = String(++zaehler);
-      rechnungen.set(id, { id, status: "100", nummer: "", festgeschrieben: false, pos: (body.invoicePosSave ?? []).map((p: any) => ({ quantity: p.quantity, price: p.price, taxRate: p.taxRate })) });
+      rechnungen.set(id, { id, status: "100", nummer: "", festgeschrieben: false, pos: (body.invoicePosSave ?? []).map((p) => ({ quantity: p.quantity, price: p.price, taxRate: p.taxRate })) });
       return senden({ objects: { invoice: { id }, invoicePos: [] } }, 201);
     }
     if (m === "POST" && pfad === "/Invoice/Factory/createInvoiceReminder") {
