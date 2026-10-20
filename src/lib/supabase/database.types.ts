@@ -484,6 +484,64 @@ export type Database = {
           },
         ]
       }
+      container_requests: {
+        Row: {
+          art: string
+          ausgeloest_von: string | null
+          created_at: string
+          erledigt_am: string | null
+          erledigt_von: string | null
+          freigegeben_am: string | null
+          freigegeben_von: string | null
+          id: string
+          notiz: string | null
+        }
+        Insert: {
+          art: string
+          ausgeloest_von?: string | null
+          created_at?: string
+          erledigt_am?: string | null
+          erledigt_von?: string | null
+          freigegeben_am?: string | null
+          freigegeben_von?: string | null
+          id?: string
+          notiz?: string | null
+        }
+        Update: {
+          art?: string
+          ausgeloest_von?: string | null
+          created_at?: string
+          erledigt_am?: string | null
+          erledigt_von?: string | null
+          freigegeben_am?: string | null
+          freigegeben_von?: string | null
+          id?: string
+          notiz?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "container_requests_ausgeloest_von_fkey"
+            columns: ["ausgeloest_von"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "container_requests_erledigt_von_fkey"
+            columns: ["erledigt_von"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "container_requests_freigegeben_von_fkey"
+            columns: ["freigegeben_von"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       incoming_invoices: {
         Row: {
           absender: string | null

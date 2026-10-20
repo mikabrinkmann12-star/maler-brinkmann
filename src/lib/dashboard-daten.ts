@@ -3,6 +3,7 @@ import { angeboteLaden } from "@/lib/angebot-daten";
 import { FORDERUNGS_STANDARD, chatSumme, forderungsBereich, forderungsUebersicht, projekteNachStatus, type ForderungsZeitraum } from "@/lib/dashboard";
 import { kollegenLaden } from "@/lib/mitarbeiter-daten";
 import { kontaktName } from "@/lib/projekt";
+import { containerOffenAnzahl } from "@/lib/container-daten";
 import { createClient } from "@/lib/supabase/server";
 
 export type EinsatzHeute = { id: string; auto: string; baustellen: { id: string; name: string }[]; team: string[] };
@@ -21,7 +22,7 @@ const ABWESENHEIT: Record<string, string> = {
  */
 export async function dashboardLaden(heute: string, forderungsZeitraum: ForderungsZeitraum = FORDERUNGS_STANDARD) {
   const supabase = await createClient();
-  const [projekte, zuletzt, einsaetze, urlaubHeute, kranke, urlaubOffen, rechnungen, rechnungsEntwuerfe, versendet, angebotsEntwuerfe, chat, kollegen, eingangPruefen] = await Promise.all([
+  const [projekte, zuletzt, einsaetze, urlaubHeute, kranke, urlaubOffen, rechnungen, rechnungsEntwuerfe, versendet, angebotsEntwuerfe, chat, kollegen, eingangPruefen, containerOffen] = await Promise.all([
     supabase.from("projects").select("status_id, project_statuses(name, farbe, sortierung)").is("archiviert_am", null).limit(1000),
     supabase
       .from("projects")
@@ -48,6 +49,7 @@ export async function dashboardLaden(heute: string, forderungsZeitraum: Forderun
     supabase.rpc("chat_ungelesen"),
     kollegenLaden(),
     supabase.from("incoming_invoices").select("id", { count: "exact", head: true }).eq("zu_pruefen", true).is("archiviert_am", null),
+    containerOffenAnzahl(),
   ]);
 
   const name = (uid: string) => {
@@ -101,6 +103,6 @@ export async function dashboardLaden(heute: string, forderungsZeitraum: Forderun
       entwuerfe: angebotsEntwuerfe.count ?? 0,
     },
     rechnungen: { forderungen: geld, entwuerfe: rechnungsEntwuerfe.count ?? 0 },
-    aufgaben: { urlaubsantraege: urlaubOffen.count ?? 0, chat: chatSumme(chat.data), eingangPruefen: eingangPruefen.count ?? 0 },
+    aufgaben: { urlaubsantraege: urlaubOffen.count ?? 0, chat: chatSumme(chat.data), eingangPruefen: eingangPruefen.count ?? 0, containerOffen },
   };
 }

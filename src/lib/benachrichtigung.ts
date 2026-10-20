@@ -18,6 +18,7 @@ const TITEL: Record<string, string> = {
   kollege_hinzugefuegt: "Kollege hinzugefügt",
   urlaubsantrag: "Urlaubsantrag",
   termin: "Termin",
+  container: "Container",
 };
 
 export function hinweisTitel(typ: string): string {
@@ -29,6 +30,7 @@ export function hinweisZiel(h: { typ: string; project_id: string | null }): stri
   if (h.project_id) return `/baustellen/${h.project_id}`;
   if (h.typ === "urlaubsantrag") return "/buero/urlaub";
   if (h.typ === "termin") return "/buero/plantafel/termine";
+  if (h.typ === "container") return "/buero/container";
   return null;
 }
 

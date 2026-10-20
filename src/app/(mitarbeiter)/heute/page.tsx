@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { CalendarClockIcon, ClockIcon, HardHatIcon, MapPinIcon, MessageSquareTextIcon, NavigationIcon, TruckIcon, UserIcon, UsersIcon } from "lucide-react";
 import { AnrufLink } from "@/components/anruf-link";
+import { ContainerKarte } from "@/components/container-karte";
+import { containerMeldungenLaden } from "@/lib/container-daten";
 import { buttonVariants } from "@/components/ui/button";
 import { requireUser } from "@/lib/auth";
 import { heuteIso } from "@/lib/datum";
@@ -18,7 +20,7 @@ export default async function HeuteSeite() {
   const nutzer = await requireUser();
   const heute = heuteIso();
   const supabase = await createClient();
-  const [einsaetze, kollegen, { data: heuteZeiten }, { data: termine }] = await Promise.all([
+  const [einsaetze, kollegen, { data: heuteZeiten }, { data: termine }, containerMeldungen] = await Promise.all([
     meineEinsaetze(nutzer.id, heute),
     kollegenLaden(),
     supabase.from("time_entries").select("stunden").eq("user_id", nutzer.id).eq("datum", heute).is("archiviert_am", null),
@@ -30,6 +32,7 @@ export default async function HeuteSeite() {
       .eq("appointment_members.user_id", nutzer.id)
       .is("archiviert_am", null)
       .order("zeit", { nullsFirst: false }),
+    containerMeldungenLaden(),
   ]);
   const heuteStunden = (heuteZeiten ?? []).reduce((s, t) => s + Number(t.stunden), 0);
 
@@ -46,6 +49,8 @@ export default async function HeuteSeite() {
       </div>
 
       <Warteschlange userId={nutzer.id} />
+
+      <ContainerKarte meldungen={containerMeldungen} />
 
       {(termine?.length ?? 0) > 0 && (
         <section className="flex flex-col gap-2 rounded-2xl border border-sky-300 bg-sky-50 p-4 text-sky-950">

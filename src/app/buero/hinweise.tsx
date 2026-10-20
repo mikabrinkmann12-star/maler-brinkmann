@@ -14,6 +14,7 @@ function ziel(h: Hinweis): string | null {
   if (h.project_id) return `/buero/projekte/${h.project_id}`;
   if (h.typ === "urlaubsantrag") return "/buero/urlaub";
   if (h.typ === "termin") return "/buero/plantafel/termine";
+  if (h.typ === "container") return "/buero/container";
   return null;
 }
 
