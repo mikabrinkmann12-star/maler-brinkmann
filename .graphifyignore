@@ -1,0 +1,13 @@
+# Nicht in den Wissensgraphen aufnehmen (gleiche Schreibweise wie .gitignore)
+node_modules/
+.next/
+.vercel/
+.git/
+public/
+import-dateien/
+zugangsdaten-*.txt
+.env*
+!.env.example
+package-lock.json
+tsconfig.tsbuildinfo
+graphify-out/

@@ -53,3 +53,6 @@ zugangsdaten-*.txt
 
 # CSV-Dateien mit Preisen für den Katalog-Import (nie ins Repo)
 /import-dateien/
+
+# Graphify (Wissensgraph, wird lokal erzeugt)
+/graphify-out/
