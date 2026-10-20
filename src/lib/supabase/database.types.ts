@@ -14,6 +14,85 @@ export type Database = {
   }
   public: {
     Tables: {
+      api_keys: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          key_hash: string
+          last_used_at: string | null
+          name: string
+          prefix: string
+          revoked_at: string | null
+          scopes: string[]
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          key_hash: string
+          last_used_at?: string | null
+          name: string
+          prefix: string
+          revoked_at?: string | null
+          scopes?: string[]
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          key_hash?: string
+          last_used_at?: string | null
+          name?: string
+          prefix?: string
+          revoked_at?: string | null
+          scopes?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "api_keys_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      api_log: {
+        Row: {
+          created_at: string
+          id: number
+          key_id: string | null
+          methode: string
+          pfad: string
+          status: number
+        }
+        Insert: {
+          created_at?: string
+          id?: never
+          key_id?: string | null
+          methode: string
+          pfad: string
+          status: number
+        }
+        Update: {
+          created_at?: string
+          id?: never
+          key_id?: string | null
+          methode?: string
+          pfad?: string
+          status?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "api_log_key_id_fkey"
+            columns: ["key_id"]
+            isOneToOne: false
+            referencedRelation: "api_keys"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       app_settings: {
         Row: {
           schluessel: string

@@ -2,6 +2,8 @@ import "server-only";
 import { angebotBerechnen, type AngebotStatus, type Baustein, type BausteinTyp } from "@/lib/angebot";
 import { adresseText, kontaktName } from "@/lib/projekt";
 import { suchtext } from "@/lib/suche";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/lib/supabase/database.types";
 import { createClient } from "@/lib/supabase/server";
 
 // Abfragen für Angebote (nur Büro/Admin, die Datenbank erzwingt es per RLS).
@@ -78,8 +80,8 @@ export function bausteinAusZeile(z: ItemZeile): Baustein {
 }
 
 /** Ein Angebot mit allen Bausteinen, Projekt und Kunde. null = gibt es nicht (oder keine Rechte). */
-export async function angebotLaden(id: string): Promise<AngebotDetail | null> {
-  const supabase = await createClient();
+export async function angebotLaden(id: string, db?: SupabaseClient<Database>): Promise<AngebotDetail | null> {
+  const supabase = db ?? (await createClient());
   const { data: q, error } = await supabase
     .from("quotes")
     .select(
