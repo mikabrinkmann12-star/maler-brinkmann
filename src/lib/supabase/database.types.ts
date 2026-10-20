@@ -1907,6 +1907,66 @@ export type Database = {
           },
         ]
       }
+      quote_shares: {
+        Row: {
+          an: string | null
+          created_at: string
+          created_by: string | null
+          expires_at: string
+          first_opened_at: string | null
+          id: string
+          last_opened_at: string | null
+          open_count: number
+          pdf_loaded_at: string | null
+          quote_id: string
+          revoked_at: string | null
+          token_hash: string
+        }
+        Insert: {
+          an?: string | null
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string
+          first_opened_at?: string | null
+          id?: string
+          last_opened_at?: string | null
+          open_count?: number
+          pdf_loaded_at?: string | null
+          quote_id: string
+          revoked_at?: string | null
+          token_hash: string
+        }
+        Update: {
+          an?: string | null
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string
+          first_opened_at?: string | null
+          id?: string
+          last_opened_at?: string | null
+          open_count?: number
+          pdf_loaded_at?: string | null
+          quote_id?: string
+          revoked_at?: string | null
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quote_shares_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quote_shares_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       quotes: {
         Row: {
           archiviert_am: string | null
@@ -2059,6 +2119,45 @@ export type Database = {
             columns: ["folder_id"]
             isOneToOne: false
             referencedRelation: "catalog_folders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stempeluhr: {
+        Row: {
+          art: Database["public"]["Enums"]["zeit_art"]
+          eintrag_id: string
+          gestartet_am: string
+          project_id: string
+          user_id: string
+        }
+        Insert: {
+          art?: Database["public"]["Enums"]["zeit_art"]
+          eintrag_id?: string
+          gestartet_am?: string
+          project_id: string
+          user_id?: string
+        }
+        Update: {
+          art?: Database["public"]["Enums"]["zeit_art"]
+          eintrag_id?: string
+          gestartet_am?: string
+          project_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stempeluhr_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stempeluhr_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]

@@ -212,7 +212,7 @@ export function ZeitFormular({
     } else {
       const fuer = !bestehend && kollegen.length ? ` für dich und ${kollegen.length === 1 ? "1 Kollegen" : `${kollegen.length} Kollegen`}` : "";
       toast.success(`Gespeichert${fuer}: ${titel()}`);
-      router.push(`/zeiten?monat=${datum.slice(0, 7)}`);
+      router.push(`/zeiten?datum=${datum}`);
     }
   }
 
@@ -230,7 +230,7 @@ export function ZeitFormular({
     else if (r.status === "wartet") toast.warning("Keine Verbindung. Das Löschen wird automatisch nachgeholt.");
     else {
       toast.success("Eintrag gelöscht.");
-      router.push(`/zeiten?monat=${bestehend.datum.slice(0, 7)}`);
+      router.push(`/zeiten?datum=${bestehend.datum}`);
     }
   }
 

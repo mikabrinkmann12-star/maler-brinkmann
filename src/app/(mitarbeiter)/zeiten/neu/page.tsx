@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { ArrowLeftIcon } from "lucide-react";
+import { SeitenKopf } from "@/components/layout/seiten-kopf";
 import { requireUser } from "@/lib/auth";
 import { zeitFormularDaten } from "@/lib/zeiten-daten";
 import { Warteschlange } from "../../warteschlange";
@@ -15,10 +14,7 @@ export default async function NeueZeitSeite({ searchParams }: PageProps<"/zeiten
 
   return (
     <div className="flex flex-col gap-5">
-      <Link href="/zeiten" className="flex w-fit items-center gap-1 text-sm text-muted-foreground">
-        <ArrowLeftIcon className="size-4" /> Meine Zeiten
-      </Link>
-      <h1 className="text-2xl font-semibold">Zeit eintragen</h1>
+      <SeitenKopf titel="Neue Zeit" zurueck="/zeiten" />
       <Warteschlange userId={nutzer.id} />
       <ZeitFormular daten={daten} startProjektId={typeof projekt === "string" ? projekt : undefined} />
     </div>

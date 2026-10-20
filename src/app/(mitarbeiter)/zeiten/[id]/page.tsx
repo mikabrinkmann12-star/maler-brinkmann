@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeftIcon, LockIcon } from "lucide-react";
+import { LockIcon } from "lucide-react";
+import { SeitenKopf } from "@/components/layout/seiten-kopf";
 import { requireUser } from "@/lib/auth";
 import { formatDatumLang, formatDatumZeit, formatStunden } from "@/lib/format";
 import { kollegenLaden } from "@/lib/mitarbeiter-daten";
@@ -56,11 +57,8 @@ export default async function ZeitSeite({ params }: PageProps<"/zeiten/[id]">) {
 
   return (
     <div className="flex flex-col gap-5">
-      <Link href={`/zeiten?monat=${t.datum.slice(0, 7)}`} className="flex w-fit items-center gap-1 text-sm text-muted-foreground">
-        <ArrowLeftIcon className="size-4" /> Meine Zeiten
-      </Link>
+      <SeitenKopf titel={aenderbar ? "Zeit ändern" : "Zeit"} zurueck={`/zeiten?datum=${t.datum}`} />
       <div>
-        <h1 className="text-2xl font-semibold">{aenderbar ? "Zeit ändern" : "Zeit"}</h1>
         <p className="text-sm text-muted-foreground">
           Eingetragen von {name(t.erstellt_von)} am {formatDatumZeit(t.created_at)}
           {t.bearbeitet_von && t.updated_at !== t.created_at && ` · zuletzt geändert von ${name(t.bearbeitet_von)}`}

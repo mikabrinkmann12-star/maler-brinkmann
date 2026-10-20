@@ -31,7 +31,7 @@ export default async function MitarbeiterLayout({
       <main className="mx-auto flex w-full max-w-lg flex-1 flex-col px-4 pt-4 pb-28">
         {children}
       </main>
-      <ZeiterfassungKnopf href="/zeiten/neu" />
+      <ZeiterfassungKnopf href="/zeiterfassung" />
       <UntereNavigation />
     </div>
   );

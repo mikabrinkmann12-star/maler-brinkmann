@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { cn } from "cn";
+import { ZeitenReiter } from "@/components/layout/zeiten-reiter";
 import { UrlaubskontoAnzeige } from "@/components/urlaubskonto-anzeige";
 import { requireUser } from "@/lib/auth";
 import { heuteIso } from "@/lib/datum";
@@ -11,7 +12,7 @@ import { Warteschlange } from "../warteschlange";
 import { UrlaubFormular } from "./urlaub-formular";
 import { Zurueckziehen } from "./zurueckziehen";
 
-export const metadata: Metadata = { title: "Urlaub" };
+export const metadata: Metadata = { title: "Urlaubsanträge" };
 
 export default async function UrlaubSeite() {
   const nutzer = await requireUser();
@@ -35,7 +36,7 @@ export default async function UrlaubSeite() {
 
   return (
     <div className="flex flex-col gap-5">
-      <h1 className="text-2xl font-semibold">Urlaub</h1>
+      <ZeitenReiter aktiv="urlaub" />
       <Warteschlange userId={nutzer.id} />
       {urlaubskonten.map((k) => <UrlaubskontoAnzeige key={k.jahr} konto={k} />)}
       <UrlaubFormular

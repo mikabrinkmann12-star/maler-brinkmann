@@ -9,18 +9,20 @@ import { cn } from "cn";
 // Aktion rechts. Sie erscheint nur auf den vier Reitern; Unterseiten haben ihren
 // eigenen Kopf (`SeitenKopf`).
 
-type Reiter = { pfad: string; titel: string; aktion?: { href: string; name: string } };
+type Reiter = { pfade: string[]; titel: string; aktion?: { href: string; name: string } };
 
 const REITER: Reiter[] = [
-  { pfad: "/heute", titel: "Einsätze", aktion: { href: "/termine/neu", name: "Termin eintragen" } },
-  { pfad: "/baustellen", titel: "Projekte" },
-  { pfad: "/zeiten", titel: "Zeiten", aktion: { href: "/zeiten/neu", name: "Neue Zeit" } },
-  { pfad: "/kontakte", titel: "Kontakte" },
+  { pfade: ["/heute"], titel: "Einsätze", aktion: { href: "/termine/neu", name: "Termin eintragen" } },
+  { pfade: ["/baustellen"], titel: "Projekte" },
+  // Zeiten hat drei Reiter (Zeiten, Urlaubsanträge, Stundenkonto); „Neue Zeit“ gibt es nicht bei den Urlaubsanträgen
+  { pfade: ["/zeiten", "/zeiten/konto"], titel: "Zeiten", aktion: { href: "/zeiten/neu", name: "Neue Zeit" } },
+  { pfade: ["/urlaub"], titel: "Zeiten" },
+  { pfade: ["/kontakte"], titel: "Kontakte" },
 ];
 
 /** Der Reiter, dessen Hauptseite gerade offen ist (nicht die Unterseiten). */
 function aktuellerReiter(pfad: string): Reiter | undefined {
-  return REITER.find((r) => pfad === r.pfad);
+  return REITER.find((r) => r.pfade.includes(pfad));
 }
 
 export function TabKopf() {
