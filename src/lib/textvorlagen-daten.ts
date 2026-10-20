@@ -1,10 +1,12 @@
 import "server-only";
 import type { Textvorlage } from "@/lib/textvorlagen";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/lib/supabase/database.types";
 import { createClient } from "@/lib/supabase/server";
 
 /** Alle aktiven Textvorlagen (Büro und Admin dürfen sie lesen). */
-export async function textvorlagenLaden(): Promise<Textvorlage[]> {
-  const supabase = await createClient();
+export async function textvorlagenLaden(db?: SupabaseClient<Database>): Promise<Textvorlage[]> {
+  const supabase = db ?? (await createClient());
   const { data, error } = await supabase
     .from("text_templates")
     .select("id, art, name, inhalt, standard")

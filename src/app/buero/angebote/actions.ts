@@ -12,16 +12,12 @@ import {
   steuerAusAuswahl,
   type BausteinEingabe,
 } from "@/lib/angebot-schema";
+import { angebotEntwurfAnlegen } from "@/lib/angebot-erstellen";
 import { angebotEinstellungenLaden } from "@/lib/firma-daten";
-import { rechnungsEinstellungenLaden } from "@/lib/rechnung-einstellungen-daten";
 import { heuteIso, tageVerschieben } from "@/lib/datum";
 import { istKatalogArt, ordnerPfad, unterordner } from "@/lib/katalog";
 import { ordnerLaden } from "@/lib/katalog-daten";
-import { briefanschrift } from "@/lib/kontakt-schema";
 import { ersteMeldung } from "@/lib/nutzer-schema";
-import { standardVorlage } from "@/lib/textvorlagen";
-import { textvorlagenLaden } from "@/lib/textvorlagen-daten";
-import { adresseText } from "@/lib/projekt";
 import { BUERO_ROLLEN } from "@/lib/rollen";
 import { suchtext } from "@/lib/suche";
 import { createClient } from "@/lib/supabase/server";
@@ -60,54 +56,12 @@ export async function angebotAnlegen(projektId: string, eingabe: unknown): Promi
   if (!pruefung.success) return { fehler: ersteMeldung(pruefung.error) };
 
   const supabase = await createClient();
-  const { data: projekt } = await supabase
-    .from("projects")
-    .select(
-      "id, archiviert_am, baustelle_strasse, baustelle_plz, baustelle_ort, contacts(typ, anrede, firmenname, ansprechpartner, vorname, nachname, strasse, plz, ort, empfaenger, steuersatz, zahlungsziel_tage, skonto_prozent, skonto_tage)",
-    )
-    .eq("id", projektId)
-    .maybeSingle();
-  if (!projekt) return { fehler: "Projekt nicht gefunden." };
-  if (projekt.archiviert_am) return { fehler: "Für ein archiviertes Projekt kann kein Angebot angelegt werden." };
-
-  const vorgaben = await angebotEinstellungenLaden();
-  // Eine Standard-Vorlage (Einstellungen → Textvorlagen) füllt die Texte vor, sonst gilt der Text aus „Angebote – Vorgaben“
-  const vorlagen = await textvorlagenLaden();
-  const kunde = projekt.contacts;
-  const kundenSatz = kunde ? Number(kunde.steuersatz) : vorgaben.standard_steuersatz;
-  const reverseCharge = kunde != null && kundenSatz === 0;
-  const steuersatz = reverseCharge ? 0 : kundenSatz;
-
-  const leistungsort = pruefung.data.leistungsort
-    || adresseText({ strasse: projekt.baustelle_strasse, plz: projekt.baustelle_plz, ort: projekt.baustelle_ort });
-
-  const firmenZiel = await rechnungsEinstellungenLaden();
-  const { data, error } = await supabase
-    .from("quotes")
-    .insert({
-      project_id: projektId,
-      betreff: pruefung.data.betreff,
-      leistungsort: leistungsort || null,
-      datum: heuteIso(),
-      zahlungsziel_tage: kunde?.zahlungsziel_tage ?? firmenZiel.zahlungszielTage,
-      skonto_prozent: kunde?.zahlungsziel_tage != null ? (kunde.skonto_prozent && kunde.skonto_tage ? kunde.skonto_prozent : null) : firmenZiel.skontoProzent,
-      skonto_tage: kunde?.zahlungsziel_tage != null ? (kunde.skonto_prozent && kunde.skonto_tage ? kunde.skonto_tage : null) : firmenZiel.skontoTage,
-      gueltig_bis: vorgaben.gueltigkeit_tage > 0 ? tageVerschieben(heuteIso(), vorgaben.gueltigkeit_tage) : null,
-      empfaenger: kunde ? briefanschrift(kunde).join("\n") || null : null,
-      einleitung: (standardVorlage(vorlagen, "einleitung")?.inhalt ?? vorgaben.einleitung) || null,
-      schlusstext: (standardVorlage(vorlagen, "schlusstext")?.inhalt ?? vorgaben.schlusstext) || null,
-      steuersatz,
-      reverse_charge: reverseCharge,
-      rabatt_prozent: vorgaben.standard_rabatt,
-    })
-    .select("id")
-    .single();
-  if (error) return { fehler: dbMeldung(error) };
-
+  const r = await angebotEntwurfAnlegen(supabase, projektId, pruefung.data);
+  if (r.fehler || !r.id) return { fehler: r.fehler ?? "Speichern hat nicht geklappt." };
   aktualisieren();
   revalidatePath(`/baustellen/${projektId}`);
   revalidatePath(`/buero/projekte/${projektId}`);
-  return { id: data.id };
+  return { id: r.id };
 }
 
 export async function angebotKopfSpeichern(id: string, eingabe: unknown): Promise<AngebotErgebnis> {

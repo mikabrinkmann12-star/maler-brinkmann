@@ -12,6 +12,7 @@ import {
   HashIcon,
   ReceiptTextIcon,
   InboxIcon,
+  KeyRoundIcon,
   PlugIcon,
   RulerIcon,
   ShieldCheckIcon,
@@ -35,6 +36,7 @@ const GRUPPEN: { titel: string; eintraege: Eintrag[] }[] = [
       { href: "/buero/einstellungen/projektstatus", name: "Projektstatus", icon: TagsIcon },
       { href: "/buero/einstellungen/lexware", name: "Schnittstellen", icon: PlugIcon },
       { href: "/buero/einstellungen/postfach", name: "Postfach für Rechnungen", icon: InboxIcon },
+      { href: "/buero/einstellungen/schnittstelle", name: "Schnittstelle (API)", icon: KeyRoundIcon },
     ],
   },
   {
