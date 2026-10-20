@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { urlaubskonto, werktage } from "./urlaub";
+import { ruecknahmePlan, urlaubskonto, werktage } from "./urlaub";
 
 describe("werktage", () => {
   it("zählt Montag bis Freitag, beide Tage eingeschlossen", () => {
@@ -42,5 +42,25 @@ describe("urlaubskonto", () => {
 
   it("ohne eingetragenen Anspruch gibt es keinen Rest", () => {
     expect(urlaubskonto(null, antraege, 2026).rest).toBeNull();
+  });
+});
+
+describe("ruecknahmePlan", () => {
+  it("ganz nimmt immer den ganzen Antrag zurück", () => {
+    expect(ruecknahmePlan({ von: "2026-10-19", bis: "2026-10-23" }, "2026-10-21", "ganz")).toEqual({ art: "ganz" });
+  });
+  it("Rest ab heute kürzt einen laufenden Antrag auf gestern", () => {
+    expect(ruecknahmePlan({ von: "2026-10-19", bis: "2026-10-23" }, "2026-10-21", "rest")).toEqual({ art: "rest", neuesBis: "2026-10-20" });
+    expect(ruecknahmePlan({ von: "2026-09-28", bis: "2026-10-02" }, "2026-10-01", "rest")).toEqual({ art: "rest", neuesBis: "2026-09-30" });
+  });
+  it("beginnt der Antrag heute oder später, ist Rest gleich ganz", () => {
+    expect(ruecknahmePlan({ von: "2026-10-21", bis: "2026-10-23" }, "2026-10-21", "rest")).toEqual({ art: "ganz" });
+    expect(ruecknahmePlan({ von: "2026-11-02", bis: "2026-11-06" }, "2026-10-21", "rest")).toEqual({ art: "ganz" });
+  });
+  it("Vergangenes lässt sich nicht zurücknehmen", () => {
+    expect(ruecknahmePlan({ von: "2026-10-05", bis: "2026-10-09" }, "2026-10-21", "ganz")).toHaveProperty("fehler");
+  });
+  it("Monatswechsel: gestern ist der letzte Tag des Vormonats", () => {
+    expect(ruecknahmePlan({ von: "2026-10-28", bis: "2026-11-03" }, "2026-11-01", "rest")).toEqual({ art: "rest", neuesBis: "2026-10-31" });
   });
 });

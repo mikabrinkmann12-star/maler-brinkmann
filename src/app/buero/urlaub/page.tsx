@@ -11,6 +11,7 @@ import { abbauPruefen } from "@/lib/ueberstunden";
 import { kontenLaden } from "@/lib/ueberstunden-daten";
 import { URLAUB_ART_NAMEN, URLAUB_STATUS_FARBE, URLAUB_STATUS_NAMEN, urlaubskonto, werktage, type UrlaubArt } from "@/lib/urlaub";
 import { Entscheidung } from "./entscheidung";
+import { Ruecknahme } from "./ruecknahme";
 
 export const metadata: Metadata = { title: "Zeiten – Urlaubsanträge" };
 
@@ -88,6 +89,9 @@ export default async function BueroUrlaubSeite() {
         </span>
       </div>
       {a.status === "offen" && istAdmin && <Entscheidung antragId={a.id} name={name(a.user_id)} />}
+      {a.status === "genehmigt" && istAdmin && a.bis >= heuteIso() && (
+        <Ruecknahme antragId={a.id} name={name(a.user_id)} laeuft={a.von < heuteIso()} abfeiern={a.art === "ueberstundenabbau"} />
+      )}
     </li>
   );
 

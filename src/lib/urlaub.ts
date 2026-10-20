@@ -78,3 +78,18 @@ export function urlaubskonto(
   const genehmigt = summe("genehmigt");
   return { jahr, anspruch, genehmigt, beantragt: summe("offen"), rest: anspruch == null ? null : anspruch - genehmigt };
 }
+
+export type Ruecknahme = { art: "ganz" } | { art: "rest"; neuesBis: string } | { fehler: string };
+
+/**
+ * Was passiert, wenn der Admin einen genehmigten Antrag zurücknimmt?
+ * „ganz“: der ganze Antrag wird zurückgezogen, alle gebuchten Tage verschwinden.
+ * „rest“: nur die Tage ab heute fallen weg, der Antrag endet gestern und vergangene Tage bleiben gebucht.
+ * Beginnt der Antrag erst heute oder später, ist „rest“ dasselbe wie „ganz“.
+ */
+export function ruecknahmePlan(antrag: { von: string; bis: string }, heute: string, umfang: "ganz" | "rest"): Ruecknahme {
+  if (antrag.bis < heute) return { fehler: "Der Zeitraum liegt schon in der Vergangenheit. Da gibt es nichts mehr zurückzunehmen." };
+  if (umfang === "ganz" || antrag.von >= heute) return { art: "ganz" };
+  const gestern = new Date(Date.UTC(Number(heute.slice(0, 4)), Number(heute.slice(5, 7)) - 1, Number(heute.slice(8, 10)) - 1));
+  return { art: "rest", neuesBis: gestern.toISOString().slice(0, 10) };
+}
