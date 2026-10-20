@@ -27,7 +27,7 @@ export default async function MitarbeiterLayout({
           </Link>
         </div>
       )}
-      <TabKopf />
+      <TabKopf istBuero={istBueroRolle(nutzer.rolle)} />
       <main className="mx-auto flex w-full max-w-lg flex-1 flex-col px-4 pt-4 pb-28">
         {children}
       </main>

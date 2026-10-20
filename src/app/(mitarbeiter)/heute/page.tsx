@@ -9,6 +9,7 @@ import { requireUser } from "@/lib/auth";
 import { Wochenstreifen } from "@/components/wochenstreifen";
 import { heuteIso, istIsoDatum } from "@/lib/datum";
 import { stoppZeitText, stoppsSortieren } from "@/lib/einsatz";
+import { einsaetzeVon, filterPersonen, gewaehltePersonen } from "@/lib/einsatz-personen";
 import { formatStunden } from "@/lib/format";
 import { kollegenLaden, meineEinsaetze } from "@/lib/mitarbeiter-daten";
 import { initialen } from "@/lib/profil";
@@ -16,13 +17,14 @@ import { adresseText, kontaktName, mapsLink } from "@/lib/projekt";
 import { createClient } from "@/lib/supabase/server";
 import { tagesTitel } from "@/lib/woche";
 import { Warteschlange } from "../warteschlange";
+import { PersonenFilter } from "./personen-filter";
 
 export const metadata: Metadata = { title: "Einsätze" };
 
 export default async function HeuteSeite({ searchParams }: PageProps<"/heute">) {
   const nutzer = await requireUser();
   const heute = heuteIso();
-  const { datum: datumParam } = await searchParams;
+  const { datum: datumParam, personen: personenRoh } = await searchParams;
   const datum = istIsoDatum(datumParam) ? datumParam : heute;
   const istHeute = datum === heute;
   const supabase = await createClient();
@@ -42,61 +44,12 @@ export default async function HeuteSeite({ searchParams }: PageProps<"/heute">) 
   ]);
   const heuteStunden = (heuteZeiten ?? []).reduce((s, t) => s + Number(t.stunden), 0);
 
-  return (
-    <div className="flex flex-col gap-5">
-      <Warteschlange userId={nutzer.id} />
+  // Mitarbeiter-Filter: ich und meine Teamkollegen des Tages (mehr darf ich nie sehen, die Wahl wird gegen diese Liste geprüft)
+  const ich = { id: nutzer.id, vorname: nutzer.vorname, nachname: nutzer.nachname };
+  const personenListe = filterPersonen(ich, einsaetze, kollegen);
+  const gewaehlt = gewaehltePersonen(personenRoh, personenListe, nutzer.id);
 
-      <ContainerKarte meldungen={containerMeldungen} />
-
-      <Wochenstreifen gewaehlt={datum} heute={heute} hrefFuer={(d) => (d === heute ? "/heute" : `/heute?datum=${d}`)} />
-
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold">{tagesTitel(datum, heute)}</h2>
-        {heuteZeiten && heuteZeiten.length > 0 && (
-          <Link href="/zeiten" className="flex items-center gap-1 text-sm text-green-700 underline-offset-4 hover:underline">
-            <ClockIcon className="size-4" /> Heute eingetragen: {formatStunden(heuteStunden)}
-          </Link>
-        )}
-      </div>
-
-      {(termine?.length ?? 0) > 0 && (
-        <section className="flex flex-col gap-2 rounded-2xl border border-sky-300 bg-sky-50 p-4 text-sky-950">
-          <h2 className="flex items-center gap-2 font-semibold"><CalendarClockIcon className="size-5" /> {istHeute ? "Termine heute" : "Termine"}</h2>
-          <ul className="flex flex-col gap-2">
-            {termine?.map((t) => (
-              <li key={t.id}>
-                <p className="font-medium">{t.zeit ? `${t.zeit.slice(0, 5)} Uhr · ` : ""}{t.titel}</p>
-                {t.ort && <p className="flex items-center gap-1 text-sm"><MapPinIcon className="size-4" /> {t.ort}</p>}
-                {t.notiz && <p className="text-sm">{t.notiz}</p>}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      <Link href="/termine/neu" className="flex w-fit items-center gap-1 text-sm text-muted-foreground underline-offset-4 hover:underline">
-        <CalendarClockIcon className="size-4" /> Termin eintragen
-      </Link>
-
-      <div className="flex items-center gap-3">
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/15 font-semibold text-primary">
-          {initialen(nutzer.vorname, nutzer.nachname)}
-        </span>
-        <p className="font-semibold">{nutzer.vorname} {nutzer.nachname} <span className="font-normal text-muted-foreground">(du)</span></p>
-      </div>
-
-      {einsaetze.length === 0 && (
-        <div className="flex flex-col gap-3 rounded-xl border border-dashed p-5">
-          <p className="text-lg font-medium">{istHeute ? "Für heute" : "Für diesen Tag"} bist du nicht eingeteilt.</p>
-          <p className="text-muted-foreground">Frag im Büro nach oder schau bei deinen Projekten.</p>
-          <Link href="/baustellen" className={buttonVariants({ variant: "outline", size: "touch", className: "w-full" })}>
-            <HardHatIcon />
-            Meine Projekte
-          </Link>
-        </div>
-      )}
-
-      {einsaetze.map((e) => {
+  const volleKarte = (e: (typeof einsaetze)[number]) => {
         const stopps = stoppsSortieren(e.assignment_stops);
         const team = e.assignment_members
           .map((m) => kollegen.get(m.user_id))
@@ -215,6 +168,106 @@ export default async function HeuteSeite({ searchParams }: PageProps<"/heute">) 
               </ul>
             </div>
           </article>
+        );
+  };
+
+  /** Einsatz eines Teamkollegen: nur Auto und Baustellen (Navigation, Ansprechpartner und Team stehen in der Karte darüber). */
+  const kompakteKarte = (e: (typeof einsaetze)[number]) => {
+    const stopps = stoppsSortieren(e.assignment_stops);
+    return (
+      <article key={e.id} className="flex flex-col gap-3 rounded-2xl border p-4">
+        <div className="flex items-center gap-2 text-base">
+          <TruckIcon className="size-5 shrink-0" />
+          <span className="font-semibold">{e.vehicles?.name ?? "Ohne Firmenwagen"}</span>
+          {e.vehicles?.kennzeichen && <span className="text-muted-foreground">{e.vehicles.kennzeichen}</span>}
+        </div>
+        {stopps.length === 0 && <p className="text-muted-foreground">Noch keine Baustelle eingetragen.</p>}
+        <ul className="flex flex-col gap-2">
+          {stopps.map((s) => {
+            if (!s.projects) return null;
+            const zeit = stoppZeitText(s.zeit, s.zeit_art);
+            return (
+              <li key={s.id}>
+                <Link href={`/baustellen/${s.projects.id}`} className="text-lg font-medium underline-offset-4 hover:underline">{s.projects.name}</Link>
+                {zeit && <p className="text-sm text-muted-foreground">{zeit}</p>}
+              </li>
+            );
+          })}
+        </ul>
+      </article>
+    );
+  };
+
+  return (
+    <div className="flex flex-col gap-5">
+      <Warteschlange userId={nutzer.id} />
+
+      <ContainerKarte meldungen={containerMeldungen} />
+
+      <Wochenstreifen gewaehlt={datum} heute={heute} hrefFuer={(d) => (d === heute ? "/heute" : `/heute?datum=${d}`)} />
+
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-lg font-semibold">{tagesTitel(datum, heute)}</h2>
+        {personenListe.length > 1 && (
+          <PersonenFilter
+            personen={personenListe.map((k) => ({ id: k.id, name: `${k.vorname} ${k.nachname}`.trim(), initialen: initialen(k.vorname, k.nachname) }))}
+            gewaehlt={gewaehlt}
+            ichId={nutzer.id}
+            datum={istIsoDatum(datumParam) ? datumParam : null}
+          />
+        )}
+        {heuteZeiten && heuteZeiten.length > 0 && (
+          <Link href="/zeiten" className="flex items-center gap-1 text-sm text-green-700 underline-offset-4 hover:underline">
+            <ClockIcon className="size-4" /> Heute eingetragen: {formatStunden(heuteStunden)}
+          </Link>
+        )}
+      </div>
+
+      {(termine?.length ?? 0) > 0 && (
+        <section className="flex flex-col gap-2 rounded-2xl border border-sky-300 bg-sky-50 p-4 text-sky-950">
+          <h2 className="flex items-center gap-2 font-semibold"><CalendarClockIcon className="size-5" /> {istHeute ? "Termine heute" : "Termine"}</h2>
+          <ul className="flex flex-col gap-2">
+            {termine?.map((t) => (
+              <li key={t.id}>
+                <p className="font-medium">{t.zeit ? `${t.zeit.slice(0, 5)} Uhr · ` : ""}{t.titel}</p>
+                {t.ort && <p className="flex items-center gap-1 text-sm"><MapPinIcon className="size-4" /> {t.ort}</p>}
+                {t.notiz && <p className="text-sm">{t.notiz}</p>}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <Link href="/termine/neu" className="flex w-fit items-center gap-1 text-sm text-muted-foreground underline-offset-4 hover:underline">
+        <CalendarClockIcon className="size-4" /> Termin eintragen
+      </Link>
+
+      {gewaehlt.map((pid) => {
+        const person = personenListe.find((k) => k.id === pid);
+        if (!person) return null;
+        const istIch = pid === nutzer.id;
+        const seine = einsaetzeVon(einsaetze, pid);
+        return (
+          <section key={pid} className="flex flex-col gap-3">
+            <div className="flex items-center gap-3">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/15 font-semibold text-primary">
+                {initialen(person.vorname, person.nachname)}
+              </span>
+              <p className="font-semibold">{person.vorname} {person.nachname}{istIch && <span className="font-normal text-muted-foreground"> (du)</span>}</p>
+            </div>
+            {seine.length === 0 && !istIch && <p className="rounded-xl bg-muted px-4 py-3 text-muted-foreground">Keine Einsätze</p>}
+            {seine.length === 0 && istIch && (
+        <div className="flex flex-col gap-3 rounded-xl border border-dashed p-5">
+          <p className="text-lg font-medium">{istHeute ? "Für heute" : "Für diesen Tag"} bist du nicht eingeteilt.</p>
+          <p className="text-muted-foreground">Frag im Büro nach oder schau bei deinen Projekten.</p>
+          <Link href="/baustellen" className={buttonVariants({ variant: "outline", size: "touch", className: "w-full" })}>
+            <HardHatIcon />
+            Meine Projekte
+          </Link>
+        </div>
+            )}
+            {seine.map((e) => (istIch ? volleKarte(e) : kompakteKarte(e)))}
+          </section>
         );
       })}
     </div>

@@ -6,7 +6,7 @@ import { cn } from "cn";
 import { FormularMeldung } from "@/components/formular-meldung";
 import { Button } from "@/components/ui/button";
 import { fotoPfade, fotoVorbereiten, vorschauPfad } from "@/lib/bild";
-import { CHAT_MAX_ZEICHEN, nachTagen, tagesUeberschrift } from "@/lib/chat";
+import { CHAT_MAX_ZEICHEN, erwaehnt, erwaehnungEinsetzen, erwaehnungsVorschlaege, nachTagen, tagesUeberschrift } from "@/lib/chat";
 import { DATEI_ACCEPT, dateiPfad, dateiPruefen, groesseText } from "@/lib/dateien";
 import { formatDatumLang, formatUhrzeit } from "@/lib/format";
 import { createBrowserSupabase } from "@/lib/supabase/client";
@@ -27,6 +27,13 @@ type Nachricht = {
 };
 
 type Adressen = Record<string, string>;
+type Reiter = "nachrichten" | "erwaehnungen" | "galerie";
+
+const REITER: { id: Reiter; name: string }[] = [
+  { id: "nachrichten", name: "Nachrichten" },
+  { id: "erwaehnungen", name: "Erwähnungen" },
+  { id: "galerie", name: "Galerie" },
+];
 type Anhang = { art: "foto"; vorbereitet: Awaited<ReturnType<typeof fotoVorbereiten>>; name: string; vorschau: string } | { art: "datei"; datei: File; typ: string; endung: string };
 
 const ABFRAGE_MS = 5000;
@@ -37,12 +44,16 @@ const SPALTEN =
 export function ChatAnsicht({
   projektId,
   ichId,
+  ichVorname,
+  ichNachname,
   istBuero,
   darfSchreiben,
   namen,
 }: {
   projektId: string;
   ichId: string;
+  ichVorname: string;
+  ichNachname: string;
   istBuero: boolean;
   darfSchreiben: boolean;
   namen: Record<string, string>;
@@ -54,6 +65,7 @@ export function ChatAnsicht({
   const [sendet, setSendet] = useState(false);
   const [fehler, setFehler] = useState<string | null>(null);
   const [frage, setFrage] = useState<string | null>(null);
+  const [reiter, setReiter] = useState<Reiter>("nachrichten");
   const kameraRef = useRef<HTMLInputElement>(null);
   const galerieRef = useRef<HTMLInputElement>(null);
   const dateiRef = useRef<HTMLInputElement>(null);
@@ -120,9 +132,9 @@ export function ChatAnsicht({
     const anzahl = nachrichten?.length ?? 0;
     if (anzahl !== letzteAnzahl.current) {
       letzteAnzahl.current = anzahl;
-      endeRef.current?.scrollIntoView({ block: "end" });
+      if (reiter === "nachrichten") endeRef.current?.scrollIntoView({ block: "end" });
     }
-  }, [nachrichten]);
+  }, [nachrichten, reiter]);
 
   async function anhangWaehlen(art: "foto" | "datei", liste: FileList | null, eingabe: HTMLInputElement | null) {
     const datei = liste?.[0];
@@ -205,17 +217,15 @@ export function ChatAnsicht({
   }
 
   const gruppen = nachTagen(nachrichten ?? []);
+  // Erwähnungen und Galerie entstehen aus denselben Nachrichten (keine eigene Tabelle)
+  const erwaehnungen = (nachrichten ?? []).filter((n) => n.text && n.erstellt_von !== ichId && erwaehnt(n.text, ichVorname, ichNachname));
+  const fotos = (nachrichten ?? []).filter((n) => n.project_photos).slice().reverse();
+  const vorschlaege = darfSchreiben
+    ? erwaehnungsVorschlaege(text, Object.entries(namen).filter(([id]) => id !== ichId).map(([id, name]) => ({ id, name })))
+    : [];
 
-  return (
-    <div className="flex flex-1 flex-col gap-3">
-      <div className="flex flex-1 flex-col gap-4">
-        {nachrichten === null && <p className="text-muted-foreground">Lädt …</p>}
-        {nachrichten?.length === 0 && (
-          <p className="rounded-xl border border-dashed p-5 text-muted-foreground">
-            Noch keine Nachrichten. {darfSchreiben ? "Schreib die erste." : ""}
-          </p>
-        )}
-        {gruppen.map((g) => (
+  const renderGruppen = (gruppenListe: ReturnType<typeof nachTagen<Nachricht>>) =>
+    gruppenListe.map((g) => (
           <section key={g.tag} className="flex flex-col gap-2">
             <h2 className="self-center rounded-full bg-muted px-3 py-0.5 text-xs font-medium text-muted-foreground">
               {tagesUeberschrift(g.tag, new Date(), formatDatumLang)}
@@ -267,12 +277,76 @@ export function ChatAnsicht({
               );
             })}
           </section>
+    ));
+
+
+  return (
+    <div className="flex flex-1 flex-col gap-3">
+      <div role="tablist" aria-label="Chat-Bereiche" className="flex gap-2">
+        {REITER.map((r) => (
+          <button
+            key={r.id}
+            type="button"
+            role="tab"
+            aria-selected={reiter === r.id}
+            onClick={() => setReiter(r.id)}
+            className={cn(
+              "min-h-10 rounded-full px-4 text-sm font-medium transition-colors",
+              reiter === r.id ? "bg-primary text-primary-foreground" : "bg-muted text-foreground hover:bg-muted/70",
+            )}
+          >
+            {r.name}
+            {r.id === "erwaehnungen" && erwaehnungen.length > 0 && <span className="ml-1.5 opacity-70">{erwaehnungen.length}</span>}
+          </button>
         ))}
+      </div>
+      <div className="flex flex-1 flex-col gap-4">
+        {nachrichten === null && <p className="text-muted-foreground">Lädt …</p>}
+        {reiter === "nachrichten" && nachrichten?.length === 0 && (
+          <p className="rounded-xl border border-dashed p-5 text-muted-foreground">
+            Noch keine Nachrichten. {darfSchreiben ? "Schreib die erste." : ""}
+          </p>
+        )}
+        {reiter === "nachrichten" && renderGruppen(gruppen)}
+        {reiter === "erwaehnungen" && (
+          erwaehnungen.length === 0 ? (
+            <p className="rounded-xl border border-dashed p-5 text-muted-foreground">
+              Noch keine Erwähnungen. Erwähne jemanden mit @ und seinem Namen, dann steht die Nachricht hier.
+            </p>
+          ) : (
+            renderGruppen(nachTagen(erwaehnungen))
+          )
+        )}
+        {reiter === "galerie" && (
+          fotos.length === 0 ? (
+            <p className="rounded-xl border border-dashed p-5 text-muted-foreground">Noch keine Fotos im Chat.</p>
+          ) : (
+            <ul className="grid grid-cols-3 gap-1.5">
+              {fotos.map((n) => {
+                const pfad = n.project_photos?.storage_pfad ?? "";
+                const gross = adressen[pfad];
+                const klein = adressen[vorschauPfad(pfad)] ?? gross;
+                return (
+                  <li key={n.id} className="aspect-square overflow-hidden rounded-lg bg-muted">
+                    {klein ? (
+                      <a href={gross ?? klein} target="_blank" rel="noreferrer" aria-label={`Foto von ${namen[n.erstellt_von ?? ""] ?? "Ehemaliger Kollege"}, ${formatUhrzeit(n.created_at)}`}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={klein} alt="" className="size-full object-cover" />
+                      </a>
+                    ) : (
+                      <span className="flex size-full items-center justify-center text-muted-foreground"><ImageIcon className="size-6" /></span>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )
+        )}
         {/* Abstand unten, damit die letzte Nachricht nicht unter dem Eingabefeld und der Navigation verschwindet */}
         <div ref={endeRef} className="scroll-mb-64" />
       </div>
 
-      {darfSchreiben ? (
+      {reiter !== "nachrichten" ? null : darfSchreiben ? (
         <div className="sticky bottom-20 flex flex-col gap-2 rounded-xl border bg-background p-2 shadow-sm">
           {fehler && <FormularMeldung>{fehler}</FormularMeldung>}
           {anhang && (
@@ -287,12 +361,23 @@ export function ChatAnsicht({
               <button type="button" aria-label="Anhang entfernen" onClick={anhangEntfernen}><XIcon className="size-5" /></button>
             </div>
           )}
+          {vorschlaege.length > 0 && (
+            <ul className="flex flex-wrap gap-1.5" aria-label="Wen meinst du?">
+              {vorschlaege.map((v) => (
+                <li key={v.id}>
+                  <button type="button" onClick={() => setText((t) => erwaehnungEinsetzen(t, v.name))} className="min-h-10 rounded-full bg-muted px-3 text-sm font-medium">
+                    @{v.name}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
             maxLength={CHAT_MAX_ZEICHEN}
             rows={2}
-            placeholder="Nachricht schreiben …"
+            placeholder="Nachricht schreiben … (mit @ jemanden erwähnen)"
             aria-label="Nachricht"
             className="w-full resize-none rounded-lg border bg-background px-3 py-2 text-base"
           />

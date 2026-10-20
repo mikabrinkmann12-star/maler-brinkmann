@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { nachTagen, nachrichtSchema, tagesUeberschrift, ungelesenKarte, zaehlerText } from "./chat";
+import { erwaehnt, erwaehnungEinsetzen, erwaehnungsVorschlaege, nachTagen, nachrichtSchema, tagesUeberschrift, ungelesenKarte, zaehlerText } from "./chat";
 
 const P = "0b8f6e5c-2f0c-4a2e-9d57-2a1b3c4d5e6f";
 const N = "1b8f6e5c-2f0c-4a2e-9d57-2a1b3c4d5e6f";
@@ -46,6 +46,47 @@ describe("Tage", () => {
       { created_at: "2026-10-18T08:00:00Z" },
     ]);
     expect(g.map((x) => [x.tag, x.nachrichten.length])).toEqual([["2026-10-17", 1], ["2026-10-18", 2]]);
+  });
+});
+
+describe("Erwähnungen", () => {
+  it("erkennt @Vorname und @Vorname Nachname, Groß-/Kleinschreibung egal", () => {
+    expect(erwaehnt("Hallo @Anna, kannst du kommen?", "Anna", "Zander")).toBe(true);
+    expect(erwaehnt("@anna zander bitte melden", "Anna", "Zander")).toBe(true);
+    expect(erwaehnt("Danke @Anna Zander!", "Anna", "Zander")).toBe(true);
+  });
+  it("braucht das @ und ein Wortende", () => {
+    expect(erwaehnt("Anna ist da", "Anna", "Zander")).toBe(false);
+    expect(erwaehnt("@Annabelle kommt", "Anna", "Zander")).toBe(false);
+  });
+  it("zählt E-Mail-Adressen nicht", () => {
+    expect(erwaehnt("Schreib an max@anna.de", "Anna", "Zander")).toBe(false);
+    expect(erwaehnt("kontakt:anna@firma.de", "Anna", "Zander")).toBe(false);
+  });
+  it("kommt mit Umlauten und Sonderzeichen im Namen klar", () => {
+    expect(erwaehnt("@Jörg bitte anrufen", "Jörg", "Müller")).toBe(true);
+    expect(erwaehnt("@Jan (Chef)", "Jan", "Brien")).toBe(true);
+    expect(erwaehnt("@Jan.O bitte", "Jan.O", "Brien")).toBe(true);
+  });
+  it("leerer Name oder Text ohne @ ergibt nein", () => {
+    expect(erwaehnt("@ hallo", "", "")).toBe(false);
+    expect(erwaehnt("hallo", "Anna", "Zander")).toBe(false);
+  });
+  const personen = [{ id: "1", name: "Anna Zander" }, { id: "2", name: "Bert Adler" }, { id: "3", name: "Annika Berg" }];
+  it("schlägt beim Tippen passende Namen vor", () => {
+    expect(erwaehnungsVorschlaege("Hallo @An", personen).map((p) => p.id)).toEqual(["1", "3"]);
+    expect(erwaehnungsVorschlaege("@ad", personen).map((p) => p.id)).toEqual(["2"]);
+    expect(erwaehnungsVorschlaege("@", personen)).toHaveLength(3);
+  });
+  it("schlägt nichts vor, wenn das @ nicht am Ende angefangen wird", () => {
+    expect(erwaehnungsVorschlaege("Hallo Anna", personen)).toEqual([]);
+    expect(erwaehnungsVorschlaege("max@an", personen)).toEqual([]);
+    expect(erwaehnungsVorschlaege("@Anna Zander ist da", personen)).toEqual([]);
+  });
+  it("setzt den gewählten Namen ein", () => {
+    expect(erwaehnungEinsetzen("Hallo @An", "Anna Zander")).toBe("Hallo @Anna Zander ");
+    expect(erwaehnungEinsetzen("@", "Bert Adler")).toBe("@Bert Adler ");
+    expect(erwaehnungEinsetzen("kein at", "Bert Adler")).toBe("kein at");
   });
 });
 

@@ -47,6 +47,57 @@ export function nachTagen<T extends { created_at: string }>(nachrichten: T[]): {
   return gruppen;
 }
 
+// ---- Erwähnungen (@Name) ----------------------------------------------------------------
+// Es gibt keine eigene Tabelle: Eine Nachricht erwähnt jemanden, wenn im Text „@Vorname“ oder
+// „@Vorname Nachname“ steht. So braucht der Reiter „Erwähnungen“ keine Migration.
+
+const BUCHSTABE = "\\p{L}\\p{N}_";
+
+function regexSicher(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * Wird die Person im Text mit @ erwähnt? „@Anna“ und „@Anna Meier“ zählen, Groß-/Kleinschreibung egal.
+ * Das @ darf nicht mitten in einem Wort stehen (E-Mail-Adressen zählen nicht), und der Name muss am Wortende enden.
+ * Grenze: Gibt es zwei „Anna“, erwähnt „@Anna Schulz“ auch die andere Anna (Vorname allein reicht).
+ */
+export function erwaehnt(text: string, vorname: string, nachname: string): boolean {
+  const v = vorname.trim();
+  if (!v || !text.includes("@")) return false;
+  const n = nachname.trim();
+  const namen = [n ? `${v} ${n}` : "", v].filter(Boolean);
+  return namen.some((name) => {
+    const muster = regexSicher(name).replace(/\s+/g, "\\s+");
+    return new RegExp(`(?<![${BUCHSTABE}.])@${muster}(?![${BUCHSTABE}])`, "iu").test(text);
+  });
+}
+
+export type ErwaehnbarePerson = { id: string; name: string };
+
+const ANGEFANGEN = /(?:^|\s)@([\p{L}-]*(?:\s[\p{L}-]*)?)$/u;
+
+/** Während man „@An“ tippt: passende Personen (höchstens 5). Nur, wenn das @ am Wortanfang steht und der Rest kurz ist. */
+export function erwaehnungsVorschlaege(text: string, personen: ErwaehnbarePerson[], max = 5): ErwaehnbarePerson[] {
+  const treffer = ANGEFANGEN.exec(text);
+  if (!treffer) return [];
+  const fragment = treffer[1].toLowerCase();
+  return personen
+    .filter((p) => {
+      const klein = p.name.toLowerCase();
+      return klein.startsWith(fragment) || klein.split(/\s+/).some((teil) => teil.startsWith(fragment));
+    })
+    .slice(0, max);
+}
+
+/** Ersetzt das angefangene „@An“ am Ende des Textes durch „@Anna Meier “. */
+export function erwaehnungEinsetzen(text: string, name: string): string {
+  const treffer = ANGEFANGEN.exec(text);
+  if (!treffer) return text;
+  const at = text.length - treffer[1].length - 1;
+  return `${text.slice(0, at)}@${name} `;
+}
+
 /** Ungelesen-Zähler aus der Datenbankfunktion `chat_ungelesen()` als Nachschlagetabelle. */
 export function ungelesenKarte(zeilen: { project_id: string; anzahl: number | string }[] | null | undefined): Map<string, number> {
   return new Map((zeilen ?? []).map((z) => [z.project_id, Number(z.anzahl)]));

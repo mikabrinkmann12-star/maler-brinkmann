@@ -30,7 +30,7 @@ export default async function ChatSeite({ params }: { params: Promise<{ id: stri
 
   return (
     <div className="flex flex-1 flex-col gap-3">
-      <ChatAnsicht projektId={p.id} ichId={nutzer.id} istBuero={istBuero} darfSchreiben={!p.archiviert_am} namen={namen} />
+      <ChatAnsicht projektId={p.id} ichId={nutzer.id} ichVorname={nutzer.vorname} ichNachname={nutzer.nachname} istBuero={istBuero} darfSchreiben={!p.archiviert_am} namen={namen} />
     </div>
   );
 }
