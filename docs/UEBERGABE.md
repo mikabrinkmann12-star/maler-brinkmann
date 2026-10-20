@@ -29,6 +29,12 @@
 4. ✅ Gesamtlauf am 20.10.2026 abends grün (tsc, lint, 600 Unit-Tests, 272 RLS-Tests, Build). Ablauf: Dev-Server stoppen, `rm -rf .next`, `npx next typegen`, `npx tsc --noEmit`, `npm run lint`, `npm test`, `npm run test:rls` (nicht öfter als ~2× pro 5 Min), `npm run build`.
 5. Später: Jarvis (nach Ralfs Entscheidung), Briefpapier, KI-Angebot, Abschlagsrechnungen (mit Steuerberater), Test der Mitarbeiter-App am iPhone.
 
+## Neu am 20.10.2026 abends (alles gepusht, Migrationen in dev UND live)
+- **Einsätze:** Mitarbeiter-Filter (nur ich und das Team im selben Auto), Plus oben nur für Büro/Admin. **Chat:** Reiter Nachrichten / Erwähnungen / Galerie (@Name, Vorschläge beim Tippen). Commit ae32e06.
+- **Rechte pro Rolle einstellbar** (Einstellungen → Rollen & Zugriffsrechte, nur Admin): Tabelle `role_permissions`, Katalog `src/lib/rechte.ts`, `requireRecht()`/`requireBueroRecht()`, Menüs nach Rechten, 295 Rechte-Tests. Details in CLAUDE.md, Abschnitt „Rechte pro Rolle“. Commit 3ba73fb.
+- **Graphify** (Wissensgraph, `/graphify`) ist global installiert; Graph in `graphify-out/` (nicht im Repo).
+- Mika will **Änderungen erst auf localhost sehen, bevor gepusht wird** (siehe Gedächtnis).
+
 ## Wichtige Entscheidungen (Mika)
 - Rechnungen: Nummer und Datei nur vom Buchhaltungssystem, nie von der App. Alles Bedienen in der App, kein Öffnen der Fremdseite. Jarvis darf Rechnungen schreiben (Entwurf), aber nicht abschicken.
 - Angebote gehen aus der App raus mit Link/Online-Ansicht wie Plancraft; Mika sieht, ob geöffnet wurde.
