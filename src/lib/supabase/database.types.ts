@@ -642,6 +642,7 @@ export type Database = {
           groesse_bytes: number | null
           iban: string | null
           id: string
+          kostenart: string
           lieferant: string
           mime: string | null
           netto: number | null
@@ -672,6 +673,7 @@ export type Database = {
           groesse_bytes?: number | null
           iban?: string | null
           id?: string
+          kostenart?: string
           lieferant?: string
           mime?: string | null
           netto?: number | null
@@ -702,6 +704,7 @@ export type Database = {
           groesse_bytes?: number | null
           iban?: string | null
           id?: string
+          kostenart?: string
           lieferant?: string
           mime?: string | null
           netto?: number | null
@@ -1440,6 +1443,60 @@ export type Database = {
           vorname?: string
         }
         Relationships: []
+      }
+      project_costs: {
+        Row: {
+          archiviert_am: string | null
+          beschreibung: string
+          betrag: number
+          created_at: string
+          datum: string
+          erstellt_von: string | null
+          id: string
+          kostenart: string
+          project_id: string
+          updated_at: string
+        }
+        Insert: {
+          archiviert_am?: string | null
+          beschreibung?: string
+          betrag: number
+          created_at?: string
+          datum?: string
+          erstellt_von?: string | null
+          id?: string
+          kostenart: string
+          project_id: string
+          updated_at?: string
+        }
+        Update: {
+          archiviert_am?: string | null
+          beschreibung?: string
+          betrag?: number
+          created_at?: string
+          datum?: string
+          erstellt_von?: string | null
+          id?: string
+          kostenart?: string
+          project_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_costs_erstellt_von_fkey"
+            columns: ["erstellt_von"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_costs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       project_files: {
         Row: {

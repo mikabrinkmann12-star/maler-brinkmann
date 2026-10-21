@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   ArrowLeftIcon,
+  CalculatorIcon,
   ClockIcon,
   FileTextIcon,
   FolderOpenIcon,
@@ -99,6 +100,7 @@ export default async function ProjektSeite({ params }: PageProps<"/buero/projekt
     { href: `${hand}/chat`, icon: MessageCircleIcon, titel: "Chat", wert: chatNeu > 0 ? `${chatNeu} neu` : "Öffnen", abzeichen: chatNeu > 0 ? zaehlerText(chatNeu) : undefined },
     { href: `${hand}/berichte`, icon: FileTextIcon, titel: "Berichte", wert: String(zahlen.berichte) },
     { href: `${hand}#ablage`, icon: FolderOpenIcon, titel: "Ablage", wert: String(zahlen.fotos + zahlen.dateien), unter: `${zahlen.fotos} Fotos · ${zahlen.dateien} Dateien` },
+    { href: `/buero/projekte/${id}/nachkalkulation`, icon: CalculatorIcon, titel: "Nachkalkulation", wert: "Öffnen", unter: "Soll/Ist, Kosten" },
     { href: `${hand}/aufmass`, icon: RulerIcon, titel: "Aufmaß", wert: String(zahlen.aufmassZeilen), unter: "Zeilen" },
     { href: `${hand}#notizen`, icon: StickyNoteIcon, titel: "Notizen", wert: String(zahlen.notizen) },
     { href: `${hand}#material`, icon: PackageIcon, titel: "Material gemeldet", wert: String(zahlen.materialOffen), unter: "offen" },
