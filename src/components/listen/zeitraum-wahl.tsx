@@ -105,13 +105,13 @@ export function ZeitraumWahl({ wert, heute, onSpeichern }: { wert: Zeitraum | nu
       <div className="flex flex-col gap-3 p-3">
         <div className="flex gap-6">
           <div className="flex flex-col">
-            <button type="button" aria-label="Voriger Monat" onClick={() => setAnzeige(monatVerschieben(anzeige.jahr, anzeige.monat, -1))} className="mb-[-1.4rem] flex size-6 items-center justify-center rounded hover:bg-muted">
+            <button type="button" aria-label="Voriger Monat" onClick={() => setAnzeige(monatVerschieben(anzeige.jahr, anzeige.monat, -1))} className="relative z-10 mb-[-1.4rem] flex size-6 items-center justify-center rounded hover:bg-muted">
               <ChevronLeftIcon className="size-4" />
             </button>
             <Monat {...anzeige} von={von} bis={bis} heute={heute} onTag={tag} />
           </div>
           <div className="flex flex-col items-end">
-            <button type="button" aria-label="Nächster Monat" onClick={() => setAnzeige(monatVerschieben(anzeige.jahr, anzeige.monat, 1))} className="mb-[-1.4rem] flex size-6 items-center justify-center rounded hover:bg-muted">
+            <button type="button" aria-label="Nächster Monat" onClick={() => setAnzeige(monatVerschieben(anzeige.jahr, anzeige.monat, 1))} className="relative z-10 mb-[-1.4rem] flex size-6 items-center justify-center rounded hover:bg-muted">
               <ChevronRightIcon className="size-4" />
             </button>
             <Monat jahr={naechster.jahr} monat={naechster.monat} von={von} bis={bis} heute={heute} onTag={tag} />
