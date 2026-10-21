@@ -171,6 +171,8 @@ export type RechnungListenZeile = {
   zahlungszielTage: number | null;
   abgeglichenAm: string | null;
   mahnstufe: number;
+  /** Die Datei der Buchhaltung liegt in der App und ist ein PDF (bei XRechnung ist sie XML und lässt sich nicht anzeigen) */
+  hatPdf: boolean;
 };
 
 export const MAX_RECHNUNGEN = 300;
@@ -188,7 +190,7 @@ export async function rechnungenLaden(opts: {
   let abfrage = supabase
     .from("invoices")
     .select(
-      "id, project_id, betreff, rechnungsdatum, status, rechnungsnummer, lexware_status, zahlungsziel_tage, abgeglichen_am, mahnstufe, steuersatz, reverse_charge, rabatt_prozent, netto, brutto, archiviert_am, created_at, projects(name, projektnummer), contacts(firmenname, vorname, nachname), invoice_items(typ, kurztext, langtext, menge, einheit, einzelpreis)",
+      "id, project_id, betreff, rechnungsdatum, status, rechnungsnummer, lexware_status, zahlungsziel_tage, abgeglichen_am, pdf_pfad, mahnstufe, steuersatz, reverse_charge, rabatt_prozent, netto, brutto, archiviert_am, created_at, projects(name, projektnummer), contacts(firmenname, vorname, nachname), invoice_items(typ, kurztext, langtext, menge, einheit, einzelpreis)",
     );
   abfrage = opts.archiv ? abfrage.not("archiviert_am", "is", null) : abfrage.is("archiviert_am", null);
   if (opts.status) abfrage = abfrage.eq("status", opts.status);
@@ -222,6 +224,7 @@ export async function rechnungenLaden(opts: {
       zahlungszielTage: r.zahlungsziel_tage,
       abgeglichenAm: r.abgeglichen_am,
       mahnstufe: r.mahnstufe,
+      hatPdf: Boolean(r.pdf_pfad) && !r.pdf_pfad!.endsWith(".xml"),
     };
   });
 

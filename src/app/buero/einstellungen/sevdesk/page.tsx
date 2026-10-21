@@ -39,8 +39,8 @@ export default async function SevdeskSeite() {
           <div>
             <p className="font-medium">Neue Rechnungen gehen an: {anbieter === "sevdesk" ? "sevdesk" : anbieter === "lexware" ? "Lexware Office (alt)" : "noch nirgendwohin"}</p>
             <p className="text-sm text-muted-foreground">
-              Ist der sevdesk-Token da, nimmt die App sevdesk. Bereits an Lexware übertragene Rechnungen bleiben dort und lassen sich weiter abgleichen. Wer ausdrücklich bei Lexware bleiben will,
-              setzt die Variable BUCHHALTUNG_ANBIETER auf „lexware“.
+              Standard ist Lexware Office. sevdesk ist nur Reserve und gilt nur, wenn die Variable BUCHHALTUNG_ANBIETER auf „sevdesk“ steht (oder Lexware nicht eingerichtet ist).
+              Bereits an einen Anbieter übertragene Rechnungen bleiben dort und lassen sich weiter abgleichen.
             </p>
           </div>
         </li>

@@ -38,6 +38,11 @@ const nextConfig: NextConfig = {
         headers: [{ key: "X-Frame-Options", value: "SAMEORIGIN" }],
       },
       {
+        // Die Rechnungsdatei wird im Büro auf der eigenen Seite eingebettet (iframe), nur von derselben Adresse aus
+        source: "/buero/rechnungen/:id/pdf",
+        headers: [{ key: "X-Frame-Options", value: "SAMEORIGIN" }],
+      },
+      {
         // Service Worker nie zwischenspeichern, damit Änderungen sofort ankommen
         source: "/sw.js",
         headers: [

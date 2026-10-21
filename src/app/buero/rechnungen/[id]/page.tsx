@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeftIcon, DownloadIcon, EyeIcon, LockIcon } from "lucide-react";
+import { ArrowLeftIcon, DownloadIcon, LockIcon } from "lucide-react";
 import { cn } from "cn";
+import { RechnungPdfAnsicht } from "@/components/rechnung-pdf";
 import { StatusPille } from "@/components/status-pille";
 import { heuteIso } from "@/lib/datum";
 import { faelligAm } from "@/lib/dashboard";
@@ -18,6 +19,8 @@ import { mahnungMailVorschlag, rechnungMailVorschlag } from "@/lib/rechnung-mail
 import { lexwareLink, rechnungBerechnen } from "@/lib/rechnung";
 import { rechnungLaden } from "@/lib/rechnung-daten";
 import { kopfStart } from "@/lib/rechnung-formular";
+import { abgleichFaellig } from "@/lib/rechnung-abgleich";
+import { AutoAbgleich } from "./auto-abgleich";
 import { BuchhaltungLeiste } from "./buchhaltung-leiste";
 import { MahnungKarte } from "./mahnung-karte";
 import { mahnungsHinweis } from "@/lib/rechnung-einstellungen";
@@ -46,7 +49,7 @@ export default async function RechnungSeite({ params }: PageProps<"/buero/rechnu
   const abweichung = r.netto !== null && Math.abs(r.netto - rechnung.nettoNachRabatt) > 0.01;
   const festgehangen = r.status === "wird_uebertragen";
   // Neue Rechnungen gehen an den eingestellten Anbieter (sevdesk im Hintergrund), bereits übertragene bleiben bei ihrem
-  const anbieter = r.status === "entwurf" ? (aktuellerAnbieter() ?? "sevdesk") : r.anbieter;
+  const anbieter = r.status === "entwurf" ? (aktuellerAnbieter() ?? "lexware") : r.anbieter;
   const name = anbieterName(anbieter);
   const istSevdesk = anbieter === "sevdesk";
   const eingerichtet = istSevdesk ? sevdeskEingerichtet() : lexwareEingerichtet();
@@ -55,6 +58,9 @@ export default async function RechnungSeite({ params }: PageProps<"/buero/rechnu
   const mahnHinweise = Object.fromEntries([1, 2, 3].map((n) => [n, mahnungsHinweis(vorgaben, n) ?? ""]).filter(([, t]) => t));
 
   const heute = heuteIso();
+  // Die Datei der Buchhaltung lässt sich als PDF direkt anzeigen (eine XRechnung ist XML und nur als Download da)
+  const zeigePdf = Boolean(r.pdfPfad) && !r.pdfPfad!.endsWith(".xml");
+  const autoAbgleich = eingerichtet && abgleichFaellig({ status: r.status, lexwareStatus: r.lexwareStatus, hatDatei: Boolean(r.pdfPfad), abgeglichenAm: r.abgeglichenAm });
   const sevdeskAktiv = istSevdesk && r.status === "uebertragen";
   const firma = sevdeskAktiv ? await firmaLaden() : null;
   const angaben = { rechnungsnummer: r.rechnungsnummer, betreff: r.betreff, brutto: r.brutto, rechnungsdatum: r.rechnungsdatum, zahlungszielTage: r.zahlungszielTage, firma: firma?.name ?? "" };
@@ -96,7 +102,6 @@ export default async function RechnungSeite({ params }: PageProps<"/buero/rechnu
           <div className="flex items-center gap-1">
             {r.pdfPfad && (
               <>
-                <a href={`/buero/rechnungen/${r.id}/pdf`} target="_blank" rel="noreferrer" aria-label="Rechnung ansehen" title="Rechnung ansehen" className="flex size-8 items-center justify-center rounded-md hover:bg-muted"><EyeIcon className="size-4" /></a>
                 <a href={`/buero/rechnungen/${r.id}/pdf?download=1`} aria-label="Rechnung herunterladen" title="Rechnung herunterladen" className="flex size-8 items-center justify-center rounded-md hover:bg-muted"><DownloadIcon className="size-4" /></a>
               </>
             )}
@@ -159,6 +164,8 @@ export default async function RechnungSeite({ params }: PageProps<"/buero/rechnu
         </div>
       </section>
 
+      {zeigePdf && <RechnungPdfAnsicht rechnungId={r.id} titel={titel} version={r.abgeglichenAm ?? r.pdfPfad ?? ""} />}
+
       <p className="text-[13px] text-muted-foreground">
         Projekt{" "}
         <Link href={`/buero/projekte/${projekt.id}`} className="font-medium text-foreground hover:underline">{projekt.projektnummer} · {projekt.name}</Link>
@@ -168,6 +175,8 @@ export default async function RechnungSeite({ params }: PageProps<"/buero/rechnu
         {angebot && <> · aus Angebot <Link href={`/buero/angebote/${angebot.id}`} className="font-medium text-foreground hover:underline">{angebot.betreff}</Link></>}
         {r.uebertragenAm && <> · An {name} übertragen am {formatDatumZeit(r.uebertragenAm)}{r.abgeglichenAm && <>, zuletzt abgeglichen am {formatDatumZeit(r.abgeglichenAm)}</>}</>}
       </p>
+
+      {autoAbgleich && <AutoAbgleich rechnungId={r.id} name={name} />}
 
       <BuchhaltungLeiste
         rechnungId={r.id}

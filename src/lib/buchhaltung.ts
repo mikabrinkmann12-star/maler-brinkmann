@@ -6,7 +6,7 @@ import { lexwareEingerichtet } from "@/lib/lexware";
  * Welche Buchhaltung arbeitet im Hintergrund? sevdesk oder Lexware Office. Die Zugangsdaten stehen NUR in Umgebungsvariablen
  * (lokal .env.local, online Vercel), nie im Code und nie in der Datenbank.
  *
- *  - BUCHHALTUNG_ANBIETER=sevdesk | lexware (optional; sonst: sevdesk, wenn SEVDESK_API_TOKEN da ist, sonst Lexware, wenn LEXWARE_API_KEY da ist)
+ *  - BUCHHALTUNG_ANBIETER=sevdesk | lexware (optional; sonst: Lexware, wenn LEXWARE_API_KEY da ist, sonst sevdesk als Reserve, wenn SEVDESK_API_TOKEN da ist)
  *  - SEVDESK_API_TOKEN (32 Zeichen, in sevdesk unter Einstellungen → Benutzer → API-Token)
  *  - SEVDESK_MODUS=entwurf (nur Entwürfe in sevdesk anlegen, nichts versenden/festschreiben: zum gefahrlosen Ausprobieren)
  *  - SEVDESK_BASIS_URL (nur Entwicklung, wird online ignoriert: Schein-Server für Tests)
@@ -34,13 +34,14 @@ export function aktuellerAnbieter(): Anbieter | null {
   const wunsch = process.env.BUCHHALTUNG_ANBIETER?.trim().toLowerCase();
   if (wunsch === "sevdesk") return sevdeskEingerichtet() ? "sevdesk" : null;
   if (wunsch === "lexware") return lexwareEingerichtet() ? "lexware" : null;
-  if (sevdeskEingerichtet()) return "sevdesk";
+  // Standard seit 21.10.2026: Lexware (Mika bleibt dort); sevdesk bleibt als Reserve im Code und nur mit ausdrücklichem Wunsch aktiv
   if (lexwareEingerichtet()) return "lexware";
+  if (sevdeskEingerichtet()) return "sevdesk";
   return null;
 }
 
-/** Name für Meldungen und Knöpfe, auch wenn nichts eingerichtet ist (dann der Wunsch, sonst sevdesk). */
+/** Name für Meldungen und Knöpfe, auch wenn nichts eingerichtet ist (dann der Wunsch, sonst Lexware). */
 export function anbieterName(anbieter: Anbieter | null): string {
   if (anbieter) return anbieter === "sevdesk" ? "sevdesk" : "Lexware";
-  return process.env.BUCHHALTUNG_ANBIETER?.trim().toLowerCase() === "lexware" ? "Lexware" : "sevdesk";
+  return process.env.BUCHHALTUNG_ANBIETER?.trim().toLowerCase() === "sevdesk" ? "sevdesk" : "Lexware";
 }

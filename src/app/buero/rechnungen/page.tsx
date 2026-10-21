@@ -3,6 +3,7 @@ import Link from "next/link";
 import { cn } from "cn";
 import { BelegFilter } from "@/components/listen/beleg-filter";
 import type { ListenOption } from "@/components/listen/mehrfach-liste";
+import { PdfSymbolKnopf } from "@/components/rechnung-pdf";
 import { StatusPille } from "@/components/status-pille";
 import { summe } from "@/lib/angebot-liste";
 import { requireBueroRecht } from "@/lib/auth";
@@ -60,7 +61,7 @@ export default async function RechnungsListe({ searchParams }: PageProps<"/buero
       <div>
         <h1 className="text-xl font-semibold">Ausgangsrechnungen</h1>
         <p className="mt-0.5 text-xs text-muted-foreground">
-          Eine Rechnung entsteht aus einem Angebot („Rechnung erstellen“ im Angebot). Nummer und Datei kommen von der Buchhaltung (sevdesk im Hintergrund), Status und Fälligkeit vom letzten Abgleich.
+          Eine Rechnung entsteht aus einem Angebot („Rechnung erstellen“ im Angebot). Nummer und Datei kommen von der Buchhaltung (Lexware im Hintergrund), Status und Fälligkeit vom letzten Abgleich.
         </p>
       </div>
 
@@ -89,11 +90,12 @@ export default async function RechnungsListe({ searchParams }: PageProps<"/buero
               <th className="hidden px-3 py-2.5 lg:table-cell">Fällig</th>
               <th className="px-3 py-2.5 text-right">Betrag {netto ? "netto" : "brutto"} €</th>
               <th className="hidden px-3 py-2.5 text-right lg:table-cell">Offen €</th>
+              <th className="w-10 px-1 py-2.5"><span className="sr-only">PDF</span></th>
             </tr>
           </thead>
           <tbody>
             {zeilen.length === 0 && (
-              <tr><td colSpan={8} className="px-3 py-10 text-center text-muted-foreground">{alle.length ? "Keine Rechnungen mit diesen Filtern." : "Noch keine Rechnung. Öffne ein Angebot und tippe auf „Rechnung erstellen“."}</td></tr>
+              <tr><td colSpan={9} className="px-3 py-10 text-center text-muted-foreground">{alle.length ? "Keine Rechnungen mit diesen Filtern." : "Noch keine Rechnung. Öffne ein Angebot und tippe auf „Rechnung erstellen“."}</td></tr>
             )}
             {zeilen.map((z) => {
               const faellig = faelligText(z, z.anzeige, heute);
@@ -113,6 +115,7 @@ export default async function RechnungsListe({ searchParams }: PageProps<"/buero
                   <td className={cn("hidden px-3 py-2.5 whitespace-nowrap lg:table-cell", faellig.startsWith("-") && "font-medium text-destructive")}>{faellig || "–"}</td>
                   <td className="px-3 py-2.5 text-right font-semibold tabular-nums">{formatBetrag(betrag(z))}</td>
                   <td className={cn("hidden px-3 py-2.5 text-right tabular-nums lg:table-cell", (z.anzeige === "ueberfaellig" || z.anzeige === "angemahnt") && "font-semibold text-destructive")}>{o ? formatBetrag(o) : "–"}</td>
+                  <td className="px-1 py-2.5 text-right">{z.hatPdf && <PdfSymbolKnopf rechnungId={z.id} titel={`Rechnung ${z.rechnungsnummer} – ${z.betreff}`} />}</td>
                 </tr>
               );
             })}
@@ -126,6 +129,7 @@ export default async function RechnungsListe({ searchParams }: PageProps<"/buero
                 </td>
                 <td className="px-3 py-2.5 text-right font-semibold tabular-nums">{formatBetrag(summe(zeilen.map(betrag)))}</td>
                 <td className="hidden px-3 py-2.5 text-right font-semibold tabular-nums lg:table-cell">{formatBetrag(summe(zeilen.map(offen)))}</td>
+                <td />
               </tr>
             </tfoot>
           )}
