@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   BellIcon,
+  BotIcon,
   SearchIcon,
   CalendarDaysIcon,
   ClockIcon,
@@ -29,6 +30,8 @@ type Eintrag = {
   /** Kleines „+“ rechts beim Darüberfahren (wie in Plancraft): legt direkt etwas Neues an. */
   plus?: { href: string; titel: string; /** Recht fürs Anlegen */ recht?: string; /** Öffnet statt der Seite ein Fenster (Ereignis aus buero-kontext) */ ereignis?: string };
   neu?: boolean;
+  /** Nur für den Admin sichtbar (die Seite prüft das selbst nochmal) */
+  nurAdmin?: boolean;
   /** Weitere Pfade, bei denen der Eintrag als aktiv gilt (z. B. Urlaubsanträge gehören zu „Zeiten“). */
   auch?: string[];
 };
@@ -43,6 +46,7 @@ const EINTRAEGE: Eintrag[] = [
   { href: "/buero/eingangsrechnungen", name: "Eingangsrechnungen", icon: InboxIcon, recht: "eingangsrechnungen" },
   { href: "/buero/zeiten", name: "Zeiten", icon: ClockIcon, recht: "zeiten_alle", plus: { href: "/buero/zeiten/neu", titel: "Neue Zeit", recht: "zeiten_alle", ereignis: NEUE_ZEIT_OEFFNEN }, auch: ["/buero/urlaub"] },
   { href: "/buero/katalog", name: "Stammdaten", icon: LayersIcon, recht: "katalog", neu: true },
+  { href: "/buero/ki-system", name: "KI-System", icon: BotIcon, nurAdmin: true },
   { href: "/buero/kontakte", name: "Kontakte", icon: UsersIcon, recht: "kontakte_ansehen", plus: { href: "/buero/kontakte/neu", titel: "Neuer Kontakt", recht: "kontakte_bearbeiten" } },
 ];
 
@@ -52,9 +56,11 @@ const EINTRAEGE: Eintrag[] = [
  */
 export function BueroNavigation({
   eingeklappt = false,
+  istAdmin = false,
   onNavigiert,
 }: {
   eingeklappt?: boolean;
+  istAdmin?: boolean;
   onNavigiert?: () => void;
 }) {
   const pfad = usePathname();
@@ -104,7 +110,7 @@ export function BueroNavigation({
           BellIcon,
         )}
         <li aria-hidden className="my-1 h-px bg-sidebar-border" />
-        {EINTRAEGE.filter((e) => !e.recht || rechtOk(rechte, e.recht)).map(({ href, name, icon: Icon, plus: plusEintrag, neu, auch = [] }) => {
+        {EINTRAEGE.filter((e) => (!e.nurAdmin || istAdmin) && (!e.recht || rechtOk(rechte, e.recht))).map(({ href, name, icon: Icon, plus: plusEintrag, neu, auch = [] }) => {
           // Das „+“ gibt es nur, wenn der Nutzer auch anlegen darf
           const plus = plusEintrag && (!plusEintrag.recht || rechtOk(rechte, plusEintrag.recht)) ? plusEintrag : undefined;
           const aktiv =

@@ -105,7 +105,7 @@ export function BueroSeitenleiste({
       </div>
 
       <div className="flex-1 overflow-y-auto border-t border-sidebar-border pt-3">
-        <BueroNavigation eingeklappt={eingeklappt} onNavigiert={onNavigiert} />
+        <BueroNavigation eingeklappt={eingeklappt} istAdmin={istAdmin} onNavigiert={onNavigiert} />
       </div>
 
       <div className={cn("flex items-center gap-1 border-t border-sidebar-border pt-3", eingeklappt && "flex-col")}>

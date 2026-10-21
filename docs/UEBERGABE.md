@@ -28,6 +28,11 @@ Grund: Lexware-Konto ist schon da und bezahlt, der Verbindungstest mit dem echte
 - Gebaut: Lexware wieder Standard (Code, keine Vercel-Änderung nötig), PDF-Vollbild-Fenster + eingebettete PDF-Ansicht, automatischer Abgleich beim Öffnen (Details in CLAUDE.md, Phase 5). Unit-Tests 660 grün, Typen und Lint sauber, im Browser mit Demo-Rechnung geprüft (Demo-Daten sind weggeräumt/archiviert).
 - Als Nächstes: Mika schaut es auf localhost an (Liste → Auge, Rechnungsseite), dann Push. Danach der erste echte Lexware-Test im Entwurf-Modus (`LEXWARE_MODUS=entwurf`). Vorsicht: Die Entwurf-Rechnung hat in Lexware noch keine Datei; die PDF-Ansicht erscheint erst nach dem Fertigstellen dort und einem Abgleich.
 
+## Nachtrag 21.10.2026 abends (noch NICHT gepusht)
+- Lokal committet: Lexware-Standard + PDF-Fenster + Zeilenmenü + Sammel-Download, **Nachkalkulation** (`docs/NACHKALKULATION.md`), **Editor** (Aus Dokument, Preis anpassen, Titel einklappen), **Dokumentarten**, **KI-System**-Seite.
+- **Vor dem Push zwei Migrationen nach live:** `…20261021150000_nachkalkulation` und `…20261021160000_dokumentarten` (beide sind in dev). Ablauf: `npx supabase link --project-ref tezveryzixrysviapmal` → `db push --dry-run` → `db push` → wieder `link --project-ref akbqdpwajeaynwqczfkg`. Der Code braucht die neuen Spalten, sonst bricht die Online-Version ab.
+- Mika wollte alles vorher auf localhost sehen. Plancraft-Vergleich: `plancraft-feature-analyse.md` (Downloads) ist abgearbeitet bis auf: Ziehen zum Sortieren, mehrere Titel-Ebenen, Zeiten ins Dokument (Regie), Anhänge-Dialog, Abschlagsrechnungen, Gutschrift.
+
 ## Offen und wichtig für Samstag (Vorstellung am 24.10.2026)
 - Einmal selbst online einloggen und durchspielen (`docs/VORSTELLUNG.md`).
 - Rechnungen sind mit keinem Buchhaltungsprogramm **echt fertiggestellt** getestet (nur Entwurf). Vor echter Nutzung: Firmendaten/IBAN/Steuernummer im Programm, Steuerberater (E-Rechnung ab 2028, Abschläge).
