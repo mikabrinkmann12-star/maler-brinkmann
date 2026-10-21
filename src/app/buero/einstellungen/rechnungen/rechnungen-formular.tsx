@@ -77,6 +77,24 @@ export function RechnungenFormular({ start }: { start: RechnungsEinstellungenEin
 
       <section className="flex flex-col gap-3 rounded-lg border bg-white p-4">
         <div>
+          <h2 className="text-[15px] font-semibold">Texte auf der Rechnung</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Mit diesen Texten werden neue Rechnungen vorbelegt. Sie gehen so an die Buchhaltung (sevdesk) und stehen auf der Rechnung. Im Rechnungsentwurf lassen sie sich
+            ändern. Die Zahlungsbedingungen (Zahlungsziel, Skonto) hängt die App selbst unter den Schlusstext. Ganz leer lassen = die Buchhaltung nimmt ihren eigenen Text.
+          </p>
+        </div>
+        <label className="flex flex-col gap-1 text-[13px]">
+          <span className="font-medium">Anfangstext</span>
+          <textarea rows={3} maxLength={3000} value={w.einleitung} onChange={(e) => setzen({ einleitung: e.target.value })} className="w-full rounded-md border bg-white px-2.5 py-2 text-[13px]" />
+        </label>
+        <label className="flex flex-col gap-1 text-[13px]">
+          <span className="font-medium">Schlusstext</span>
+          <textarea rows={4} maxLength={3000} value={w.schlusstext} onChange={(e) => setzen({ schlusstext: e.target.value })} className="w-full rounded-md border bg-white px-2.5 py-2 text-[13px]" />
+        </label>
+      </section>
+
+      <section className="flex flex-col gap-3 rounded-lg border bg-white p-4">
+        <div>
           <h2 className="text-[15px] font-semibold">Mahnungen</h2>
           <p className="mt-0.5 text-xs text-muted-foreground">
             Frist, Verzugszinsen und Gebühr je Stufe. Die Mahnung selbst schreibst du in Lexware; die Werte erscheinen als Hinweis in der Rechnung, wenn du dort eine Mahnstufe vermerkst.

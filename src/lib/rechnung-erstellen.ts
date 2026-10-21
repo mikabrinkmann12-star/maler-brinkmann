@@ -57,6 +57,9 @@ export async function rechnungEntwurfAusAngebot(db: SupabaseClient<Database>, an
       quote_id: angebotId,
       contact_id: p.contact_id,
       betreff: a.betreff,
+      // Anfangs- und Schlusstext der Rechnung (Einstellungen → Rechnungen – Vorgaben); leer = die Buchhaltung nimmt ihren eigenen
+      einleitung: firmenZiel.einleitung || null,
+      schlusstext: firmenZiel.schlusstext || null,
       rechnungsdatum: heute,
       leistung_von: von,
       leistung_bis: bis,

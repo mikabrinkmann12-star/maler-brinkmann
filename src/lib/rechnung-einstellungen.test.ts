@@ -81,3 +81,26 @@ describe("Mahnung", () => {
     expect(mahnungsHinweis(STANDARD_RECHNUNGSEINSTELLUNGEN, 0)).toBeNull();
   });
 });
+
+describe("Anfangs- und Schlusstext der Rechnung", () => {
+  it("ohne Eintrag gelten deutsche Standardtexte (nicht die englischen der Buchhaltung)", () => {
+    const e = rechnungsEinstellungenAusJson(undefined);
+    expect(e.einleitung).toContain("Vielen Dank für Ihren Auftrag");
+    expect(e.schlusstext).toContain("Mit freundlichen Grüßen");
+  });
+  it("ein ausdrücklich geleerter Text bleibt leer, ein eigener Text bleibt erhalten", () => {
+    const e = rechnungsEinstellungenAusJson({ einleitung: "", schlusstext: "Danke!" });
+    expect(e.einleitung).toBe("");
+    expect(e.schlusstext).toBe("Danke!");
+  });
+  it("wird gespeichert und wieder gelesen", () => {
+    const e = { ...STANDARD_RECHNUNGSEINSTELLUNGEN, einleitung: "Hallo", schlusstext: "Tschüss" };
+    expect(rechnungsEinstellungenAusJson(rechnungsEinstellungenAlsJson(e))).toMatchObject({ einleitung: "Hallo", schlusstext: "Tschüss" });
+  });
+  it("die Prüfung bereinigt Zeilenumbrüche, kürzt Ränder und lehnt zu lange Texte ab", () => {
+    const basis = eingabeAusEinstellungen(STANDARD_RECHNUNGSEINSTELLUNGEN);
+    const ok = rechnungsEinstellungenSchema.safeParse({ ...basis, einleitung: "  Zeile 1\r\nZeile 2  " });
+    expect(ok.success && einstellungenAusEingabe(ok.data).einleitung).toBe("Zeile 1\nZeile 2");
+    expect(rechnungsEinstellungenSchema.safeParse({ ...basis, schlusstext: "x".repeat(3001) }).success).toBe(false);
+  });
+});

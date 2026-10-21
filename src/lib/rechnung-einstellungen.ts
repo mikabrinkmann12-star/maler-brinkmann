@@ -14,7 +14,14 @@ export type RechnungsEinstellungen = {
   erinnerung: MahnungsStufe;
   mahnung1: MahnungsStufe;
   mahnung2: MahnungsStufe;
+  /** Anfangs- und Schlusstext, mit denen neue Rechnungen vorbelegt werden (im Rechnungsentwurf änderbar) und die an die Buchhaltung gehen */
+  einleitung: string;
+  schlusstext: string;
 };
+
+/** Texte für neue Rechnungen, wenn der Admin nichts eingetragen hat (die Zahlungsbedingungen hängt die App selbst an). */
+export const STANDARD_RECHNUNGS_EINLEITUNG = "Vielen Dank für Ihren Auftrag. Hiermit stelle ich Ihnen die folgenden Leistungen in Rechnung:";
+export const STANDARD_RECHNUNGS_SCHLUSSTEXT = "Bitte überweisen Sie den Rechnungsbetrag unter Angabe der Rechnungsnummer auf das unten angegebene Konto.\n\nMit freundlichen Grüßen";
 
 /** Startwerte wie in Plancraft (Zahlungserinnerung 7 Tage, 1./2. Mahnung 7 Tage, 0 % Zinsen, 3,00 € Gebühr). Zahlungsziel bleibt ohne Vorgabe. */
 export const STANDARD_RECHNUNGSEINSTELLUNGEN: RechnungsEinstellungen = {
@@ -24,6 +31,8 @@ export const STANDARD_RECHNUNGSEINSTELLUNGEN: RechnungsEinstellungen = {
   erinnerung: { tage: 7, zinsenProzent: 0, gebuehr: 0 },
   mahnung1: { tage: 7, zinsenProzent: 0, gebuehr: 3 },
   mahnung2: { tage: 7, zinsenProzent: 0, gebuehr: 3 },
+  einleitung: STANDARD_RECHNUNGS_EINLEITUNG,
+  schlusstext: STANDARD_RECHNUNGS_SCHLUSSTEXT,
 };
 
 export const MAHN_STUFEN_NAMEN = { erinnerung: "Zahlungserinnerung", mahnung1: "1. Mahnung", mahnung2: "2. Mahnung" } as const;
@@ -62,6 +71,9 @@ export function rechnungsEinstellungenAusJson(wert: unknown): RechnungsEinstellu
     erinnerung: stufeAusJson(o.erinnerung, s.erinnerung),
     mahnung1: stufeAusJson(o.mahnung1, s.mahnung1),
     mahnung2: stufeAusJson(o.mahnung2, s.mahnung2),
+    // Ein ausdrücklich geleerter Text bleibt leer (dann nimmt die Buchhaltung ihren eigenen), nur „nie eingestellt“ nimmt den Standard
+    einleitung: typeof o.einleitung === "string" ? o.einleitung.slice(0, 3000) : s.einleitung,
+    schlusstext: typeof o.schlusstext === "string" ? o.schlusstext.slice(0, 3000) : s.schlusstext,
   };
 }
 
@@ -74,6 +86,8 @@ export function rechnungsEinstellungenAlsJson(e: RechnungsEinstellungen) {
     erinnerung: stufe(e.erinnerung),
     mahnung1: stufe(e.mahnung1),
     mahnung2: stufe(e.mahnung2),
+    einleitung: e.einleitung,
+    schlusstext: e.schlusstext,
   };
 }
 
@@ -83,6 +97,8 @@ export type RechnungsEinstellungenEingabe = {
   zahlungszielTage: string;
   skontoProzent: string;
   skontoTage: string;
+  einleitung: string;
+  schlusstext: string;
 } & Record<MahnStufenSchluessel, { tage: string; zinsenProzent: string; gebuehr: string }>;
 
 export function eingabeAusEinstellungen(e: RechnungsEinstellungen): RechnungsEinstellungenEingabe {
@@ -94,6 +110,8 @@ export function eingabeAusEinstellungen(e: RechnungsEinstellungen): RechnungsEin
     erinnerung: stufe(e.erinnerung),
     mahnung1: stufe(e.mahnung1),
     mahnung2: stufe(e.mahnung2),
+    einleitung: e.einleitung,
+    schlusstext: e.schlusstext,
   };
 }
 
@@ -141,6 +159,8 @@ export const rechnungsEinstellungenSchema = z
     erinnerung: stufenSchema("Zahlungserinnerung"),
     mahnung1: stufenSchema("1. Mahnung"),
     mahnung2: stufenSchema("2. Mahnung"),
+    einleitung: z.string().max(3000, "Anfangstext: höchstens 3.000 Zeichen.").transform((t) => t.replace(/\r\n/g, "\n").trim()),
+    schlusstext: z.string().max(3000, "Schlusstext: höchstens 3.000 Zeichen.").transform((t) => t.replace(/\r\n/g, "\n").trim()),
   })
   .refine((d) => (d.skontoProzent === null) === (d.skontoTage === null), { message: "Skonto: Bitte Prozent und Frist (Tage) zusammen angeben oder beides leer lassen.", path: ["skontoTage"] })
   .refine((d) => d.skontoProzent === null || d.zahlungszielTage !== null, { message: "Skonto gibt es nur zusammen mit einem Zahlungsziel.", path: ["skontoProzent"] })
@@ -160,6 +180,8 @@ export function einstellungenAusEingabe(d: RechnungsEinstellungenGeprueft): Rech
     erinnerung: d.erinnerung,
     mahnung1: d.mahnung1,
     mahnung2: d.mahnung2,
+    einleitung: d.einleitung,
+    schlusstext: d.schlusstext,
   };
 }
 
