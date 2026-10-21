@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { DownloadIcon, EyeIcon, MaximizeIcon, PrinterIcon, XIcon } from "lucide-react";
+import { DownloadIcon, MaximizeIcon, PrinterIcon, XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 /** Adresse der Rechnungsdatei (die Kopie, die die Buchhaltung erzeugt hat; Route Handler mit eigener Rollenprüfung). */
@@ -13,7 +13,7 @@ const rahmenAdresse = (id: string) => `${dateiAdresse(id)}#navpanes=0`;
  * Vollbild-Fenster über der aktuellen Seite wie in Plancraft: Titel, Drucken, Herunterladen, Schließen, darunter die eingebettete Rechnung.
  * Die Datei kommt von der Buchhaltung (Lexware/sevdesk), die App zeigt sie nur an.
  */
-export function RechnungPdfFenster({ rechnungId, titel, onClose }: { rechnungId: string; titel: string; onClose: () => void }) {
+export function RechnungPdfFenster({ rechnungId, titel, onClose, autoDrucken = false }: { rechnungId: string; titel: string; onClose: () => void; autoDrucken?: boolean }) {
   const rahmen = useRef<HTMLIFrameElement>(null);
 
   useEffect(() => {
@@ -51,27 +51,15 @@ export function RechnungPdfFenster({ rechnungId, titel, onClose }: { rechnungId:
           <DownloadIcon className="size-5" />
         </a>
       </div>
-      <iframe ref={rahmen} src={rahmenAdresse(rechnungId)} title={titel} className="w-full flex-1 border-0 bg-neutral-700" />
+      <iframe
+        ref={rahmen}
+        src={rahmenAdresse(rechnungId)}
+        title={titel}
+        // Aus dem Menü „Drucken“: nach dem Laden den Druckdialog öffnen (kurz warten, bis das PDF gezeichnet ist)
+        onLoad={autoDrucken ? () => window.setTimeout(drucken, 600) : undefined}
+        className="w-full flex-1 border-0 bg-neutral-700"
+      />
     </div>
-  );
-}
-
-/** Auge in der Rechnungsliste: öffnet das Fenster, ohne die Zeile zu öffnen. */
-export function PdfSymbolKnopf({ rechnungId, titel }: { rechnungId: string; titel: string }) {
-  const [offen, setOffen] = useState(false);
-  return (
-    <>
-      <button
-        type="button"
-        onClick={() => setOffen(true)}
-        aria-label={`Rechnung ansehen: ${titel}`}
-        title="PDF ansehen"
-        className="relative z-10 flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-      >
-        <EyeIcon className="size-4" />
-      </button>
-      {offen && <RechnungPdfFenster rechnungId={rechnungId} titel={titel} onClose={() => setOffen(false)} />}
-    </>
   );
 }
 

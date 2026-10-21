@@ -184,6 +184,24 @@ export async function rechnungArchivieren(id: string): Promise<RechnungErgebnis>
   return { id };
 }
 
+/** Einen archivierten Rechnungsentwurf wieder einblenden. */
+export async function rechnungWiederherstellen(id: string): Promise<RechnungErgebnis> {
+  await requireBueroRecht("rechnungen");
+  if (!uuid.safeParse(id).success) return { fehler: "Ungültige Rechnung." };
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("invoices")
+    .update({ archiviert_am: null })
+    .eq("id", id)
+    .eq("status", "entwurf")
+    .not("archiviert_am", "is", null)
+    .select("id, project_id");
+  if (error) return { fehler: dbMeldung(error) };
+  if (!data?.length) return { fehler: "Diese Rechnung lässt sich nicht wiederherstellen." };
+  aktualisieren(id, data[0].project_id);
+  return { id };
+}
+
 // ---------------------------------------------------------------------------
 // Übertragung an die Buchhaltung (sevdesk im Hintergrund, ältere Rechnungen bei Lexware) und Abgleich
 // ---------------------------------------------------------------------------

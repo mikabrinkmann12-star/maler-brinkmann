@@ -3,7 +3,6 @@ import Link from "next/link";
 import { cn } from "cn";
 import { BelegFilter } from "@/components/listen/beleg-filter";
 import type { ListenOption } from "@/components/listen/mehrfach-liste";
-import { PdfSymbolKnopf } from "@/components/rechnung-pdf";
 import { StatusPille } from "@/components/status-pille";
 import { summe } from "@/lib/angebot-liste";
 import { requireBueroRecht } from "@/lib/auth";
@@ -14,29 +13,25 @@ import {
   RECHNUNG_ANZEIGE_NAMEN,
   anzeigeStatus,
   faelligText,
-  istRechnungAnzeigeStatus,
   offenerBetrag,
   rechnungenFiltern,
   type RechnungAnzeigeStatus,
 } from "@/lib/rechnung-liste";
 import { rechnungenLaden } from "@/lib/rechnung-daten";
-import { istTag } from "@/lib/zeitraum";
+import { SAMMEL_MAX_DATEIEN, rechnungFilterLesen } from "@/lib/rechnung-filter";
+import { lexwareLink } from "@/lib/rechnung";
+import { vorgabeFuer } from "@/lib/zeitraum";
+import { RechnungZeilenMenue } from "./zeilen-menue";
+import { SammelDownload } from "./sammel-download";
 
 export const metadata: Metadata = { title: "Ausgangsrechnungen" };
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const FILTER_STATUS: RechnungAnzeigeStatus[] = ["entwurf", "offen", "ueberfaellig", "angemahnt", "bezahlt", "storniert"];
 
 export default async function RechnungsListe({ searchParams }: PageProps<"/buero/rechnungen">) {
   await requireBueroRecht("rechnungen");
   const params = await searchParams;
-  const wert = (n: string) => (typeof params[n] === "string" ? (params[n] as string) : "");
-  const q = wert("q").trim();
-  const archiv = wert("archiv") === "1";
-  const netto = wert("netto") === "1";
-  const status = wert("status").split(",").filter(istRechnungAnzeigeStatus);
-  const projektIds = wert("projekt").split(",").filter((x) => UUID.test(x));
-  const zeitraum = istTag(wert("von")) && istTag(wert("bis")) ? { von: wert("von"), bis: wert("bis") } : null;
+  const { q, archiv, netto, status, projektIds, zeitraum } = rechnungFilterLesen(params);
   const heute = heuteIso();
 
   const { zeilen: alle } = await rechnungenLaden({ q, archiv, limit: 1000 });
@@ -54,6 +49,15 @@ export default async function RechnungsListe({ searchParams }: PageProps<"/buero
     text: RECHNUNG_ANZEIGE_NAMEN[s],
     anzeige: <StatusPille name={RECHNUNG_ANZEIGE_NAMEN[s]} farbe={RECHNUNG_ANZEIGE_FARBEN[s]} />,
   }));
+  const mitDatei = zeilen.filter((z) => z.pdfPfad).length;
+  const vorgabeName = zeitraum ? vorgabeFuer(zeitraum, heute) : null;
+  const filterZeilen = [
+    ...(zeitraum ? [{ name: "Datum", wert: vorgabeName ?? `${formatDatum(zeitraum.von)} – ${formatDatum(zeitraum.bis)}` }] : []),
+    ...(status.length ? [{ name: "Status", wert: status.map((s) => RECHNUNG_ANZEIGE_NAMEN[s]).join(", ") }] : []),
+    ...(projektIds.length ? [{ name: "Projekte", wert: `${projektIds.length} ausgewählt` }] : []),
+    ...(q ? [{ name: "Suche", wert: q }] : []),
+    ...(archiv ? [{ name: "Ansicht", wert: "Archiv" }] : []),
+  ];
   const bezahlt = summe(zeilen.filter((z) => z.anzeige === "bezahlt").map(betrag));
 
   return (
@@ -76,6 +80,7 @@ export default async function RechnungsListe({ searchParams }: PageProps<"/buero
         projekte={projektOptionen}
         netto={netto}
         archiv={archiv}
+        zusatz={<SammelDownload anzahl={zeilen.length} mitDatei={mitDatei} max={SAMMEL_MAX_DATEIEN} filterZeilen={filterZeilen} />}
       />
 
       <div className="overflow-x-auto rounded-lg border bg-white">
@@ -115,7 +120,17 @@ export default async function RechnungsListe({ searchParams }: PageProps<"/buero
                   <td className={cn("hidden px-3 py-2.5 whitespace-nowrap lg:table-cell", faellig.startsWith("-") && "font-medium text-destructive")}>{faellig || "–"}</td>
                   <td className="px-3 py-2.5 text-right font-semibold tabular-nums">{formatBetrag(betrag(z))}</td>
                   <td className={cn("hidden px-3 py-2.5 text-right tabular-nums lg:table-cell", (z.anzeige === "ueberfaellig" || z.anzeige === "angemahnt") && "font-semibold text-destructive")}>{o ? formatBetrag(o) : "–"}</td>
-                  <td className="px-1 py-2.5 text-right">{z.hatPdf && <PdfSymbolKnopf rechnungId={z.id} titel={`Rechnung ${z.rechnungsnummer} – ${z.betreff}`} />}</td>
+                  <td className="px-1 py-2.5 text-right"><RechnungZeilenMenue
+                      rechnungId={z.id}
+                      titel={`Rechnung ${z.rechnungsnummer || "Entwurf"} – ${z.betreff}`}
+                      projektId={z.projektId}
+                      hatPdf={z.hatPdf}
+                      hatXml={z.hatXml}
+                      anbieterLink={z.anbieter === "lexware" && z.lexwareId ? lexwareLink(z.lexwareId) : null}
+                      anbieterName="Lexware"
+                      istEntwurf={z.status === "entwurf"}
+                      archiviert={z.archiviert}
+                    /></td>
                 </tr>
               );
             })}
