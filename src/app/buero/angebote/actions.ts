@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireBueroRecht } from "@/lib/auth";
 import { istAngebotStatus, type AngebotStatus } from "@/lib/angebot";
+import { dokumentartInfo, istDokumentart } from "@/lib/dokumentart";
 import {
   abschlussSchema,
   bausteinPruefen,
@@ -178,10 +179,11 @@ export async function angebotArchivieren(id: string, archivieren: boolean): Prom
   return { id };
 }
 
-/** Angebot kopieren: neuer Entwurf im selben Projekt mit allen Bausteinen, Datum heute. */
-export async function angebotKopieren(id: string): Promise<AngebotErgebnis> {
+/** Angebot kopieren: neuer Entwurf im selben Projekt mit allen Bausteinen, Datum heute. Mit `art` entsteht daraus eine andere Dokumentart (z. B. Auftragsbestätigung). */
+export async function angebotKopieren(id: string, art?: string): Promise<AngebotErgebnis> {
   await requireBueroRecht("angebote");
   if (!uuid.safeParse(id).success) return { fehler: "Ungültiges Angebot." };
+  if (art !== undefined && !istDokumentart(art)) return { fehler: "Unbekannte Dokumentart." };
   const supabase = await createClient();
 
   const { data: alt } = await supabase.from("quotes").select("*").eq("id", id).maybeSingle();
@@ -198,12 +200,15 @@ export async function angebotKopieren(id: string): Promise<AngebotErgebnis> {
     .from("quotes")
     .insert({
       project_id: alt.project_id,
-      betreff: alt.betreff.length > 190 ? alt.betreff.slice(0, 190) : `${alt.betreff} (Kopie)`,
+      betreff: art && art !== alt.dokumentart ? alt.betreff : alt.betreff.length > 190 ? alt.betreff.slice(0, 190) : `${alt.betreff} (Kopie)`,
+      dokumentart: art ?? alt.dokumentart,
+      nachtrag: art ? false : alt.nachtrag,
       leistungsort: alt.leistungsort,
       datum: heuteIso(),
       empfaenger: alt.empfaenger,
-      einleitung: alt.einleitung,
-      schlusstext: alt.schlusstext,
+      // Bei einer anderen Dokumentart gilt deren Anfangstext, und ein Schlusstext, der vom Angebot handelt, entfällt
+      einleitung: art && art !== alt.dokumentart ? dokumentartInfo(art).einleitung ?? alt.einleitung : alt.einleitung,
+      schlusstext: art && art !== alt.dokumentart && !dokumentartInfo(art).schlusstext ? null : alt.schlusstext,
       steuersatz: alt.steuersatz,
       reverse_charge: alt.reverse_charge,
       rabatt_prozent: alt.rabatt_prozent,

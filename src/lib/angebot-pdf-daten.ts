@@ -2,21 +2,22 @@ import "server-only";
 import { angebotBerechnen } from "@/lib/angebot";
 import { angebotLaden } from "@/lib/angebot-daten";
 import { angebotPdf } from "@/lib/angebot-pdf";
+import { dokumentartInfo } from "@/lib/dokumentart";
 import { zahlungsbedingungText } from "@/lib/rechnung";
 import { angebotEinstellungenLaden, firmaLaden } from "@/lib/firma-daten";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
 import { createClient } from "@/lib/supabase/server";
 
-/** Dateiname ohne Sonderzeichen: „Angebot_Technologiepark_Haus_2.pdf“ */
-export function pdfDateiname(betreff: string): string {
+/** Dateiname ohne Sonderzeichen: „Angebot_Technologiepark_Haus_2.pdf“ (die Dokumentart steht vorn, ohne Umlaute) */
+export function pdfDateiname(betreff: string, art = "Angebot"): string {
   const sauber = betreff
     .normalize("NFD").replace(/\p{Diacritic}/gu, "")
     .replace(/ß/g, "ss")
     .replace(/[^A-Za-z0-9]+/g, "_")
     .replace(/^_+|_+$/g, "")
     .slice(0, 60);
-  return `Angebot_${sauber || "ohne_Betreff"}.pdf`;
+  return `${art}_${sauber || "ohne_Betreff"}.pdf`;
 }
 
 /**
@@ -61,6 +62,8 @@ export async function angebotPdfErzeugen(id: string, db?: SupabaseClient<Databas
     logo,
     zahlungsbedingung: a.zahlungszielTage == null ? "" : zahlungsbedingungText(a.zahlungszielTage, a.skontoProzent, a.skontoTage),
     gueltigBis: a.gueltigBis ?? "",
+    dokumentart: a.dokumentart,
+    nachtrag: a.nachtrag,
   });
-  return { bytes, dateiname: pdfDateiname(a.betreff) };
+  return { bytes, dateiname: pdfDateiname(a.betreff, dokumentartInfo(a.dokumentart).name.normalize("NFD").replace(/\p{Diacritic}/gu, "")) };
 }

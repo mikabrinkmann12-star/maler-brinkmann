@@ -6,13 +6,14 @@ import { projekteFuerAngebot } from "@/lib/angebot-daten";
 import { createClient } from "@/lib/supabase/server";
 import { NeuesAngebotFormular } from "./neues-angebot-formular";
 
-export const metadata: Metadata = { title: "Neues Angebot" };
+export const metadata: Metadata = { title: "Neues Dokument" };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export default async function NeuesAngebotSeite({ searchParams }: PageProps<"/buero/angebote/neu">) {
   await requireBueroRecht("angebote");
   const params = await searchParams;
+  const artParam = typeof params.art === "string" ? params.art : "";
   const projektParam = typeof params.projekt === "string" && UUID.test(params.projekt) ? params.projekt : "";
 
   const projekte = await projekteFuerAngebot();
@@ -34,8 +35,8 @@ export default async function NeuesAngebotSeite({ searchParams }: PageProps<"/bu
       <Link href="/buero/angebote" className="flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeftIcon className="size-4" /> Angebote
       </Link>
-      <h1 className="text-2xl font-semibold">Neues Angebot</h1>
-      <NeuesAngebotFormular projekte={projekte} projektId={projektId} betreffStart={betreff} />
+      <h1 className="text-2xl font-semibold">Neues Dokument</h1>
+      <NeuesAngebotFormular projekte={projekte} projektId={projektId} betreffStart={betreff} artStart={artParam} />
     </div>
   );
 }

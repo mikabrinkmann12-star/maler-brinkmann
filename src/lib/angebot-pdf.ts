@@ -5,6 +5,7 @@
 
 import { PDFDocument, type PDFFont, type PDFImage } from "pdf-lib";
 import type { AngebotStatus, Berechnung, BerechneteZeile } from "@/lib/angebot";
+import { dokumentTitel, dokumentartInfo } from "@/lib/dokumentart";
 import { absenderZeile, type Firma } from "@/lib/firma";
 import { formatDatum, formatZahl } from "@/lib/format";
 import {
@@ -33,6 +34,9 @@ export type AngebotPdfDaten = {
   zahlungsbedingung?: string;
   /** Gültig bis (JJJJ-MM-TT); leer = keine Angabe */
   gueltigBis?: string;
+  /** Dokumentart (Angebot, Kostenvoranschlag, …); leer = Angebot */
+  dokumentart?: string;
+  nachtrag?: boolean;
 };
 
 // Spalten der Tabelle
@@ -53,13 +57,14 @@ const euro = (w: number) => `${zahl(w)} €`;
 
 export async function angebotPdf(d: AngebotPdfDaten): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
-  doc.setTitle(`Angebot ${d.betreff}`.slice(0, 200));
+  const art = dokumentartInfo(d.dokumentart);
+  doc.setTitle(`${art.name} ${d.betreff}`.slice(0, 200));
   doc.setProducer("Maler Brinkmann");
   doc.setCreator("Maler Brinkmann");
   const z = new Zeichner(doc);
   await z.laden();
 
-  const titel = d.status === "entwurf" ? "Angebot - Entwurf" : "Angebot";
+  const titel = dokumentTitel(d.dokumentart, d.nachtrag ?? false, d.status === "entwurf");
   const bilder = new Map<string, PDFImage>();
   for (const [id, bytes] of Object.entries(d.bilder)) {
     try {
@@ -152,13 +157,15 @@ export async function angebotPdf(d: AngebotPdfDaten): Promise<Uint8Array> {
     z.text("Menge", SPALTE.menge.x + SPALTE.menge.b, z.y, { font: z.bold, groesse: 8.5, rechts: true });
     z.text("Einheit", SPALTE.einheit.x, z.y, { font: z.bold, groesse: 8.5 });
     z.text("Beschreibung", SPALTE.text.x, z.y, { font: z.bold, groesse: 8.5 });
-    z.text("Preis", SPALTE.preis.x + SPALTE.preis.b, z.y, { font: z.bold, groesse: 8.5, rechts: true });
-    z.text("Gesamt", SPALTE.gesamt.x + SPALTE.gesamt.b, z.y, { font: z.bold, groesse: 8.5, rechts: true });
+    if (art.preise) {
+      z.text("Preis", SPALTE.preis.x + SPALTE.preis.b, z.y, { font: z.bold, groesse: 8.5, rechts: true });
+      z.text("Gesamt", SPALTE.gesamt.x + SPALTE.gesamt.b, z.y, { font: z.bold, groesse: 8.5, rechts: true });
+    }
     z.linie(RAND_L, z.y - 4, SEITE_B - RAND_R, z.y - 4, 0.8, SCHWARZ);
     z.y -= 18;
   };
   const uebertrag = () => {
-    if (summeBisher === 0) return;
+    if (summeBisher === 0 || !art.preise) return;
     z.text("Übertrag:", SPALTE.preis.x + SPALTE.preis.b, z.y, { font: z.bold, rechts: true });
     z.text(zahl(summeBisher / 100), SPALTE.gesamt.x + SPALTE.gesamt.b, z.y, { font: z.bold, rechts: true });
     z.y -= ZEILE + 4;
@@ -174,12 +181,14 @@ export async function angebotPdf(d: AngebotPdfDaten): Promise<Uint8Array> {
     if (z.y - hoehe < UNTEN) folgeseite();
   };
 
-  if (z.y - 60 < UNTEN) { z.neueSeite(); folgekopf(z, titel, d); }
-  tabellenKopf();
+  if (art.positionen) {
+    if (z.y - 60 < UNTEN) { z.neueSeite(); folgekopf(z, titel, d); }
+    tabellenKopf();
 
-  for (const zeile of d.berechnung.zeilen) {
-    zeichneZeile(z, zeile, bilder, platz, folgeseite, () => summeBisher);
-    if (zeile.baustein.typ === "position" && zeile.gesamt !== null) summeBisher += Math.round(zeile.gesamt * 100);
+    for (const zeile of d.berechnung.zeilen) {
+      zeichneZeile(z, zeile, bilder, platz, folgeseite, () => summeBisher, art.preise);
+      if (zeile.baustein.typ === "position" && zeile.gesamt !== null) summeBisher += Math.round(zeile.gesamt * 100);
+    }
   }
 
   // ---------------------------------------------------------------------
@@ -197,16 +206,17 @@ export async function angebotPdf(d: AngebotPdfDaten): Promise<Uint8Array> {
   }
   const hinweisZeilen = b.reverseCharge ? z.umbrechen(d.reverseChargeText, z.regular, 8.5, INHALT_B) : [];
 
-  platz(summenZeilen.length * 15 + hinweisZeilen.length * 11 + 40);
+  const mitSummen = art.preise && art.positionen;
+  if (mitSummen) platz(summenZeilen.length * 15 + hinweisZeilen.length * 11 + 40);
   z.y -= 6;
-  z.linie(SPALTE.preis.x - 70, z.y + 10, SEITE_B - RAND_R, z.y + 10, 0.8, SCHWARZ);
-  for (const s of summenZeilen) {
+  if (mitSummen) z.linie(SPALTE.preis.x - 70, z.y + 10, SEITE_B - RAND_R, z.y + 10, 0.8, SCHWARZ);
+  for (const s of mitSummen ? summenZeilen : []) {
     const font = s.stark ? z.bold : z.regular;
     z.text(s.label, SPALTE.gesamt.x - 6, z.y, { font, rechts: true });
     z.text(s.wert, SEITE_B - RAND_R, z.y, { font, rechts: true });
     z.y -= 15;
   }
-  if (hinweisZeilen.length) {
+  if (mitSummen && hinweisZeilen.length) {
     z.y -= 4;
     for (const zeile of hinweisZeilen) {
       z.text(zeile, RAND_L, z.y, { groesse: 8.5 });
@@ -216,8 +226,8 @@ export async function angebotPdf(d: AngebotPdfDaten): Promise<Uint8Array> {
 
   // Zahlungsbedingungen und Gültigkeit direkt unter den Summen
   const bedingungen: string[] = [];
-  if (d.zahlungsbedingung?.trim()) bedingungen.push(`Zahlungsbedingungen: ${d.zahlungsbedingung.trim()}.`);
-  if (d.gueltigBis?.trim()) bedingungen.push(`Dieses Angebot ist gültig bis ${formatDatum(d.gueltigBis)}.`);
+  if (mitSummen && d.zahlungsbedingung?.trim()) bedingungen.push(`Zahlungsbedingungen: ${d.zahlungsbedingung.trim()}.`);
+  if (art.gueltig && d.gueltigBis?.trim()) bedingungen.push(art.gueltig.replace("{datum}", formatDatum(d.gueltigBis)));
   if (bedingungen.length) {
     z.y -= 10;
     for (const satz of bedingungen) {
@@ -232,7 +242,7 @@ export async function angebotPdf(d: AngebotPdfDaten): Promise<Uint8Array> {
   z.y -= 14;
   const schluss = d.schlusstext.trim() ? z.umbrechen(d.schlusstext, z.regular, SCHRIFT, INHALT_B) : [];
   // Unterschriftsblock zusammenhalten
-  platz(Math.min(schluss.length, 3) * ZEILE + 90);
+  platz(Math.min(schluss.length, 3) * ZEILE + (art.zustimmung ? 90 : 20));
   for (const zeile of schluss) {
     if (z.y < UNTEN + 80) { z.neueSeite(); folgekopf(z, titel, d); }
     z.text(zeile, RAND_L, z.y);
@@ -240,10 +250,12 @@ export async function angebotPdf(d: AngebotPdfDaten): Promise<Uint8Array> {
   }
   z.y -= 8;
   if (z.y < UNTEN + 70) { z.neueSeite(); folgekopf(z, titel, d); }
-  z.text("Mit dem Angebot bin ich einverstanden.", RAND_L, z.y);
-  z.y -= 44;
-  z.linie(RAND_L, z.y, RAND_L + 220, z.y, 0.6, SCHWARZ);
-  z.text("Ort, Datum, Unterschrift Auftraggeber", RAND_L, z.y - 11, { groesse: 8.5 });
+  if (art.zustimmung) {
+    z.text(art.zustimmung, RAND_L, z.y);
+    z.y -= 44;
+    z.linie(RAND_L, z.y, RAND_L + 220, z.y, 0.6, SCHWARZ);
+    z.text("Ort, Datum, Unterschrift Auftraggeber", RAND_L, z.y - 11, { groesse: 8.5 });
+  }
 
   // ---------------------------------------------------------------------
   // Fußzeile auf jeder Seite
@@ -270,6 +282,7 @@ function zeichneZeile(
   platz: (hoehe: number) => void,
   folgeseite: () => void,
   summeBisher: () => number,
+  preise: boolean,
 ) {
   void summeBisher;
   const b = zeile.baustein;
@@ -285,6 +298,7 @@ function zeichneZeile(
   }
 
   if (b.typ === "zwischensumme") {
+    if (!preise) return;
     platz(30);
     z.linie(SPALTE.preis.x - 60, z.y + 9, SEITE_B - RAND_R, z.y + 9, 0.5, SCHWARZ);
     z.text("Zwischensumme:", SPALTE.preis.x + SPALTE.preis.b, z.y, { font: z.bold, rechts: true });
@@ -338,8 +352,10 @@ function zeichneZeile(
       if (b.typ === "position") {
         z.text(zahl(b.menge ?? 0, 2, 3), SPALTE.menge.x + SPALTE.menge.b, z.y, { rechts: true });
         z.text(b.einheit, SPALTE.einheit.x, z.y);
-        z.text(zahl(b.einzelpreis ?? 0), SPALTE.preis.x + SPALTE.preis.b, z.y, { rechts: true });
-        z.text(zahl(zeile.gesamt ?? 0), SPALTE.gesamt.x + SPALTE.gesamt.b, z.y, { rechts: true });
+        if (preise) {
+          z.text(zahl(b.einzelpreis ?? 0), SPALTE.preis.x + SPALTE.preis.b, z.y, { rechts: true });
+          z.text(zahl(zeile.gesamt ?? 0), SPALTE.gesamt.x + SPALTE.gesamt.b, z.y, { rechts: true });
+        }
       }
     }
     z.text(l.t, textX, z.y, { font: l.bold ? z.bold : z.regular });

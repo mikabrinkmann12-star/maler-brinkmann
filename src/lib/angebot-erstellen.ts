@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { heuteIso, tageVerschieben } from "@/lib/datum";
+import { dokumentartInfo, istDokumentart } from "@/lib/dokumentart";
 import { angebotEinstellungenLaden } from "@/lib/firma-daten";
 import { briefanschrift } from "@/lib/kontakt-schema";
 import { adresseText } from "@/lib/projekt";
@@ -26,7 +27,7 @@ function dbMeldung(fehler: { code?: string; message: string }): string {
 export async function angebotEntwurfAnlegen(
   db: SupabaseClient<Database>,
   projektId: string,
-  eingabe: { betreff: string; leistungsort?: string },
+  eingabe: { betreff: string; leistungsort?: string; dokumentart?: string; nachtrag?: boolean },
   nutzerId?: string,
 ): Promise<AngebotEntwurfErgebnis> {
   const { data: projekt } = await db
@@ -50,12 +51,15 @@ export async function angebotEntwurfAnlegen(
   const leistungsort = eingabe.leistungsort?.trim()
     || adresseText({ strasse: projekt.baustelle_strasse, plz: projekt.baustelle_plz, ort: projekt.baustelle_ort });
 
+  const artInfo = dokumentartInfo(eingabe.dokumentart);
   const firmenZiel = await rechnungsEinstellungenLaden(db);
   const { data, error } = await db
     .from("quotes")
     .insert({
       project_id: projektId,
       betreff: eingabe.betreff,
+      dokumentart: istDokumentart(eingabe.dokumentart) ? eingabe.dokumentart : "angebot",
+      nachtrag: eingabe.nachtrag === true,
       leistungsort: leistungsort || null,
       datum: heuteIso(),
       zahlungsziel_tage: kunde?.zahlungsziel_tage ?? firmenZiel.zahlungszielTage,
@@ -63,8 +67,8 @@ export async function angebotEntwurfAnlegen(
       skonto_tage: kunde?.zahlungsziel_tage != null ? (kunde.skonto_prozent && kunde.skonto_tage ? kunde.skonto_tage : null) : firmenZiel.skontoTage,
       gueltig_bis: vorgaben.gueltigkeit_tage > 0 ? tageVerschieben(heuteIso(), vorgaben.gueltigkeit_tage) : null,
       empfaenger: kunde ? briefanschrift(kunde).join("\n") || null : null,
-      einleitung: (standardVorlage(vorlagen, "einleitung")?.inhalt ?? vorgaben.einleitung) || null,
-      schlusstext: (standardVorlage(vorlagen, "schlusstext")?.inhalt ?? vorgaben.schlusstext) || null,
+      einleitung: (artInfo.einleitung ?? standardVorlage(vorlagen, "einleitung")?.inhalt ?? vorgaben.einleitung) || null,
+      schlusstext: artInfo.schlusstext ? (standardVorlage(vorlagen, "schlusstext")?.inhalt ?? vorgaben.schlusstext) || null : null,
       steuersatz,
       reverse_charge: reverseCharge,
       rabatt_prozent: vorgaben.standard_rabatt,

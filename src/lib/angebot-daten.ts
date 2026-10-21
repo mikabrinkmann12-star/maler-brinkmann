@@ -30,6 +30,8 @@ export type AngebotKopf = {
   skontoProzent: number | null;
   skontoTage: number | null;
   gueltigBis: string | null;
+  dokumentart: string;
+  nachtrag: boolean;
 };
 
 export type AngebotProjekt = {
@@ -86,7 +88,7 @@ export async function angebotLaden(id: string, db?: SupabaseClient<Database>): P
   const { data: q, error } = await supabase
     .from("quotes")
     .select(
-      "id, project_id, status, betreff, leistungsort, datum, empfaenger, einleitung, schlusstext, steuersatz, reverse_charge, rabatt_prozent, archiviert_am, versendet_am, versendet_an, zahlungsziel_tage, skonto_prozent, skonto_tage, gueltig_bis, projects(id, name, projektnummer, baustelle_strasse, baustelle_plz, baustelle_ort, archiviert_am, contacts(id, kundennummer, typ, firmenname, vorname, nachname, email))",
+      "id, project_id, status, betreff, leistungsort, datum, empfaenger, einleitung, schlusstext, steuersatz, reverse_charge, rabatt_prozent, archiviert_am, versendet_am, versendet_an, zahlungsziel_tage, skonto_prozent, skonto_tage, gueltig_bis, dokumentart, nachtrag, projects(id, name, projektnummer, baustelle_strasse, baustelle_plz, baustelle_ort, archiviert_am, contacts(id, kundennummer, typ, firmenname, vorname, nachname, email))",
     )
     .eq("id", id)
     .maybeSingle();
@@ -125,6 +127,8 @@ export async function angebotLaden(id: string, db?: SupabaseClient<Database>): P
       skontoProzent: q.skonto_prozent == null ? null : Number(q.skonto_prozent),
       skontoTage: q.skonto_tage,
       gueltigBis: q.gueltig_bis,
+      dokumentart: q.dokumentart,
+      nachtrag: q.nachtrag,
     },
     bausteine: items.map(bausteinAusZeile),
     projekt: {
@@ -156,6 +160,8 @@ export type AngebotListenZeile = {
   brutto: number;
   /** Zuletzt bearbeitet (für die Sortierung bei gleichem Datum) */
   erstelltAm: string;
+  dokumentart: string;
+  nachtrag: boolean;
 };
 
 export const MAX_ANGEBOTE = 300;
@@ -173,7 +179,7 @@ export async function angeboteLaden(opts: {
   let abfrage = supabase
     .from("quotes")
     .select(
-      "id, project_id, betreff, datum, status, versendet_am, steuersatz, reverse_charge, rabatt_prozent, archiviert_am, created_at, projects(name, projektnummer, archiviert_am, contacts(firmenname, vorname, nachname)), quote_items(typ, menge, einzelpreis)",
+      "id, project_id, betreff, datum, status, dokumentart, nachtrag, versendet_am, steuersatz, reverse_charge, rabatt_prozent, archiviert_am, created_at, projects(name, projektnummer, archiviert_am, contacts(firmenname, vorname, nachname)), quote_items(typ, menge, einzelpreis)",
     );
   abfrage = opts.archiv ? abfrage.not("archiviert_am", "is", null) : abfrage.is("archiviert_am", null);
   if (opts.status) abfrage = abfrage.eq("status", opts.status);
@@ -206,6 +212,8 @@ export async function angeboteLaden(opts: {
       geoeffnetAm: oeffnungen.get(q.id)?.erstAm ?? null,
       brutto: rechnung.brutto,
       erstelltAm: q.created_at,
+      dokumentart: q.dokumentart,
+      nachtrag: q.nachtrag,
     };
   });
 

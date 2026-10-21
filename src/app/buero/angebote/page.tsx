@@ -12,6 +12,7 @@ import { heuteIso } from "@/lib/datum";
 import { formatBetrag, formatDatum } from "@/lib/format";
 import { istTag } from "@/lib/zeitraum";
 import { AnnahmeWahl } from "./annahme-wahl";
+import { dokumentTitel } from "@/lib/dokumentart";
 import { AngebotZeilenMenue } from "./zeilen-menue";
 
 export const metadata: Metadata = { title: "Angebote" };
@@ -49,7 +50,7 @@ export default async function AngebotsListe({ searchParams }: PageProps<"/buero/
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-xl font-semibold">Angebote</h1>
         <Link href="/buero/angebote/neu" className={buttonVariants({ className: "h-8 px-3 text-[13px]" })}>
-          <PlusIcon className="size-3.5 sm:hidden" /> Neues Angebot
+          <PlusIcon className="size-3.5 sm:hidden" /> Neues Dokument
         </Link>
       </div>
 
@@ -95,7 +96,7 @@ export default async function AngebotsListe({ searchParams }: PageProps<"/buero/
           </thead>
           <tbody>
             {zeilen.length === 0 && (
-              <tr><td colSpan={7} className="px-3 py-10 text-center text-muted-foreground">{alle.length ? "Keine Angebote mit diesen Filtern." : "Noch kein Angebot. Lege das erste mit „Neues Angebot“ an."}</td></tr>
+              <tr><td colSpan={7} className="px-3 py-10 text-center text-muted-foreground">{alle.length ? "Keine Angebote mit diesen Filtern." : "Noch kein Angebot. Lege das erste mit „Neues Dokument“ an."}</td></tr>
             )}
             {zeilen.map((z) => (
               <tr key={z.id} className="relative border-b last:border-b-0 hover:bg-muted/40">
@@ -104,7 +105,7 @@ export default async function AngebotsListe({ searchParams }: PageProps<"/buero/
                     <Link href={`/buero/angebote/${z.id}`} className="block min-w-0 truncate font-semibold after:absolute after:inset-0 after:content-['']">{z.betreff}</Link>
                     {z.status === "entwurf" && <StatusPille name="Entwurf" farbe="#6b7280" className="shrink-0" />}
                   </div>
-                  <span className="block truncate text-xs text-muted-foreground">{[z.projektnummer, z.projektName].filter(Boolean).join(" · ")}</span>
+                  <span className="block truncate text-xs text-muted-foreground">{[z.dokumentart !== "angebot" || z.nachtrag ? dokumentTitel(z.dokumentart, z.nachtrag, false) : "", z.projektnummer, z.projektName].filter(Boolean).join(" · ")}</span>
                 </td>
                 <td className="hidden px-3 py-2.5 whitespace-nowrap sm:table-cell">{formatDatum(z.datum)}</td>
                 <td className="hidden max-w-48 truncate px-3 py-2.5 md:table-cell">{z.kunde || "–"}</td>

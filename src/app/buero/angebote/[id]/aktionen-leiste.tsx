@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { FormularMeldung } from "@/components/formular-meldung";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { STATUS_NAMEN, type AngebotStatus } from "@/lib/angebot";
+import { DOKUMENTARTEN, DOKUMENTART_INFO, rechnungMoeglich } from "@/lib/dokumentart";
 import { angebotArchivieren, angebotKopieren, angebotStatusSetzen } from "../actions";
 import { arbeitsanweisungErstellen, materialListeErstellen } from "../anweisung-actions";
 import { rechnungAusAngebotErstellen } from "../../rechnungen/actions";
@@ -19,7 +20,7 @@ const WEITER: Record<AngebotStatus, AngebotStatus[]> = {
 };
 
 /** PDF, Status wechseln, Kopieren, Archivieren. */
-export function AktionenLeiste({ angebotId, status, archiviert }: { angebotId: string; status: AngebotStatus; archiviert: boolean }) {
+export function AktionenLeiste({ angebotId, status, archiviert, dokumentart }: { angebotId: string; status: AngebotStatus; archiviert: boolean; dokumentart: string }) {
   const router = useRouter();
   const [fehler, setFehler] = useState<string | null>(null);
   const [frage, setFrage] = useState<AngebotStatus | null>(null);
@@ -36,10 +37,10 @@ export function AktionenLeiste({ angebotId, status, archiviert }: { angebotId: s
     });
   }
 
-  function kopieren() {
+  function kopieren(art?: string) {
     setFehler(null);
     starte(async () => {
-      const r = await angebotKopieren(angebotId);
+      const r = await angebotKopieren(angebotId, art);
       if (r.fehler && !r.id) return setFehler(r.fehler);
       if (r.fehler) toast.warning(r.fehler);
       else toast.success("Kopie angelegt");
@@ -97,8 +98,12 @@ export function AktionenLeiste({ angebotId, status, archiviert }: { angebotId: s
         <a href={`/buero/angebote/${angebotId}/pdf?download=1`} className={buttonVariants({ variant: "outline" })}>
           <DownloadIcon /> PDF herunterladen
         </a>
-        <Button type="button" variant="outline" onClick={kopieren} disabled={laeuft}><CopyIcon /> Kopieren</Button>
-        {(status === "versendet" || status === "angenommen") && (
+        <Button type="button" variant="outline" onClick={() => kopieren()} disabled={laeuft}><CopyIcon /> Kopieren</Button>
+        <select aria-label="Als anderes Dokument kopieren" value="" disabled={laeuft} onChange={(e) => e.target.value && kopieren(e.target.value)} className="h-9 rounded-md border bg-white px-2 text-sm">
+          <option value="">Kopieren als …</option>
+          {DOKUMENTARTEN.filter((a) => a !== dokumentart).map((a) => <option key={a} value={a}>{DOKUMENTART_INFO[a].name}</option>)}
+        </select>
+        {rechnungMoeglich(dokumentart) && (status === "versendet" || status === "angenommen") && (
           <Button type="button" variant="outline" onClick={rechnung} disabled={laeuft}><ReceiptTextIcon /> Rechnung erstellen</Button>
         )}
         <Button type="button" variant="outline" onClick={materialliste} disabled={laeuft}><PackageCheckIcon /> Materialliste erstellen</Button>

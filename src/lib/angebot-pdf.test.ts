@@ -94,4 +94,19 @@ describe("angebotPdf", () => {
     const bytes = await angebotPdf(daten([], { firma: { ...firma, name: "", ustid: "", iban: "", bank: "", bic: "", inhaber: "", steuernummer: "" } }));
     expect((await PDFDocument.load(bytes)).getPageCount()).toBe(1);
   });
+
+  it("erzeugt für jede Dokumentart ein gültiges PDF (auch Lieferschein ohne Preise, Brief ohne Positionen, Nachtrag)", async () => {
+    const posten = [pos("Wände", 10, "m²", 10), andere("zwischensumme"), pos("Decke", 5, "m²", 8)];
+    const groessen: Record<string, number> = {};
+    for (const art of ["angebot", "kostenvoranschlag", "auftragsbestaetigung", "lieferschein", "bestellschein", "brief"]) {
+      const bytes = await angebotPdf(daten(posten, { dokumentart: art, gueltigBis: "2026-11-17", zahlungsbedingung: "14 Tage netto" }));
+      expect((await PDFDocument.load(bytes)).getPageCount()).toBe(1);
+      groessen[art] = bytes.length;
+    }
+    // Ohne Preise, Summen und Tabelle bleibt weniger Inhalt übrig
+    expect(groessen.lieferschein).toBeLessThan(groessen.angebot);
+    expect(groessen.brief).toBeLessThan(groessen.lieferschein);
+    const nachtrag = await angebotPdf(daten(posten, { dokumentart: "auftragsbestaetigung", nachtrag: true, status: "versendet" }));
+    expect((await PDFDocument.load(nachtrag)).getPageCount()).toBe(1);
+  });
 });

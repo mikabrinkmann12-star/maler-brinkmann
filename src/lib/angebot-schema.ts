@@ -1,6 +1,7 @@
 // Eingaben für Angebote prüfen (zod + deutsche Zahlen). Auch im Browser nutzbar.
 
 import { z } from "zod";
+import { DOKUMENTARTEN } from "@/lib/dokumentart";
 import { einzelpreisLesen, mengeLesen, zahlLesen, type BausteinTyp } from "@/lib/angebot";
 
 const optional = (max: number, label: string) =>
@@ -15,6 +16,8 @@ function istDatum(wert: string): boolean {
 export const neuesAngebotSchema = z.object({
   betreff: optional(200, "Der Betreff").min(1, "Bitte den Betreff eingeben."),
   leistungsort: optional(300, "Der Leistungsort"),
+  dokumentart: z.enum(DOKUMENTARTEN).optional(),
+  nachtrag: z.boolean().optional(),
 });
 
 export const kopfSchema = z.object({

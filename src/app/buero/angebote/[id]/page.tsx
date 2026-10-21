@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeftIcon, LockIcon } from "lucide-react";
 import { requireBueroRecht } from "@/lib/auth";
 import { angebotBerechnen } from "@/lib/angebot";
+import { dokumentTitel } from "@/lib/dokumentart";
 import { auswahlAusSteuer } from "@/lib/angebot-schema";
 import { angebotLaden } from "@/lib/angebot-daten";
 import { mailPlatzhalter } from "@/lib/angebot-mail";
@@ -61,6 +62,7 @@ export default async function AngebotSeite({ params }: PageProps<"/buero/angebot
 
       <div className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-3">
+          {(a.dokumentart !== "angebot" || a.nachtrag) && <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium">{dokumentTitel(a.dokumentart, a.nachtrag, false)}</span>}
           <h1 className="text-2xl font-semibold">{a.betreff}</h1>
           <StatusBadge status={a.status} />
           {a.archiviert && <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-900">Archiviert</span>}
@@ -139,7 +141,7 @@ export default async function AngebotSeite({ params }: PageProps<"/buero/angebot
         )}
       </section>
 
-      <AktionenLeiste angebotId={a.id} status={a.status} archiviert={a.archiviert} />
+      <AktionenLeiste angebotId={a.id} status={a.status} archiviert={a.archiviert} dokumentart={a.dokumentart} />
 
       {!a.archiviert && (
         <MailPanel

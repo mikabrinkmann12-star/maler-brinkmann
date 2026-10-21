@@ -2100,11 +2100,13 @@ export type Database = {
           created_at: string
           created_by: string | null
           datum: string
+          dokumentart: string
           einleitung: string | null
           empfaenger: string | null
           gueltig_bis: string | null
           id: string
           leistungsort: string | null
+          nachtrag: boolean
           project_id: string
           rabatt_prozent: number
           reverse_charge: boolean
@@ -2124,11 +2126,13 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           datum?: string
+          dokumentart?: string
           einleitung?: string | null
           empfaenger?: string | null
           gueltig_bis?: string | null
           id?: string
           leistungsort?: string | null
+          nachtrag?: boolean
           project_id: string
           rabatt_prozent?: number
           reverse_charge?: boolean
@@ -2148,11 +2152,13 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           datum?: string
+          dokumentart?: string
           einleitung?: string | null
           empfaenger?: string | null
           gueltig_bis?: string | null
           id?: string
           leistungsort?: string | null
+          nachtrag?: boolean
           project_id?: string
           rabatt_prozent?: number
           reverse_charge?: boolean
