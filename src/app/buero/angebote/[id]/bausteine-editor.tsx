@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ImageIcon, LibraryIcon, PlusIcon, SigmaIcon, TextIcon, HeadingIcon, XIcon } from "lucide-react";
+import { ChevronDownIcon, ChevronRightIcon, CopyPlusIcon, ImageIcon, LibraryIcon, PlusIcon, SigmaIcon, TextIcon, HeadingIcon, XIcon } from "lucide-react";
 import { toast } from "sonner";
 import { FormularMeldung } from "@/components/formular-meldung";
 import { Button } from "@/components/ui/button";
@@ -12,9 +12,10 @@ import { neueId } from "@/lib/warteschlange";
 import { createBrowserSupabase } from "@/lib/supabase/client";
 import { bausteinSpeichern, bildBausteinAnlegen } from "../actions";
 import { BausteinKarte } from "./baustein-karte";
+import { DokumentAuswahl } from "./dokument-auswahl";
 import { KatalogAuswahl } from "./katalog-auswahl";
 
-type Modus = { art: "neu"; typ: BausteinTyp } | { art: "katalog" } | null;
+type Modus = { art: "neu"; typ: BausteinTyp } | { art: "katalog" } | { art: "dokument" } | null;
 
 function HinzufuegenLeiste({ angebotId, projektId, nachId, onAbbrechen }: { angebotId: string; projektId: string; nachId: string | null; onAbbrechen?: () => void }) {
   const router = useRouter();
@@ -55,6 +56,7 @@ function HinzufuegenLeiste({ angebotId, projektId, nachId, onAbbrechen }: { ange
   }
 
   if (modus?.art === "katalog") return <KatalogAuswahl angebotId={angebotId} nachId={nachId} onSchliessen={() => { setModus(null); onAbbrechen?.(); }} />;
+  if (modus?.art === "dokument") return <DokumentAuswahl angebotId={angebotId} nachId={nachId} onSchliessen={() => { setModus(null); onAbbrechen?.(); }} />;
   if (modus?.art === "neu") {
     return (
       <BausteinKarte angebotId={angebotId} projektId={projektId} baustein={null} neuTyp={modus.typ} nachId={nachId} nummer="neu" zwischensumme={null}
@@ -78,6 +80,7 @@ function HinzufuegenLeiste({ angebotId, projektId, nachId, onAbbrechen }: { ange
       <div className="flex flex-wrap gap-2">
         {knopf(<PlusIcon />, "Position", () => setModus({ art: "neu", typ: "position" }))}
         {knopf(<LibraryIcon />, "Aus Katalog", () => setModus({ art: "katalog" }))}
+        {knopf(<CopyPlusIcon />, "Aus Dokument", () => setModus({ art: "dokument" }))}
         {knopf(<HeadingIcon />, "Titel", () => setModus({ art: "neu", typ: "titel" }))}
         {knopf(<TextIcon />, "Text", () => setModus({ art: "neu", typ: "text" }))}
         {knopf(<SigmaIcon />, "Zwischensumme", zwischensumme)}
@@ -105,12 +108,32 @@ export function BausteineEditor({
   gesperrt: boolean;
 }) {
   const [einfuegenNach, setEinfuegenNach] = useState<string | null>(null);
+  // Eingeklappte Titel: ihre Positionen bis zum nächsten Titel sind ausgeblendet (nur Anzeige, nichts wird geändert)
+  const [eingeklappt, setEingeklappt] = useState<Set<string>>(new Set());
+  const umschalten = (id: string) => setEingeklappt((alt) => { const neu = new Set(alt); if (!neu.delete(id)) neu.add(id); return neu; });
+  const versteckt = new Set<string>();
+  const anzahlUnter = new Map<string, number>();
+  let aktuellerTitel: string | null = null;
+  for (const z of zeilen) {
+    if (z.baustein.typ === "titel") { aktuellerTitel = z.baustein.id; anzahlUnter.set(aktuellerTitel, 0); continue; }
+    if (aktuellerTitel) {
+      anzahlUnter.set(aktuellerTitel, (anzahlUnter.get(aktuellerTitel) ?? 0) + 1);
+      if (eingeklappt.has(aktuellerTitel)) versteckt.add(z.baustein.id);
+    }
+  }
 
   return (
     <div className="flex flex-col gap-3">
       {zeilen.length === 0 && <p className="rounded-xl border border-dashed p-6 text-muted-foreground">Noch keine Bausteine. Füge unten eine Position hinzu oder nimm sie aus dem Katalog.</p>}
-      {zeilen.map((z, i) => (
+      {zeilen.map((z, i) => versteckt.has(z.baustein.id) ? null : (
         <div key={`${z.baustein.id}:${z.baustein.kurztext}|${z.baustein.langtext}|${z.baustein.menge}|${z.baustein.einheit}|${z.baustein.einzelpreis}`} className="flex flex-col gap-2">
+          {z.baustein.typ === "titel" && (anzahlUnter.get(z.baustein.id) ?? 0) > 0 && (
+            <button type="button" onClick={() => umschalten(z.baustein.id)} aria-expanded={!eingeklappt.has(z.baustein.id)}
+              className="flex w-fit items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
+              {eingeklappt.has(z.baustein.id) ? <ChevronRightIcon className="size-3.5" /> : <ChevronDownIcon className="size-3.5" />}
+              {eingeklappt.has(z.baustein.id) ? `Ausklappen (${anzahlUnter.get(z.baustein.id)} ausgeblendet)` : "Einklappen"}
+            </button>
+          )}
           <BausteinKarte angebotId={angebotId} projektId={projektId} baustein={z.baustein} nummer={z.nummer} zwischensumme={z.zwischensumme}
             bildUrl={bildUrls[z.baustein.id]} gesperrt={gesperrt} erste={i === 0} letzte={i === zeilen.length - 1} />
           {!gesperrt && i < zeilen.length - 1 && (

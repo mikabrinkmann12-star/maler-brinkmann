@@ -20,6 +20,7 @@ import { BausteineEditor } from "./bausteine-editor";
 import { KiAssistent } from "./ki-assistent";
 import { KopfFormular } from "./kopf-formular";
 import { MailPanel } from "./mail-panel";
+import { PreisAnpassen } from "./preis-anpassen";
 import { oeffnungenLaden } from "@/lib/angebot-freigabe-daten";
 
 export const metadata: Metadata = { title: "Angebot" };
@@ -130,6 +131,11 @@ export default async function AngebotSeite({ params }: PageProps<"/buero/angebot
           </>
         ) : (
           <p className="mt-1 text-sm text-muted-foreground">Ohne Umsatzsteuer (0 %).</p>
+        )}
+        {!gesperrt && rechnung.netto > 0 && (
+          <div className="mt-2 border-t pt-3">
+            <PreisAnpassen angebotId={a.id} netto={rechnung.netto} />
+          </div>
         )}
       </section>
 

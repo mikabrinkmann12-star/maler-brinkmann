@@ -22,7 +22,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   const db = adminClient();
-  await db.from("project_costs").update({ erstellt_von: null }).eq("project_id", projekt);
+  await db.from("project_costs").delete().eq("project_id", projekt);
   await db.from("incoming_invoices").delete().eq("project_id", projekt);
   await db.from("projects").update({ archiviert_am: new Date().toISOString(), created_by: null }).eq("id", projekt);
   await Promise.all([buero, ma].map((n) => testNutzerLoeschen(n)));
