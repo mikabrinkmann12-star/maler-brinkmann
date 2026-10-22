@@ -14,7 +14,9 @@ const AKTUELL = ["In Arbeit", "Auftrag erteilt"];
 
 export default async function EinteilungSeite({ searchParams }: PageProps<"/buero/plantafel">) {
   await requireBueroRecht("einteilung_bearbeiten");
-  const { datum: datumParam } = await searchParams;
+  const { datum: datumParam, jarvis } = await searchParams;
+  // Satz von Jarvis (höchstens 500 Zeichen): wird in der Spracheingabe ausgewertet, es wird nichts automatisch gespeichert
+  const jarvisText = typeof jarvis === "string" ? jarvis.slice(0, 500) : undefined;
   const datum = istIsoDatum(datumParam) ? datumParam : heuteIso();
 
   const supabase = await createClient();
@@ -90,7 +92,7 @@ export default async function EinteilungSeite({ searchParams }: PageProps<"/buer
       <PlantafelTabs aktiv="tag" datum={datum} />
       <Einteilung
         // Nach dem Speichern neu starten, damit die Karten den gespeicherten Stand zeigen
-        key={`${datum}-${JSON.stringify(daten)}`}
+        key={`${datum}-${JSON.stringify(daten)}-${jarvisText ?? ""}`}
         datum={datum}
         heute={heuteIso()}
         fahrzeuge={fahrzeuge.data}
@@ -106,6 +108,7 @@ export default async function EinteilungSeite({ searchParams }: PageProps<"/buer
           personIds: t.appointment_members.map((m) => m.user_id),
         }))}
         abwesend={abwesend}
+        jarvisText={jarvisText}
       />
     </div>
   );

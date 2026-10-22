@@ -16,6 +16,7 @@ export const useBuero = () => useContext(BueroKontext);
 /** Ereignisse, mit denen die Menüeinträge die Fenster öffnen (Fenster hängen einmal im Rahmen). */
 export const SUCHE_OEFFNEN = "buero:suche-oeffnen";
 export const BENACHRICHTIGUNGEN_OEFFNEN = "buero:benachrichtigungen-oeffnen";
+export const JARVIS_OEFFNEN = "buero:jarvis-oeffnen";
 
 /** „Neue Zeit“ als Fenster (Menü-Plus, Zeiten-Seite, Suche). Mit `detail: { person?, datum? }` vorbelegbar. */
 export const NEUE_ZEIT_OEFFNEN = "buero:neue-zeit-oeffnen";

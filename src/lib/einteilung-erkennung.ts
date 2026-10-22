@@ -28,6 +28,8 @@ export type ErkennungsErgebnis = {
   gruppen: EinteilungsGruppe[];
   /** Verständliche Hinweise, z. B. bei mehrdeutigen Namen. */
   hinweise: string[];
+  /** Baustellen, die zu einem gesagten Wort passten, aber nicht eindeutig waren (zum Nachfragen, z. B. bei Jarvis). */
+  mehrdeutigeProjekte: string[];
 };
 
 const ZAHLWOERTER: Record<string, string> = {
@@ -100,6 +102,7 @@ export function einteilungErkennen(
 ): ErkennungsErgebnis {
   const w = woerter(text);
   const hinweise: string[] = [];
+  const mehrdeutigeProjekte = new Set<string>();
 
   // Vorbereitete Wortlisten
   const fahrzeugWorte = daten.fahrzeuge.map((f) => ({
@@ -200,6 +203,7 @@ export function einteilungErkennen(
         continue;
       }
       hinweise.push(`„${wort}“ passt zu mehreren Baustellen – bitte genauer sagen.`);
+      for (const p of auswahl) mehrdeutigeProjekte.add(p.id);
       i += laenge;
       continue;
     }
@@ -250,5 +254,5 @@ export function einteilungErkennen(
   if (!ergebnis.length && w.length) {
     hinweise.push("Ich habe keine Mitarbeiter, Autos oder Baustellen erkannt.");
   }
-  return { gruppen: ergebnis, hinweise: [...new Set(hinweise)] };
+  return { gruppen: ergebnis, hinweise: [...new Set(hinweise)], mehrdeutigeProjekte: [...mehrdeutigeProjekte] };
 }
