@@ -13,14 +13,13 @@ import {
   HouseIcon,
   LayersIcon,
   InboxIcon,
-  MicIcon,
   PlusIcon,
   ReceiptTextIcon,
   UsersIcon,
 } from "lucide-react";
 import { cn } from "cn";
 import { rechtOk } from "@/lib/rechte";
-import { BENACHRICHTIGUNGEN_OEFFNEN, JARVIS_OEFFNEN, NEUE_ZEIT_OEFFNEN, SUCHE_OEFFNEN, useBuero } from "./buero-kontext";
+import { BENACHRICHTIGUNGEN_OEFFNEN, NEUE_ZEIT_OEFFNEN, SUCHE_OEFFNEN, useBuero } from "./buero-kontext";
 
 type Eintrag = {
   href: string;
@@ -110,7 +109,6 @@ export function BueroNavigation({
           "Benachrichtigungen",
           BellIcon,
         )}
-        {fensterKnopf(JARVIS_OEFFNEN, "Jarvis", MicIcon)}
         <li aria-hidden className="my-1 h-px bg-sidebar-border" />
         {EINTRAEGE.filter((e) => (!e.nurAdmin || istAdmin) && (!e.recht || rechtOk(rechte, e.recht))).map(({ href, name, icon: Icon, plus: plusEintrag, neu, auch = [] }) => {
           // Das „+“ gibt es nur, wenn der Nutzer auch anlegen darf

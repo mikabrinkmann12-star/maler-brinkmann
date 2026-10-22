@@ -29,20 +29,17 @@ export function Spracheingabe({
   daten,
   namen,
   onUebernehmen,
-  startText = "",
 }: {
   daten: { mitarbeiter: ErkennungsMitarbeiter[]; fahrzeuge: ErkennungsFahrzeug[]; projekte: ErkennungsProjekt[] };
   namen: { fahrzeug: (id: string | null) => string; projekt: (id: string) => string; person: (id: string) => string };
   onUebernehmen: (gruppen: EinteilungsGruppe[]) => void;
-  /** Vorbelegter Text (von Jarvis): wird sofort ausgewertet */
-  startText?: string;
 }) {
   const verfuegbar = useSyncExternalStore(keinAbo, spracheVerfuegbar, () => false);
-  const [text, setText] = useState(startText);
+  const [text, setText] = useState("");
   const [zwischentext, setZwischentext] = useState("");
   const [hoert, setHoert] = useState(false);
   const [fehler, setFehler] = useState<string | null>(null);
-  const [ergebnis, setErgebnis] = useState<ErkennungsErgebnis | null>(() => (startText.trim() ? einteilungErkennen(startText, daten) : null));
+  const [ergebnis, setErgebnis] = useState<ErkennungsErgebnis | null>(null);
   const erkennung = useRef<Spracherkennung | null>(null);
 
   function auswerten(eingabe = text) {

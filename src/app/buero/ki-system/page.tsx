@@ -24,7 +24,7 @@ const DARF_NICHT = [
 
 /**
  * KI-System: Platz für „Jarvis“. Hier steht, was Jarvis in der App getan hat (Protokoll der Schnittstelle), was er darf und was noch fehlt.
- * Nur für den Admin (das Protokoll und die Schlüssel sind Admin-Sache). Der Browser-Jarvis (feste Befehle, ohne KI) steht im Büro-Menü; die KI-Sprache und das Telefon sind noch nicht gebaut.
+ * Nur für den Admin (das Protokoll und die Schlüssel sind Admin-Sache). Jarvis selbst (Sprache, Telefon) ist noch nicht gebaut.
  */
 export default async function KiSystemSeite() {
   await requireRole(["admin"]);
@@ -97,20 +97,6 @@ export default async function KiSystemSeite() {
         </section>
       )}
 
-      <section className={box} aria-label="Jarvis im Browser">
-        <h2 className="flex items-center gap-2 text-[15px] font-semibold"><MicIcon className="size-4" /> Jarvis im Browser (ohne KI)</h2>
-        <p className="mt-2 text-[13px]">
-          Im Büro-Menü gibt es „Jarvis“ (Admin und Büro, auch am Handy): sprechen oder tippen, Jarvis erkennt feste Befehle und zeigt einen Vorschlag. Etwas ändern
-          (Container melden, Notiz speichern) passiert erst nach „Ja, ausführen“, die Einteilung öffnet nur die Plantafel mit dem Vorschlag, Nachsehen
-          (Wer ist heute wo, Resturlaub, Was ist offen) ändert nichts. Er arbeitet mit den Rechten der angemeldeten Person, nicht über die Schnittstelle, und
-          steht deshalb nicht im Protokoll oben; die Änderungen stehen wie sonst im Verlauf der Datensätze. Er versendet nichts und löscht nichts.
-        </p>
-        <p className="mt-2 text-xs text-muted-foreground">
-          Es ist keine KI und kostet nichts. Die Spracherkennung macht der Browser (Chrome: Google, Safari: Apple). Die Erkennung steht in <code>src/lib/jarvis-befehle.ts</code>
-          und lässt sich später durch eine echte KI ersetzen.
-        </p>
-      </section>
-
       <div className="grid gap-4 md:grid-cols-2">
         <section className={box} aria-label="Was Jarvis darf">
           <h2 className="text-[15px] font-semibold">Was Jarvis darf</h2>
@@ -125,7 +111,7 @@ export default async function KiSystemSeite() {
         <section className={box} aria-label="Noch nicht gebaut">
           <h2 className="text-[15px] font-semibold">Noch nicht eingerichtet</h2>
           <ul className="mt-2 flex flex-col gap-2 text-[13px]">
-            <li className="flex gap-2"><MicIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" /><span><span className="font-medium">Freie Sprache:</span> Jarvis versteht beliebig formulierte Anweisungen. Braucht einen KI-Dienst (kostet pro Nutzung), das entscheidet Ralf. Feste Befehle kann der Browser-Jarvis schon.</span></li>
+            <li className="flex gap-2"><MicIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" /><span><span className="font-medium">Sprache:</span> Jarvis versteht gesprochene Anweisungen. Braucht einen KI-Dienst (kostet pro Nutzung), das entscheidet Ralf.</span></li>
             <li className="flex gap-2"><PhoneIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" /><span><span className="font-medium">Telefon:</span> Anrufe annehmen, Containerfirma anrufen und die Bestellung eintragen. Braucht eine Telefonnummer (kostet monatlich).</span></li>
           </ul>
           <p className="mt-3 text-xs text-muted-foreground">Der Plan steht in <code>docs/JARVIS-PROMPT.md</code>. Sobald Jarvis gebaut ist, erscheinen seine Anrufe und Gespräche hier unter Aktivität.</p>

@@ -144,7 +144,6 @@ export function Einteilung({
   einsaetze,
   termine,
   abwesend,
-  jarvisText,
 }: {
   datum: string;
   heute: string;
@@ -155,8 +154,6 @@ export function Einteilung({
   termine: TerminAnzeige[];
   /** Person → Grund der Abwesenheit (Urlaub, Krank) */
   abwesend: Record<string, string>;
-  /** Satz von Jarvis: wird gleich ausgewertet und als Vorschlag gezeigt (gespeichert wird erst nach „Übernehmen“ und „Alle speichern“) */
-  jarvisText?: string;
 }) {
   // Eine Karte pro Auto + eine für "Ohne Firmenwagen"
   const startKarten = useMemo(() => {
@@ -343,7 +340,6 @@ export function Einteilung({
         </div>
 
         <Spracheingabe
-          startText={jarvisText}
           daten={{
             mitarbeiter,
             fahrzeuge: autos,
