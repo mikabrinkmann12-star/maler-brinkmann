@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { anrufNormalisieren, dauerText, geheimnisPasst, kategorieErkennen, nummerNormalisieren, nummernSchluessel } from "./anruf";
+import { anrufNormalisieren, aufnahmeUrlPruefen, dauerText, geheimnisPasst, kategorieErkennen, nummerNormalisieren, nummernSchluessel } from "./anruf";
 
 describe("nummerNormalisieren", () => {
   it("gleiche Nummer in verschiedenen Schreibweisen", () => {
@@ -88,5 +88,25 @@ describe("geheimnisPasst / dauerText", () => {
     expect(dauerText(45)).toBe("45 Sek");
     expect(dauerText(205)).toBe("3:25 Min");
     expect(dauerText(null)).toBe("–");
+  });
+});
+
+describe("aufnahmeUrlPruefen", () => {
+  it("nur https-Adressen und Pfade der App", () => {
+    expect(aufnahmeUrlPruefen("https://dienst.example/aufnahme.mp3")).toBe("https://dienst.example/aufnahme.mp3");
+    expect(aufnahmeUrlPruefen("/demo-anrufe/a.mp3")).toBe("/demo-anrufe/a.mp3");
+    expect(aufnahmeUrlPruefen("http://unsicher.example/a.mp3")).toBeNull();
+    expect(aufnahmeUrlPruefen("//fremd.example/a.mp3")).toBeNull();
+    expect(aufnahmeUrlPruefen("javascript:alert(1)")).toBeNull();
+    expect(aufnahmeUrlPruefen("")).toBeNull();
+    expect(aufnahmeUrlPruefen(42)).toBeNull();
+  });
+  it("kommt aus der generischen und der Retell-Form", () => {
+    const g = anrufNormalisieren({ id: "u1", zusammenfassung: "x", aufnahme_url: "https://dienst.example/a.mp3" });
+    expect(g.ok && g.anruf.aufnahmeUrl).toBe("https://dienst.example/a.mp3");
+    const r = anrufNormalisieren({ event: "call_analyzed", call: { call_id: "u2", recording_url: "https://dienst.example/b.mp3", call_analysis: { call_summary: "y" } } });
+    expect(r.ok && r.anruf.aufnahmeUrl).toBe("https://dienst.example/b.mp3");
+    const boese = anrufNormalisieren({ id: "u3", zusammenfassung: "x", aufnahme_url: "javascript:alert(1)" });
+    expect(boese.ok && boese.anruf.aufnahmeUrl).toBeNull();
   });
 });

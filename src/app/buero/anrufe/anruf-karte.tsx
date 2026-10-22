@@ -20,6 +20,7 @@ export type AnrufZeile = {
   dauerSek: number | null;
   zusammenfassung: string;
   transkript: string | null;
+  aufnahmeUrl: string | null;
   kategorie: AnrufKategorie;
   status: AnrufStatus;
   notiz: string;
@@ -133,7 +134,11 @@ export function AnrufKarte({ anruf }: { anruf: AnrufZeile }) {
         </Button>
       </div>
 
-      {anruf.transkript && <GespraechAbspielen transkript={anruf.transkript} />}
+      {anruf.aufnahmeUrl ? (
+        <audio controls preload="none" src={anruf.aufnahmeUrl} className="h-10 w-full" aria-label="Aufnahme des Gesprächs" />
+      ) : (
+        anruf.transkript && <GespraechAbspielen transkript={anruf.transkript} />
+      )}
 
       {anruf.transkript && (
         <details className="group rounded-lg border bg-muted/30 px-3 py-2 text-sm">

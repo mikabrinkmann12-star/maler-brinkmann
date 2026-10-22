@@ -374,6 +374,7 @@ export type Database = {
           anbieter: string
           anbieter_id: string | null
           archiviert_am: string | null
+          aufnahme_url: string | null
           bearbeitet_von: string | null
           beginn: string
           contact_id: string | null
@@ -395,6 +396,7 @@ export type Database = {
           anbieter: string
           anbieter_id?: string | null
           archiviert_am?: string | null
+          aufnahme_url?: string | null
           bearbeitet_von?: string | null
           beginn?: string
           contact_id?: string | null
@@ -416,6 +418,7 @@ export type Database = {
           anbieter?: string
           anbieter_id?: string | null
           archiviert_am?: string | null
+          aufnahme_url?: string | null
           bearbeitet_von?: string | null
           beginn?: string
           contact_id?: string | null

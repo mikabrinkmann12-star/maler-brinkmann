@@ -37,5 +37,10 @@ Retell: Das Ereignis `call_analyzed` wird erkannt (Anruf-ID, Nummern, Zeiten, Zu
 - `npm run anruf:demo` legt vier Demo-Anrufe in `brinkmann-dev` an (über die laufende App unter localhost:3000, mit dem Geheimnis aus `.env.local`). `npm run anruf:demo -- --weg` entfernt sie wieder.
 - Tests: `src/lib/anruf.test.ts` (Umwandlung, Kategorie, Nummern) und `tests/rls/24-anrufe.test.ts` (Rechte, Webhook).
 
+## Sprachaufnahme anhören
+Jeder Anruf kann einen Link zur Aufnahme haben (`calls.aufnahme_url`, Migration `…20261022120000_anrufe_aufnahme`): Der Dienst schickt ihn als `aufnahme_url` (generisch) bzw. `call.recording_url` (Retell). Es zählen nur https-Adressen und Pfade der App. Die Liste zeigt dann einen Player; ohne Aufnahme gibt es bei vorhandenem Gesprächstext eine Hörprobe mit der Browser-Stimme. **Aufnahmen sind personenbezogene Daten** (Aufbewahrung und Hinweis an Anrufer klären).
+
+**Demo-Sprachdateien:** `scripts/anruf-demo-audio.py` erzeugt aus `scripts/anruf-demo-daten.json` je Demo-Anruf eine MP3 in `public/demo-anrufe/` (KI = Stimme Katja, Anrufer = je andere deutsche Stimme). Dafür wird das inoffizielle Paket `edge-tts` benutzt (kostenlos, nutzt die Vorlese-Stimmen von Microsoft Edge, nur für die Vorführung, Nutzungsbedingungen von Microsoft beachten) und ffmpeg. Einrichten in einer eigenen Umgebung: `python -m venv .tts-venv`, `.tts-venv/Scripts/python -m pip install edge-tts`, dann `.tts-venv/Scripts/python scripts/anruf-demo-audio.py`. Die Dateien liegen im Repo, sind erfunden und stehen hinter dem Login (die Proxy-Regel gilt auch für sie).
+
 ## Nicht gebaut
 Rückruf-/Termin-Knopf direkt aus dem Anruf, Anruf-Aufnahme abspielen (nur Text), Anrufe einem Projekt zuordnen, Kachel auf der Übersicht (nur der Hinweis), ausgehende KI-Anrufe, eigene Ansage/Prompt der KI (das stellt man im Dienst ein).

@@ -1,6 +1,6 @@
 // Anrufe (Telefon-KI): Umwandlung der Meldung eines Telefon-Dienstes in einen Eintrag der App. Reine Logik, ohne Datenbank, auch im Browser nutzbar.
 // Der Dienst schickt das Ergebnis eines Anrufs an `/api/anrufe`. Es gibt zwei Formen:
-//   generisch: { id, von, an, richtung, beginn, dauer_sek, zusammenfassung, kategorie, transkript }
+//   generisch: { id, von, an, richtung, beginn, dauer_sek, zusammenfassung, kategorie, transkript, aufnahme_url }
 //   retell:    { event: "call_analyzed", call: { call_id, from_number, to_number, direction, start_timestamp, end_timestamp, transcript, call_analysis: { call_summary } } }
 // Die Retell-Form ist nach der Dokumentation aus dem Gedächtnis gebaut und noch NICHT mit einem echten Anruf geprüft.
 
@@ -23,6 +23,8 @@ export type NeuerAnruf = {
   dauerSek: number | null;
   zusammenfassung: string;
   transkript: string | null;
+  /** Link zur Sprachaufnahme (https oder Pfad der App), sonst null */
+  aufnahmeUrl: string | null;
   kategorie: AnrufKategorie;
 };
 
@@ -68,6 +70,14 @@ function kategorieAusDienst(wert: unknown, text: string): AnrufKategorie {
   if (istKategorie(w)) return w;
   const karte: Record<string, AnrufKategorie> = { inquiry: "anfrage", request: "anfrage", lead: "anfrage", info: "information", information: "information", spam: "spam", other: "sonstiges" };
   return karte[w] ?? kategorieErkennen(text);
+}
+
+/** Nur https-Adressen oder Pfade der App („/…“, nicht „//…“) werden übernommen, damit kein fremdes Schema in die Seite kommt. */
+export function aufnahmeUrlPruefen(wert: unknown): string | null {
+  if (typeof wert !== "string") return null;
+  const u = wert.trim();
+  if (u.length === 0 || u.length > 1000) return null;
+  return /^(https:\/\/|\/[^/])/.test(u) ? u : null;
 }
 
 function text(wert: unknown, max: number): string {
@@ -131,6 +141,7 @@ export function anrufNormalisieren(roh: unknown): Normalisiert {
         dauerSek: beginnMs !== null && endeMs !== null ? dauer((endeMs - beginnMs) / 1000) : null,
         zusammenfassung,
         transkript: transkriptText(c.transcript_object ?? c.transcript),
+        aufnahmeUrl: aufnahmeUrlPruefen(c.recording_url),
         kategorie: kategorieAusDienst(analyse?.custom_analysis_data && objekt(analyse.custom_analysis_data)?.kategorie, zusammenfassung),
       },
     };
@@ -153,6 +164,7 @@ export function anrufNormalisieren(roh: unknown): Normalisiert {
       dauerSek: dauer(o.dauer_sek),
       zusammenfassung,
       transkript,
+      aufnahmeUrl: aufnahmeUrlPruefen(o.aufnahme_url),
       kategorie: kategorieAusDienst(o.kategorie, `${zusammenfassung} ${transkript ?? ""}`),
     },
   };

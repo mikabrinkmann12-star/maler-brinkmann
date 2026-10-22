@@ -22,7 +22,7 @@ export default async function AnrufeSeite({ searchParams }: { searchParams: Prom
   const supabase = await createClient();
   const { data } = await supabase
     .from("calls")
-    .select("id, anbieter, richtung, von_nummer, beginn, dauer_sek, zusammenfassung, transkript, kategorie, status, notiz, archiviert_am, contacts(id, vorname, nachname, firmenname)")
+    .select("id, anbieter, richtung, von_nummer, beginn, dauer_sek, zusammenfassung, transkript, aufnahme_url, kategorie, status, notiz, archiviert_am, contacts(id, vorname, nachname, firmenname)")
     .order("beginn", { ascending: false })
     .limit(300);
 
@@ -38,6 +38,7 @@ export default async function AnrufeSeite({ searchParams }: { searchParams: Prom
     dauerSek: c.dauer_sek,
     zusammenfassung: c.zusammenfassung,
     transkript: c.transkript,
+    aufnahmeUrl: c.aufnahme_url,
     kategorie: istKategorie(c.kategorie) ? c.kategorie : "sonstiges",
     status: istStatus(c.status) ? c.status : "neu",
     notiz: c.notiz ?? "",

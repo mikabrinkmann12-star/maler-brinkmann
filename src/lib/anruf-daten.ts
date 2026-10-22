@@ -36,6 +36,7 @@ export async function anrufSpeichern(db: Db, a: NeuerAnruf): Promise<AnrufErgebn
       dauer_sek: a.dauerSek,
       zusammenfassung: a.zusammenfassung,
       transkript: a.transkript,
+      aufnahme_url: a.aufnahmeUrl,
       kategorie: a.kategorie,
       erstellt_von: null,
     })
