@@ -24,7 +24,7 @@ const DARF_NICHT = [
 
 /**
  * KI-System: Platz für „Jarvis“. Hier steht, was Jarvis in der App getan hat (Protokoll der Schnittstelle), was er darf und was noch fehlt.
- * Nur für den Admin (das Protokoll und die Schlüssel sind Admin-Sache). Jarvis selbst (Sprache, Telefon) ist noch nicht gebaut.
+ * Nur für den Admin (das Protokoll und die Schlüssel sind Admin-Sache). Jarvis selbst ist eine eigene Plattform (Ordner JARVIS auf Mikas Rechner, Kachel „Maler Brinkmann“); Sprache mit KI und Telefon sind noch nicht gebaut.
  */
 export default async function KiSystemSeite() {
   await requireRole(["admin"]);

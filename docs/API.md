@@ -37,6 +37,7 @@ curl -X POST -H "Authorization: Bearer mbk_…" -H "Content-Type: application/js
 | `GET rechnungen?projekt=` | Ausgangsrechnungen |
 | `GET eingangsrechnungen?zahlstatus=&zu_pruefen=1` | Eingangsrechnungen |
 | `GET urlaub?status=` | Urlaubs- und Abfeier-Anträge |
+| `GET urlaub/rest?person=` | Resturlaub einer Person im laufenden Jahr (Anspruch, genehmigt, beantragt, Rest) |
 | `GET container` | Container-Meldungen und Sperre je Art |
 | `GET katalog?q=&art=leistung\|material` | Leistungen/Materialien mit Verkaufspreis |
 | `GET termine?von=&bis=` | Termine |
@@ -56,6 +57,6 @@ curl -X POST -H "Authorization: Bearer mbk_…" -H "Content-Type: application/js
 | `POST rechnungen` | `{ "angebot_id" }` | **Rechnungsentwurf** aus einem versendeten/angenommenen Angebot (nicht übertragen, nicht verschickt) |
 
 ## Jarvis
-Gedacht: Ein Sprachassistent (Telefon/Handy) ruft diese Endpunkte als Werkzeuge auf („Neues Projekt für Gerdes“, „Wer ist morgen auf welcher Baustelle?“, „Schreib die Rechnung zum Angebot …“, „Bestell einen Papiercontainer“). Der Telefon-Teil (Anruf bei der Containerfirma, Anrufe annehmen) braucht bezahlte Dienste (KI-Schlüssel, Telefonnummer) und wird erst nach Ralfs Entscheidung gebaut. Wer nach dem Anruf „Container bestellt“ meldet, ruft `POST container/:id/erledigt` auf.
+Jarvis ist eine **eigene Plattform** (Ordner C:/Users/mikab/JARVIS, lokales Dashboard) und spricht nur über diese Schnittstelle mit der App (Modul `modules/brinkmann.js`, Adresse und Schlüssel in der `.env` von Jarvis). Gedacht: Ein Sprachassistent (Telefon/Handy) ruft diese Endpunkte als Werkzeuge auf („Neues Projekt für Gerdes“, „Wer ist morgen auf welcher Baustelle?“, „Schreib die Rechnung zum Angebot …“, „Bestell einen Papiercontainer“). Der Telefon-Teil (Anruf bei der Containerfirma, Anrufe annehmen) braucht bezahlte Dienste (KI-Schlüssel, Telefonnummer) und wird erst nach Ralfs Entscheidung gebaut. Wer nach dem Anruf „Container bestellt“ meldet, ruft `POST container/:id/erledigt` auf.
 
 Code: `src/app/api/v1/[[...pfad]]/route.ts` (Einstieg), `src/lib/api/` (Anmeldung, Router, Lesen, Schreiben), `src/lib/api-schluessel.ts` (Schlüssel), Tests `tests/rls/18-api.test.ts` (14) und `src/lib/api*/*.test.ts`.

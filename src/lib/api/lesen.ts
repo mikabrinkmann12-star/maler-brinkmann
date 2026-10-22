@@ -4,6 +4,7 @@ import { ApiFehler, type ApiKontext, type ApiRoute } from "./typen";
 import { CONTAINER_ARTEN, CONTAINER_NAMEN, sperreBis, type ContainerMeldung } from "@/lib/container";
 import { heuteIso } from "@/lib/datum";
 import { kontaktName } from "@/lib/projekt";
+import { urlaubskonto } from "@/lib/urlaub";
 import { istTag } from "@/lib/zeitraum";
 
 // Lesende Endpunkte. Jeder Handler fragt feste Spalten mit festem Limit ab (kein freier Zugriff auf Tabellen).
@@ -317,6 +318,25 @@ export const leseRouten: ApiRoute[] = [
       const { data, error } = await a;
       if (error) throw new ApiFehler(500, "Die Anträge konnten nicht geladen werden.");
       return data.map((u) => ({ id: u.id, mitarbeiter: name(u.profiles), von: u.von, bis: u.bis, art: u.art, status: u.status, bemerkung: u.bemerkung, antwort: u.antwort }));
+    },
+  },
+  {
+    methode: "GET",
+    pfad: "urlaub/rest",
+    scope: "lesen",
+    titel: "Resturlaub einer Person im laufenden Jahr: Anspruch, genehmigte und beantragte Werktage (Feiertage Niedersachsen abgezogen, kein Übertrag).",
+    parameter: "person (ID, Pflicht)",
+    handler: async (c) => {
+      const person = uuidParam(c, "person");
+      const jahr = Number(heuteIso().slice(0, 4));
+      const [profil, antraege] = await Promise.all([
+        c.db.from("profiles").select("vorname, nachname, urlaubstage_jahr").eq("id", person).eq("aktiv", true).maybeSingle(),
+        c.db.from("leave_requests").select("von, bis, art, status").eq("user_id", person).in("status", ["offen", "genehmigt"]).gte("bis", `${jahr}-01-01`).limit(200),
+      ]);
+      if (profil.error || antraege.error) throw new ApiFehler(500, "Der Urlaub konnte nicht geladen werden.");
+      if (!profil.data) throw new ApiFehler(404, "Mitarbeiter nicht gefunden.");
+      const k = urlaubskonto(profil.data.urlaubstage_jahr, antraege.data, jahr);
+      return { mitarbeiter: name(profil.data), jahr, anspruch: k.anspruch, genehmigt: k.genehmigt, beantragt: k.beantragt, rest: k.rest };
     },
   },
   {
