@@ -10,6 +10,7 @@ import { KATEGORIEN, KATEGORIE_NAMEN, STATUS_NAMEN, STATUS_WERTE, dauerText, typ
 import { formatDatumZeit } from "@/lib/format";
 import { telLink } from "@/lib/projekt";
 import { anrufAendern, anrufArchivieren } from "./actions";
+import { GespraechAbspielen } from "./gespraech-abspielen";
 
 export type AnrufZeile = {
   id: string;
@@ -131,6 +132,8 @@ export function AnrufKarte({ anruf }: { anruf: AnrufZeile }) {
           <SaveIcon /> Speichern
         </Button>
       </div>
+
+      {anruf.transkript && <GespraechAbspielen transkript={anruf.transkript} />}
 
       {anruf.transkript && (
         <details className="group rounded-lg border bg-muted/30 px-3 py-2 text-sm">
