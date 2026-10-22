@@ -5,6 +5,7 @@ import {
   lexwareDatum,
   lexwareKontaktPayload,
   lexwareNameUndBeschreibung,
+  lexwareNummern,
   lexwareRechnungPayload,
   rechnungBerechnen,
   rechnungInfoAusLexware,
@@ -82,16 +83,17 @@ describe("lexwareRechnungPayload", () => {
     expect(p.address).toEqual({ contactId: "kontakt-1" });
     expect(p.taxConditions).toEqual({ taxType: "net" });
     expect(p.lineItems[0]).toEqual({
-      type: "custom", name: "Wände streichen", description: "Zweimal", quantity: 313.63, unitName: "m²",
+      type: "custom", name: "1. Wände streichen", description: "Zweimal", quantity: 313.63, unitName: "m²",
       unitPrice: { currency: "EUR", netAmount: 11.8, taxRatePercentage: 19 },
     });
-    expect(p.lineItems[1]).toEqual({ type: "text", name: "Wohnzimmer" });
+    expect(p.lineItems[1]).toEqual({ type: "text", name: "1. Wohnzimmer" });
     expect(p.paymentConditions).toEqual({ paymentTermLabel: "Zahlbar innerhalb von 14 Tagen netto", paymentTermDuration: 14 });
     expect(p.shippingConditions).toEqual({
       shippingType: "serviceperiod", shippingDate: "2026-09-01T00:00:00.000+02:00", shippingEndDate: "2026-10-15T00:00:00.000+02:00",
     });
     expect(p.voucherDate).toBe("2026-10-18T00:00:00.000+02:00");
-    expect([p.title, p.introduction, p.remark]).toEqual(["Haus 2", "Hallo", "Danke"]);
+    // „Rechnung“ steht groß als Überschrift, der Betreff kommt in den Anfangstext (wie in Plancraft)
+    expect([p.title, p.introduction, p.remark]).toEqual(["Rechnung", "Betreff: Haus 2\n\nHallo", "Danke"]);
   });
 
   it("Reverse-Charge: constructionService13b und Steuersatz 0 in allen Zeilen", () => {
@@ -112,10 +114,30 @@ describe("lexwareRechnungPayload", () => {
     expect(p.shippingConditions).toEqual({ shippingType: "service", shippingDate: "2026-10-01T00:00:00.000+02:00" });
   });
 
-  it("leere Texte werden weggelassen", () => {
+  it("ohne Anfangs- und Schlusstext bleibt nur der Betreff im Anfangstext", () => {
     const p = lexwareRechnungPayload(basis, [pos("A", 1, 1)], "k");
-    expect("introduction" in p).toBe(false);
+    expect(p.introduction).toBe("Betreff: Haus 2");
+    expect(lexwareRechnungPayload({ ...basis, betreff: " " }, [pos("A", 1, 1)], "k").introduction).toBeUndefined();
     expect("remark" in p).toBe(false);
+  });
+});
+
+describe("lexwareNummern", () => {
+  const titel = (t: string) => ({ typ: "text" as const, kurztext: t, langtext: "", menge: null, einheit: "", einzelpreis: null });
+  const text = { typ: "text" as const, kurztext: "", langtext: "Hinweis", menge: null, einheit: "", einzelpreis: null };
+
+  it("Titel bekommt 1., Positionen darunter 1.1 und 1.2, der nächste Titel 2.", () => {
+    const n = lexwareNummern([titel("Baustelleneinrichtung"), pos("A", 1, 1), pos("B", 1, 1), titel("Sockel"), pos("C", 1, 1)]);
+    expect(n).toEqual(["1.", "1.1", "1.2", "2.", "2.1"]);
+  });
+
+  it("ohne Titel zählen die Positionen 1., 2., 3.; freie Texte bleiben ohne Nummer", () => {
+    expect(lexwareNummern([pos("A", 1, 1), text, pos("B", 1, 1)])).toEqual(["1.", "", "2."]);
+  });
+
+  it("Nummer steht vorn im Namen der Zeile", () => {
+    const p = lexwareRechnungPayload(basis, [titel("Bad"), pos("Fliesen", 2, 10)], "k");
+    expect(p.lineItems.map((z) => z.name)).toEqual(["1. Bad", "1.1 Fliesen"]);
   });
 });
 

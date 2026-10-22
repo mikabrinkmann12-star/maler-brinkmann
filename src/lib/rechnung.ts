@@ -126,14 +126,43 @@ export type LexwareRechnungPayload = {
 };
 
 /**
+ * Nummern für die Lexware-Rechnung wie in Plancraft: ein Titel (Textzeile nur mit Kurztext, so macht es `bausteineAusAngebot`) bekommt „1.“, 
+ * die Positionen darunter „1.1“, „1.2“ …; ohne Titel zählen die Positionen „1.“, „2.“ …. Lexware nummeriert Textzeilen und Unterpunkte nicht selbst,
+ * darum steht die Nummer vorn im Namen (die Spalte „Pos.“ ist in Lexware ausgeschaltet).
+ */
+export function lexwareNummern(bausteine: readonly RechnungsBaustein[]): string[] {
+  const hatTitel = bausteine.some((b) => istTitelZeile(b));
+  let gruppe = 0;
+  let inGruppe = 0;
+  let laufend = 0;
+  return bausteine.map((b) => {
+    if (istTitelZeile(b)) {
+      gruppe += 1;
+      inGruppe = 0;
+      return `${gruppe}.`;
+    }
+    if (b.typ !== "position") return "";
+    if (hatTitel && gruppe > 0) return `${gruppe}.${++inGruppe}`;
+    return `${++laufend}.`;
+  });
+}
+
+/** Titel einer Rechnung: eine Textzeile, die nur einen Kurztext hat (aus einem Titel des Angebots entstanden). */
+function istTitelZeile(b: RechnungsBaustein): boolean {
+  return b.typ === "text" && b.kurztext.trim() !== "" && b.langtext.trim() === "";
+}
+
+/**
  * Inhalt für `POST /v1/invoices`. Der Rabatt wird als Zeile mit negativem Betrag übergeben (rechnet auf den Cent genau wie die App).
  * Bei Reverse-Charge (§ 13b UStG) ist `taxType` `constructionService13b` und der Steuersatz 0.
  */
 export function lexwareRechnungPayload(r: RechnungDaten, bausteine: RechnungsBaustein[], lexwareKontaktId: string): LexwareRechnungPayload {
   const satz = r.reverseCharge ? 0 : r.steuersatz;
   const zeilen: Zeile[] = [];
-  for (const b of bausteine) {
-    const { name, description } = lexwareNameUndBeschreibung(b);
+  const nummern = lexwareNummern(bausteine);
+  for (const [i, b] of bausteine.entries()) {
+    const { name: rohName, description } = lexwareNameUndBeschreibung(b);
+    const name = nummern[i] ? kuerzen(`${nummern[i]} ${rohName}`, 255) : rohName;
     if (b.typ === "text") {
       zeilen.push({ type: "text", name, ...(description ? { description } : {}) });
     } else {
@@ -175,8 +204,9 @@ export function lexwareRechnungPayload(r: RechnungDaten, bausteine: RechnungsBau
     shippingConditions: einzeltag
       ? { shippingType: "service", shippingDate: lexwareDatum(r.leistungVon) }
       : { shippingType: "serviceperiod", shippingDate: lexwareDatum(r.leistungVon), shippingEndDate: lexwareDatum(r.leistungBis) },
-    title: kuerzen(r.betreff, 100),
-    ...(r.einleitung.trim() ? { introduction: r.einleitung.trim() } : {}),
+    // Wie in Plancraft: „Rechnung“ groß als Überschrift, darunter der Betreff und der Anfangstext
+    title: "Rechnung",
+    introduction: [r.betreff.trim() ? `Betreff: ${r.betreff.trim()}` : "", r.einleitung.trim()].filter(Boolean).join("\n\n") || undefined,
     ...(r.schlusstext.trim() ? { remark: r.schlusstext.trim() } : {}),
     ...(r.leitwegId?.trim() ? { xRechnung: { buyerReference: r.leitwegId.trim() } } : {}),
   };
