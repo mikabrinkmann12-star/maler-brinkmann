@@ -13,6 +13,7 @@ import {
   HouseIcon,
   LayersIcon,
   InboxIcon,
+  PhoneIcon,
   PlusIcon,
   ReceiptTextIcon,
   UsersIcon,
@@ -48,6 +49,7 @@ const EINTRAEGE: Eintrag[] = [
   { href: "/buero/katalog", name: "Stammdaten", icon: LayersIcon, recht: "katalog", neu: true },
   { href: "/buero/ki-system", name: "KI-System", icon: BotIcon, nurAdmin: true },
   { href: "/buero/kontakte", name: "Kontakte", icon: UsersIcon, recht: "kontakte_ansehen", plus: { href: "/buero/kontakte/neu", titel: "Neuer Kontakt", recht: "kontakte_bearbeiten" } },
+  { href: "/buero/anrufe", name: "Anrufe", icon: PhoneIcon, recht: "buero_zugang" },
 ];
 
 /**

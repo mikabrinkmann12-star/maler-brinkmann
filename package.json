@@ -14,7 +14,8 @@
     "db:types": "supabase gen types typescript --linked --schema public > src/lib/supabase/database.types.ts",
     "admin:anlegen": "tsx scripts/admin-anlegen.ts",
     "icons": "tsx scripts/icons-erzeugen.ts",
-    "seed": "tsx scripts/seed.ts"
+    "seed": "tsx scripts/seed.ts",
+    "anruf:demo": "tsx scripts/anruf-demo.ts"
   },
   "engines": {
     "node": ">=24"

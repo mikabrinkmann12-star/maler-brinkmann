@@ -15,6 +15,7 @@ function ziel(h: Hinweis): string | null {
   if (h.typ === "urlaubsantrag") return "/buero/urlaub";
   if (h.typ === "termin") return "/buero/plantafel/termine";
   if (h.typ === "container") return "/buero/container";
+  if (h.typ === "anruf") return "/buero/anrufe";
   return null;
 }
 

@@ -368,6 +368,94 @@ export type Database = {
         }
         Relationships: []
       }
+      calls: {
+        Row: {
+          an_nummer: string | null
+          anbieter: string
+          anbieter_id: string | null
+          archiviert_am: string | null
+          bearbeitet_von: string | null
+          beginn: string
+          contact_id: string | null
+          created_at: string
+          dauer_sek: number | null
+          erstellt_von: string | null
+          id: string
+          kategorie: string
+          notiz: string | null
+          richtung: string
+          status: string
+          transkript: string | null
+          updated_at: string
+          von_nummer: string | null
+          zusammenfassung: string
+        }
+        Insert: {
+          an_nummer?: string | null
+          anbieter: string
+          anbieter_id?: string | null
+          archiviert_am?: string | null
+          bearbeitet_von?: string | null
+          beginn?: string
+          contact_id?: string | null
+          created_at?: string
+          dauer_sek?: number | null
+          erstellt_von?: string | null
+          id?: string
+          kategorie?: string
+          notiz?: string | null
+          richtung?: string
+          status?: string
+          transkript?: string | null
+          updated_at?: string
+          von_nummer?: string | null
+          zusammenfassung?: string
+        }
+        Update: {
+          an_nummer?: string | null
+          anbieter?: string
+          anbieter_id?: string | null
+          archiviert_am?: string | null
+          bearbeitet_von?: string | null
+          beginn?: string
+          contact_id?: string | null
+          created_at?: string
+          dauer_sek?: number | null
+          erstellt_von?: string | null
+          id?: string
+          kategorie?: string
+          notiz?: string | null
+          richtung?: string
+          status?: string
+          transkript?: string | null
+          updated_at?: string
+          von_nummer?: string | null
+          zusammenfassung?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calls_bearbeitet_von_fkey"
+            columns: ["bearbeitet_von"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calls_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calls_erstellt_von_fkey"
+            columns: ["erstellt_von"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       catalog_folders: {
         Row: {
           archiviert_am: string | null

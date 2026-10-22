@@ -19,6 +19,7 @@ const TITEL: Record<string, string> = {
   urlaubsantrag: "Urlaubsantrag",
   termin: "Termin",
   container: "Container",
+  anruf: "Anruf",
   angebot_geoeffnet: "Angebot geöffnet",
 };
 
@@ -32,6 +33,7 @@ export function hinweisZiel(h: { typ: string; project_id: string | null }): stri
   if (h.typ === "urlaubsantrag") return "/buero/urlaub";
   if (h.typ === "termin") return "/buero/plantafel/termine";
   if (h.typ === "container") return "/buero/container";
+  if (h.typ === "anruf") return "/buero/anrufe";
   return null;
 }
 
