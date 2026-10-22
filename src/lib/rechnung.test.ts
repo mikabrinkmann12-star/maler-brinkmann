@@ -86,7 +86,7 @@ describe("lexwareRechnungPayload", () => {
       type: "custom", name: "1. Wände streichen", description: "Zweimal", quantity: 313.63, unitName: "m²",
       unitPrice: { currency: "EUR", netAmount: 11.8, taxRatePercentage: 19 },
     });
-    expect(p.lineItems[1]).toEqual({ type: "text", name: "1. Wohnzimmer" });
+    expect(p.lineItems[1]).toEqual({ type: "text", name: "​", description: "**1. Wohnzimmer**" });
     expect(p.paymentConditions).toEqual({ paymentTermLabel: "Zahlbar innerhalb von 14 Tagen netto", paymentTermDuration: 14 });
     expect(p.shippingConditions).toEqual({
       shippingType: "serviceperiod", shippingDate: "2026-09-01T00:00:00.000+02:00", shippingEndDate: "2026-10-15T00:00:00.000+02:00",
@@ -135,9 +135,10 @@ describe("lexwareNummern", () => {
     expect(lexwareNummern([pos("A", 1, 1), text, pos("B", 1, 1)])).toEqual(["1.", "", "2."]);
   });
 
-  it("Nummer steht vorn im Namen der Zeile", () => {
-    const p = lexwareRechnungPayload(basis, [titel("Bad"), pos("Fliesen", 2, 10)], "k");
-    expect(p.lineItems.map((z) => z.name)).toEqual(["1. Bad", "1.1 Fliesen"]);
+  it("Positionen tragen die Nummer vorn im Namen, der Titel steht fett (Markdown) in der Beschreibung", () => {
+    const p = lexwareRechnungPayload(basis, [titel("Bad *neu*"), pos("Fliesen", 2, 10)], "k");
+    expect(p.lineItems.map((z) => z.name)).toEqual(["​", "1.1 Fliesen"]);
+    expect(p.lineItems[0]).toMatchObject({ type: "text", description: "**1. Bad neu**" });
   });
 });
 

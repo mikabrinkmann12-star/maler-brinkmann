@@ -163,7 +163,11 @@ export function lexwareRechnungPayload(r: RechnungDaten, bausteine: RechnungsBau
   for (const [i, b] of bausteine.entries()) {
     const { name: rohName, description } = lexwareNameUndBeschreibung(b);
     const name = nummern[i] ? kuerzen(`${nummern[i]} ${rohName}`, 255) : rohName;
-    if (b.typ === "text") {
+    if (istTitelZeile(b)) {
+      // Lexware druckt den Namen jeder Zeile gleich (Titel und Positionen teilen die Fett-Einstellung). Fett ist darum aus,
+      // und der Titel steht als Markdown-Fettdruck in der Beschreibung; der Name ist ein unsichtbares Zeichen (er darf nicht leer sein).
+      zeilen.push({ type: "text", name: "​", description: `**${name.replaceAll("*", "")}**` });
+    } else if (b.typ === "text") {
       zeilen.push({ type: "text", name, ...(description ? { description } : {}) });
     } else {
       zeilen.push({
