@@ -135,9 +135,20 @@ export function AnrufKarte({ anruf }: { anruf: AnrufZeile }) {
       {anruf.transkript && (
         <details className="group rounded-lg border bg-muted/30 px-3 py-2 text-sm">
           <summary className="flex cursor-pointer list-none items-center gap-1 text-xs font-medium text-muted-foreground">
-            <ChevronDownIcon className="size-4 transition-transform group-open:rotate-180" /> Gesprächstext
+            <ChevronDownIcon className="size-4 transition-transform group-open:rotate-180" /> Gesprächstext (Anrufer und KI)
           </summary>
-          <p className="mt-2 whitespace-pre-line">{anruf.transkript}</p>
+          <ul className="mt-2 flex flex-col gap-1.5">
+            {anruf.transkript.split("\n").filter((z) => z.trim()).map((zeile, i) => {
+              const m = /^(KI|Anrufer):\s*(.*)$/.exec(zeile);
+              const ki = m?.[1] === "KI";
+              return (
+                <li key={i} className={ki ? "flex flex-col items-start" : "flex flex-col items-end"}>
+                  <span className="text-[11px] text-muted-foreground">{m ? m[1] : ""}</span>
+                  <span className={`max-w-[85%] rounded-xl px-3 py-1.5 ${ki ? "bg-white" : "bg-emerald-100 text-emerald-950"}`}>{m ? m[2] : zeile}</span>
+                </li>
+              );
+            })}
+          </ul>
         </details>
       )}
     </li>
