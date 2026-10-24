@@ -7,6 +7,7 @@ import type { RechnungsArt, RechnungsBaustein } from "@/lib/rechnung";
 
 /** Nummernkreis aus den Einstellungen: Kürzel und Startnummer (gilt nur für die erste Rechnung eines Jahres). */
 export const RECHNUNG_PRAEFIX_STANDARD = "R-";
+export const GUTSCHRIFT_PRAEFIX_STANDARD = "G-";
 
 /** So sieht die nächste Nummer aus: „R-2026-0001“. Spiegelt die Datenbank-Funktion `rechnung_finalisieren`. */
 export function rechnungsnummerBeispiel(praefix: string, jahr: number, laufend: number): string {

@@ -14,7 +14,8 @@ import type { RechnungKopfStart } from "@/lib/rechnung-formular";
 import { rechnungKopfSpeichern } from "../actions";
 
 /** Kopfdaten der Rechnung: Betreff, Datum, Leistungszeitraum, Zahlungsbedingungen, Steuer, Rabatt, Texte. */
-export function RechnungKopf({ rechnungId, start, gesperrt }: { rechnungId: string; start: RechnungKopfStart; gesperrt: boolean }) {
+export function RechnungKopf({ rechnungId, start, gesperrt, eigen = false }: { rechnungId: string; start: RechnungKopfStart; gesperrt: boolean; eigen?: boolean }) {
+  const textHinweis = eigen ? "Leer = kein Text." : "Leer = Lexware nimmt seinen eigenen Standardtext.";
   const router = useRouter();
   const [w, setW] = useState<RechnungKopfStart>(start);
   const [fehler, setFehler] = useState<string | null>(null);
@@ -73,10 +74,10 @@ export function RechnungKopf({ rechnungId, start, gesperrt }: { rechnungId: stri
         </Feld>
         <Feld label="Rabatt in %" htmlFor="r-rabatt" hinweis="Auf die Netto-Summe. Leer = kein Rabatt."><Input id="r-rabatt" inputMode="decimal" className="h-11 text-base" {...f("rabatt")} /></Feld>
       </div>
-      <Feld label="Anfangstext" htmlFor="r-einleitung" hinweis="Leer = Lexware nimmt seinen eigenen Standardtext.">
+      <Feld label="Anfangstext" htmlFor="r-einleitung" hinweis={textHinweis}>
         <Textarea id="r-einleitung" rows={3} maxLength={3000} {...f("einleitung")} />
       </Feld>
-      <Feld label="Schlusstext" htmlFor="r-schluss" hinweis="Leer = Lexware nimmt seinen eigenen Standardtext.">
+      <Feld label="Schlusstext" htmlFor="r-schluss" hinweis={textHinweis}>
         <Textarea id="r-schluss" rows={3} maxLength={3000} {...f("schlusstext")} />
       </Feld>
       {!gesperrt && (

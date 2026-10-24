@@ -294,6 +294,7 @@ export default async function RechnungSeite({ params }: PageProps<"/buero/rechnu
         key={`kopf:${r.betreff}|${r.rechnungsdatum}|${r.leistungVon}|${r.leistungBis}|${r.zahlungszielTage}|${r.skontoProzent}|${r.skontoTage}|${r.steuersatz}|${r.reverseCharge}|${r.rabattProzent}|${r.einleitung}|${r.schlusstext}`}
         rechnungId={r.id}
         gesperrt={gesperrt}
+        eigen={istEigenRechnung}
         start={kopfStart({
           betreff: r.betreff, rechnungsdatum: r.rechnungsdatum, leistungVon: r.leistungVon, leistungBis: r.leistungBis,
           zahlungszielTage: r.zahlungszielTage, skontoProzent: r.skontoProzent, skontoTage: r.skontoTage,

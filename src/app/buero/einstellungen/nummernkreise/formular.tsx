@@ -17,6 +17,9 @@ export function NummernkreisFormular({
   rechnungPraefix,
   rechnungStart,
   bereitsVergeben,
+  gutschriftPraefix,
+  gutschriftStart,
+  gutschriftBereitsVergeben,
   jahr,
 }: {
   start: number;
@@ -25,6 +28,9 @@ export function NummernkreisFormular({
   rechnungStart: number;
   /** Im laufenden Jahr gibt es schon eine Rechnungsnummer: die Startnummer wirkt dann erst im nächsten Jahr */
   bereitsVergeben: boolean;
+  gutschriftPraefix: string;
+  gutschriftStart: number;
+  gutschriftBereitsVergeben: boolean;
   jahr: number;
 }) {
   const [zustand, aktion, laeuft] = useActionState(nummernkreisSpeichern, START);
@@ -53,6 +59,20 @@ export function NummernkreisFormular({
         hinweis={bereitsVergeben ? <>Im Jahr {jahr} gibt es schon eine Rechnungsnummer, die Datenbank zählt von dort weiter. Eine neue Startnummer wirkt erst für das nächste Jahr.</> : <>Mit dieser Nummer beginnt die erste Rechnung des Jahres {jahr} (z. B. wenn schon Rechnungen woanders geschrieben wurden). Leer = 1. Danach zählt die App lückenlos weiter.</>}
       >
         <Input id="rechnung_start" name="rechnung_start" defaultValue={String(rechnungStart)} inputMode="numeric" className="h-12 max-w-xs text-base" />
+      </Feld>
+      <Feld
+        label="Gutschriften und Stornos: Kürzel"
+        htmlFor="gutschrift_praefix"
+        hinweis={<>Gutschriften und Stornos haben einen eigenen, lückenlosen Zähler, z. B. <strong>{gutschriftPraefix}{jahr}-0001</strong>. Muss sich vom Rechnungs-Kürzel unterscheiden.</>}
+      >
+        <Input id="gutschrift_praefix" name="gutschrift_praefix" defaultValue={gutschriftPraefix} maxLength={10} placeholder="G-" className="h-12 max-w-xs text-base" />
+      </Feld>
+      <Feld
+        label="Gutschriften und Stornos: Startnummer"
+        htmlFor="gutschrift_start"
+        hinweis={gutschriftBereitsVergeben ? <>Im Jahr {jahr} gibt es schon eine Gutschriftsnummer, die Datenbank zählt von dort weiter. Eine neue Startnummer wirkt erst für das nächste Jahr.</> : <>Mit dieser Nummer beginnt die erste Gutschrift des Jahres {jahr}. Leer = 1.</>}
+      >
+        <Input id="gutschrift_start" name="gutschrift_start" defaultValue={String(gutschriftStart)} inputMode="numeric" className="h-12 max-w-xs text-base" />
       </Feld>
       <div className="flex items-center gap-3">
         <Button type="submit" size="touch" disabled={laeuft}>{laeuft ? "Speichern …" : "Speichern"}</Button>

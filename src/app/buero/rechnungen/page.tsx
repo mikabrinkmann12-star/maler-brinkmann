@@ -4,6 +4,7 @@ import { cn } from "cn";
 import { BelegFilter } from "@/components/listen/beleg-filter";
 import type { ListenOption } from "@/components/listen/mehrfach-liste";
 import { StatusPille } from "@/components/status-pille";
+import { buttonVariants } from "@/components/ui/button";
 import { summe } from "@/lib/angebot-liste";
 import { requireBueroRecht } from "@/lib/auth";
 import { heuteIso } from "@/lib/datum";
@@ -62,11 +63,14 @@ export default async function RechnungsListe({ searchParams }: PageProps<"/buero
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-xl font-semibold">Ausgangsrechnungen</h1>
-        <p className="mt-0.5 text-xs text-muted-foreground">
-          Eine Rechnung entsteht aus einem Angebot („Rechnung erstellen“ im Angebot). Nummer und Datei kommen von der Buchhaltung (Lexware im Hintergrund), Status und Fälligkeit vom letzten Abgleich.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold">Ausgangsrechnungen</h1>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Eine Rechnung entsteht aus einem Angebot („Rechnung erstellen“ im Angebot). Nummer und PDF kommen aus der App; nur bei älteren Rechnungen aus einer angebundenen Buchhaltung (Lexware/sevdesk), deren Status und Fälligkeit vom letzten Abgleich.
+          </p>
+        </div>
+        <Link href="/buero/rechnungen/steuerberater" className={buttonVariants({ variant: "outline" })}>Export für den Steuerberater</Link>
       </div>
 
       <BelegFilter
