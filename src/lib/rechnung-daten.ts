@@ -27,7 +27,7 @@ export type RechnungKopf = {
   einleitung: string;
   schlusstext: string;
   /** Wer hat die Rechnung übertragen? Neue Rechnungen gehen an sevdesk, ältere an Lexware. */
-  anbieter: "lexware" | "sevdesk";
+  anbieter: "lexware" | "sevdesk" | "eigen";
   lexwareId: string | null;
   sevdeskId: string | null;
   versendetAm: string | null;
@@ -105,7 +105,7 @@ export async function rechnungLaden(id: string): Promise<RechnungDetail | null> 
       rabattProzent: Number(r.rabatt_prozent),
       einleitung: r.einleitung ?? "",
       schlusstext: r.schlusstext ?? "",
-      anbieter: r.anbieter === "sevdesk" ? "sevdesk" : "lexware",
+      anbieter: r.anbieter === "sevdesk" ? "sevdesk" : r.anbieter === "eigen" ? "eigen" : "lexware",
       lexwareId: r.lexware_id,
       sevdeskId: r.sevdesk_id,
       versendetAm: r.versendet_am,
@@ -177,7 +177,7 @@ export type RechnungListenZeile = {
   hatPdf: boolean;
   /** Die Datei ist eine XRechnung (XML) */
   hatXml: boolean;
-  anbieter: "lexware" | "sevdesk";
+  anbieter: "lexware" | "sevdesk" | "eigen";
   lexwareId: string | null;
 };
 
@@ -233,7 +233,7 @@ export async function rechnungenLaden(opts: {
       pdfPfad: r.pdf_pfad,
       hatPdf: Boolean(r.pdf_pfad) && !r.pdf_pfad!.endsWith(".xml"),
       hatXml: Boolean(r.pdf_pfad) && r.pdf_pfad!.endsWith(".xml"),
-      anbieter: r.anbieter === "sevdesk" ? "sevdesk" : "lexware",
+      anbieter: r.anbieter === "sevdesk" ? "sevdesk" : r.anbieter === "eigen" ? "eigen" : "lexware",
       lexwareId: r.lexware_id,
     };
   });

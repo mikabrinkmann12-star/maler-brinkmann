@@ -51,3 +51,6 @@ export function dokumentTitel(art: unknown, nachtrag: boolean, entwurf: boolean)
 export function rechnungMoeglich(art: unknown): boolean {
   return art === "angebot" || art === "kostenvoranschlag" || art === "auftragsbestaetigung";
 }
+
+/** Rechnungen aus der App (eigene Rechnungen, seit 24.10.2026) nutzen dasselbe PDF wie die Angebote; Preise, Summen und Tabelle, aber kein Annahme-Block. */
+export const RECHNUNG_ART: DokumentartInfo = { name: "Rechnung", preise: true, positionen: true, zustimmung: "", gueltig: "", hinweis: "", einleitung: null, schlusstext: false };

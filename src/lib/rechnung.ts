@@ -1,5 +1,5 @@
 // Rechnungen: Entwurf aus dem Angebot, Rechnen und die Umsetzung für die Lexware-Office-Schnittstelle (auch im Browser nutzbar).
-// HARTE REGEL: Rechnungsnummer und Rechnungs-PDF vergibt/erzeugt nur Lexware, nie diese App.
+// Seit 24.10.2026 (Mika, Paul will Lexware nicht bezahlen) vergibt die App Rechnungsnummer und PDF standardmäßig selbst (siehe rechnung-eigen.ts); Lexware/sevdesk sind optionale Anschlüsse.
 
 import { angebotBerechnen, type Baustein, type Berechnung } from "@/lib/angebot";
 
@@ -8,7 +8,7 @@ export type RechnungStatus = "entwurf" | "wird_uebertragen" | "uebertragen";
 export const RECHNUNG_STATUS_NAMEN: Record<RechnungStatus, string> = {
   entwurf: "Entwurf",
   wird_uebertragen: "Wird übertragen …",
-  uebertragen: "An Lexware übertragen",
+  uebertragen: "Fertiggestellt",
 };
 
 /** Baustein einer Rechnung (Position oder Text). Beträge in Euro, netto. */

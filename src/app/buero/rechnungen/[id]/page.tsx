@@ -52,15 +52,16 @@ export default async function RechnungSeite({ params }: PageProps<"/buero/rechnu
   const anbieter = r.status === "entwurf" ? (aktuellerAnbieter() ?? "lexware") : r.anbieter;
   const name = anbieterName(anbieter);
   const istSevdesk = anbieter === "sevdesk";
-  const eingerichtet = istSevdesk ? sevdeskEingerichtet() : lexwareEingerichtet();
-  const finalisieren = istSevdesk ? sevdeskFinalisieren() : lexwareFinalisieren();
+  const istEigen = anbieter === "eigen";
+  const eingerichtet = istEigen || (istSevdesk ? sevdeskEingerichtet() : lexwareEingerichtet());
+  const finalisieren = istEigen || (istSevdesk ? sevdeskFinalisieren() : lexwareFinalisieren());
   const vorgaben = await rechnungsEinstellungenLaden();
   const mahnHinweise = Object.fromEntries([1, 2, 3].map((n) => [n, mahnungsHinweis(vorgaben, n) ?? ""]).filter(([, t]) => t));
 
   const heute = heuteIso();
   // Die Datei der Buchhaltung lässt sich als PDF direkt anzeigen (eine XRechnung ist XML und nur als Download da)
   const zeigePdf = Boolean(r.pdfPfad) && !r.pdfPfad!.endsWith(".xml");
-  const autoAbgleich = eingerichtet && abgleichFaellig({ status: r.status, lexwareStatus: r.lexwareStatus, hatDatei: Boolean(r.pdfPfad), abgeglichenAm: r.abgeglichenAm });
+  const autoAbgleich = eingerichtet && !istEigen && abgleichFaellig({ status: r.status, lexwareStatus: r.lexwareStatus, hatDatei: Boolean(r.pdfPfad), abgeglichenAm: r.abgeglichenAm });
   const sevdeskAktiv = istSevdesk && r.status === "uebertragen";
   const firma = sevdeskAktiv ? await firmaLaden() : null;
   const angaben = { rechnungsnummer: r.rechnungsnummer, betreff: r.betreff, brutto: r.brutto, rechnungsdatum: r.rechnungsdatum, zahlungszielTage: r.zahlungszielTage, firma: firma?.name ?? "" };
@@ -141,9 +142,9 @@ export default async function RechnungSeite({ params }: PageProps<"/buero/rechnu
         <div className={abschnitt}>
           <h2 className={ueberschrift}>Zahlungen</h2>
           {anzeige === "bezahlt" ? (
-            <p className="px-3 text-[13px]">Diese Rechnung ist bezahlt ({formatBetrag(brutto)}). Die einzelnen Zahlungen stehen in {name}.</p>
+            <p className="px-3 text-[13px]">Diese Rechnung ist bezahlt ({formatBetrag(brutto)}){r.bezahltAm ? ` am ${formatDatum(r.bezahltAm)}` : ""}.{!istEigen && ` Die einzelnen Zahlungen stehen in ${name}.`}</p>
           ) : r.status === "uebertragen" ? (
-            <p className="px-3 text-[13px] text-muted-foreground">{istSevdesk ? "Noch keine Zahlung gebucht. Unten kannst du sie als bezahlt buchen." : "Noch keine Zahlung gemeldet. Zahlungen trägst du in Lexware ein; danach „Abgleichen“."}</p>
+            <p className="px-3 text-[13px] text-muted-foreground">{istSevdesk || istEigen ? "Noch keine Zahlung gebucht. Unten kannst du sie als bezahlt buchen." : "Noch keine Zahlung gemeldet. Zahlungen trägst du in Lexware ein; danach „Abgleichen“."}</p>
           ) : (
             <p className="px-3 text-[13px] text-muted-foreground">Zahlungen gibt es erst, wenn die Rechnung fertiggestellt ist.</p>
           )}
@@ -173,7 +174,7 @@ export default async function RechnungSeite({ params }: PageProps<"/buero/rechnu
         <Link href={`/buero/kontakte/${kunde.id}`} className="font-medium text-foreground hover:underline">{kunde.name}</Link>
         {kunde.kundennummer && ` (${kunde.kundennummer})`}
         {angebot && <> · aus Angebot <Link href={`/buero/angebote/${angebot.id}`} className="font-medium text-foreground hover:underline">{angebot.betreff}</Link></>}
-        {r.uebertragenAm && <> · An {name} übertragen am {formatDatumZeit(r.uebertragenAm)}{r.abgeglichenAm && <>, zuletzt abgeglichen am {formatDatumZeit(r.abgeglichenAm)}</>}</>}
+        {r.uebertragenAm && (istEigen ? <> · Fertiggestellt am {formatDatumZeit(r.uebertragenAm)}</> : <> · An {name} übertragen am {formatDatumZeit(r.uebertragenAm)}{r.abgeglichenAm && <>, zuletzt abgeglichen am {formatDatumZeit(r.abgeglichenAm)}</>}</>)}
       </p>
 
       {autoAbgleich && <AutoAbgleich rechnungId={r.id} name={name} />}
@@ -182,6 +183,7 @@ export default async function RechnungSeite({ params }: PageProps<"/buero/rechnu
         rechnungId={r.id}
         status={r.status}
         name={name}
+        eigen={istEigen}
         zugang={istSevdesk ? "SEVDESK_API_TOKEN" : "LEXWARE_API_KEY"}
         lexwareLink={!istSevdesk && r.lexwareId ? lexwareLink(r.lexwareId) : null}
         hatPdf={Boolean(r.pdfPfad)}
@@ -199,13 +201,14 @@ export default async function RechnungSeite({ params }: PageProps<"/buero/rechnu
         />
       )}
 
-      {sevdeskAktiv && (
+      {(sevdeskAktiv || (istEigen && r.status === "uebertragen")) && (
         <ZahlungKarte
           rechnungId={r.id}
           brutto={brutto}
           heute={heute}
           kannBuchen={r.lexwareStatus === "open"}
-          kannStornieren={r.lexwareStatus === "open" || r.lexwareStatus === "paid"}
+          kannStornieren={sevdeskAktiv && (r.lexwareStatus === "open" || r.lexwareStatus === "paid")}
+          kannZuruecknehmen={istEigen && r.lexwareStatus === "paid"}
           bezahltAm={r.bezahltAm}
         />
       )}
@@ -217,7 +220,7 @@ export default async function RechnungSeite({ params }: PageProps<"/buero/rechnu
       {gesperrt && (
         <p className="flex items-center gap-2 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900">
           <LockIcon className="size-4 shrink-0" />
-          {r.archiviert ? "Diese Rechnung ist archiviert." : `Diese Rechnung ist an ${name} übertragen und gesperrt (Nummer und PDF stammen von ${name}).`}
+          {r.archiviert ? "Diese Rechnung ist archiviert." : istEigen ? "Diese Rechnung ist fertiggestellt und gesperrt (Nummer und PDF sind festgeschrieben)." : `Diese Rechnung ist an ${name} übertragen und gesperrt (Nummer und PDF stammen von ${name}).`}
         </p>
       )}
 

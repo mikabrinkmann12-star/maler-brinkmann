@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { formatBetrag, formatDatumZeit } from "@/lib/format";
 import { ersteMeldung } from "@/lib/nutzer-schema";
 import { rechnungMailSchema } from "@/lib/rechnung-mail";
-import { rechnungAlsBezahltBuchen, rechnungPerMailSenden, rechnungStornieren } from "../actions";
+import { rechnungAlsBezahltBuchen, rechnungPerMailSenden, rechnungStornieren, rechnungZahlungZuruecknehmen } from "../actions";
 
 /** Rechnung per E-Mail an den Kunden schicken. Die E-Mail geht über die Buchhaltung (sie hängt die Rechnung an), Vorschlag zum Ändern. */
 export function RechnungMailPanel({
@@ -97,6 +97,7 @@ export function ZahlungKarte({
   heute,
   kannBuchen,
   kannStornieren,
+  kannZuruecknehmen = false,
   bezahltAm,
 }: {
   rechnungId: string;
@@ -104,6 +105,8 @@ export function ZahlungKarte({
   heute: string;
   kannBuchen: boolean;
   kannStornieren: boolean;
+  /** Eigene Rechnung, die als bezahlt gebucht ist: Zahlung wieder zurücknehmen */
+  kannZuruecknehmen?: boolean;
   bezahltAm: string | null;
 }) {
   const router = useRouter();
@@ -132,7 +135,7 @@ export function ZahlungKarte({
     });
   }
 
-  if (!kannBuchen && !kannStornieren) return null;
+  if (!kannBuchen && !kannStornieren && !kannZuruecknehmen) return null;
   return (
     <section className="flex flex-col gap-3 rounded-xl border p-4">
       <h2 className="flex items-center gap-2 text-base font-semibold"><WalletIcon className="size-4" /> Zahlung</h2>
@@ -158,6 +161,11 @@ export function ZahlungKarte({
         </div>
       )}
       {bezahltAm && !kannBuchen && <p className="text-sm">Bezahlt am {bezahltAm.split("-").reverse().join(".")}.</p>}
+      {kannZuruecknehmen && (
+        <div>
+          <Button type="button" variant="ghost" disabled={laeuft} onClick={() => window.confirm("Die Zahlung zurücknehmen? Die Rechnung ist dann wieder offen.") && ausfuehren(() => rechnungZahlungZuruecknehmen(rechnungId), "Zahlung zurückgenommen")}>Zahlung zurücknehmen</Button>
+        </div>
+      )}
       {kannStornieren && (
         <div className="flex flex-col gap-2 border-t pt-3">
           {frageStorno ? (

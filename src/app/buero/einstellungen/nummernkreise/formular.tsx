@@ -11,7 +11,22 @@ import { nummernkreisSpeichern, type NummernkreisZustand } from "./actions";
 
 const START: NummernkreisZustand = {};
 
-export function NummernkreisFormular({ start, vorschlag }: { start: number; vorschlag: string }) {
+export function NummernkreisFormular({
+  start,
+  vorschlag,
+  rechnungPraefix,
+  rechnungStart,
+  bereitsVergeben,
+  jahr,
+}: {
+  start: number;
+  vorschlag: string;
+  rechnungPraefix: string;
+  rechnungStart: number;
+  /** Im laufenden Jahr gibt es schon eine Rechnungsnummer: die Startnummer wirkt dann erst im nächsten Jahr */
+  bereitsVergeben: boolean;
+  jahr: number;
+}) {
   const [zustand, aktion, laeuft] = useActionState(nummernkreisSpeichern, START);
   return (
     // onSubmit statt action={…}: siehe abschicken() in src/lib/formular.ts
@@ -24,6 +39,20 @@ export function NummernkreisFormular({ start, vorschlag }: { start: number; vors
       >
         <Input id="projekt_start" name="projekt_start" defaultValue={start ? String(start) : ""} inputMode="numeric"
           placeholder="z. B. 602 oder P-(2400)602" className="h-12 max-w-xs text-base" />
+      </Feld>
+      <Feld
+        label="Rechnungsnummern: Kürzel"
+        htmlFor="rechnung_praefix"
+        hinweis={<>Davor steht das Jahr und die laufende Nummer, z. B. <strong>{rechnungPraefix}{jahr}-0001</strong>. Höchstens 10 Zeichen, keine Leerzeichen.</>}
+      >
+        <Input id="rechnung_praefix" name="rechnung_praefix" defaultValue={rechnungPraefix} maxLength={10} placeholder="R-" className="h-12 max-w-xs text-base" />
+      </Feld>
+      <Feld
+        label="Rechnungsnummern: Startnummer"
+        htmlFor="rechnung_start"
+        hinweis={bereitsVergeben ? <>Im Jahr {jahr} gibt es schon eine Rechnungsnummer, die Datenbank zählt von dort weiter. Eine neue Startnummer wirkt erst für das nächste Jahr.</> : <>Mit dieser Nummer beginnt die erste Rechnung des Jahres {jahr} (z. B. wenn schon Rechnungen woanders geschrieben wurden). Leer = 1. Danach zählt die App lückenlos weiter.</>}
+      >
+        <Input id="rechnung_start" name="rechnung_start" defaultValue={String(rechnungStart)} inputMode="numeric" className="h-12 max-w-xs text-base" />
       </Feld>
       <div className="flex items-center gap-3">
         <Button type="submit" size="touch" disabled={laeuft}>{laeuft ? "Speichern …" : "Speichern"}</Button>

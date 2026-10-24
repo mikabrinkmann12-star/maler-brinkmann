@@ -840,6 +840,24 @@ export type Database = {
           },
         ]
       }
+      invoice_counters: {
+        Row: {
+          jahr: number
+          letzte: number
+          updated_at: string
+        }
+        Insert: {
+          jahr: number
+          letzte: number
+          updated_at?: string
+        }
+        Update: {
+          jahr?: number
+          letzte?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       invoice_items: {
         Row: {
           created_at: string
@@ -2719,6 +2737,10 @@ export type Database = {
       ostersonntag: { Args: { p_jahr: number }; Returns: string }
       projekt_aus_pfad: { Args: { p_pfad: string }; Returns: string }
       projekt_sicht: { Args: { p_project_id: string }; Returns: boolean }
+      rechnung_finalisieren: {
+        Args: { p_brutto: number; p_id: string; p_netto: number }
+        Returns: string
+      }
       recht_ok: { Args: { p_recht: string }; Returns: boolean }
       recht_stufe: { Args: { p_recht: string }; Returns: string }
       soll_stunden: { Args: { p_tag: string; p_user: string }; Returns: number }

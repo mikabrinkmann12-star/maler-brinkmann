@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { requireBueroRecht } from "@/lib/auth";
 import { projektnummerStart, projektnummerVorschlag } from "@/lib/projektnummer-daten";
 import { KUNDENNUMMER_BEISPIEL } from "@/lib/kundennummer";
+import { createClient } from "@/lib/supabase/server";
+import { RECHNUNG_PRAEFIX_STANDARD, rechnungsnummerBeispiel } from "@/lib/rechnung-eigen";
 import { NummernkreisFormular } from "./formular";
 
 export const metadata: Metadata = { title: "Nummernkreise" };
@@ -9,6 +11,16 @@ export const metadata: Metadata = { title: "Nummernkreise" };
 export default async function NummernkreiseSeite() {
   await requireBueroRecht("einstellungen_firma");
   const [start, vorschlag] = await Promise.all([projektnummerStart(), projektnummerVorschlag()]);
+  const supabase = await createClient();
+  const jahr = Number(new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Berlin", year: "numeric" }).format(new Date()));
+  const [{ data: einst }, { data: zaehler }] = await Promise.all([
+    supabase.from("app_settings").select("wert").eq("schluessel", "nummernkreise").maybeSingle(),
+    supabase.from("invoice_counters").select("letzte").eq("jahr", jahr).maybeSingle(),
+  ]);
+  const wert = (einst?.wert ?? {}) as { rechnung_praefix?: unknown; rechnung_start?: unknown };
+  const praefix = typeof wert.rechnung_praefix === "string" && wert.rechnung_praefix ? wert.rechnung_praefix : RECHNUNG_PRAEFIX_STANDARD;
+  const rechnungStart = typeof wert.rechnung_start === "number" && wert.rechnung_start >= 1 ? wert.rechnung_start : 1;
+  const naechste = rechnungsnummerBeispiel(praefix, jahr, zaehler ? zaehler.letzte + 1 : rechnungStart);
 
   return (
     <div className="flex max-w-2xl flex-col gap-6">
@@ -17,10 +29,10 @@ export default async function NummernkreiseSeite() {
         <p className="text-muted-foreground">
           Projektnummern haben das Format <strong>P-(2400)NNN</strong> (wie in Plancraft, der Kopf ist fest) und zählen ohne Neustart weiter.
           Kundennummern (z. B. {KUNDENNUMMER_BEISPIEL}) zählen automatisch ab der höchsten vorhandenen Nummer.
-          Rechnungsnummern vergibt Lexware, nicht die App.
+          Rechnungsnummern vergibt die App selbst (lückenlos, je Jahr neu): z. B. <strong>R-2026-0001</strong>. Die nächste ist <strong>{naechste}</strong>.
         </p>
       </div>
-      <NummernkreisFormular start={start} vorschlag={vorschlag} />
+      <NummernkreisFormular start={start} vorschlag={vorschlag} rechnungPraefix={praefix} rechnungStart={rechnungStart} bereitsVergeben={Boolean(zaehler)} jahr={jahr} />
     </div>
   );
 }

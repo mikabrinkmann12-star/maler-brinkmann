@@ -5,7 +5,7 @@
 
 import { PDFDocument, type PDFFont, type PDFImage } from "pdf-lib";
 import type { AngebotStatus, Berechnung, BerechneteZeile } from "@/lib/angebot";
-import { dokumentTitel, dokumentartInfo } from "@/lib/dokumentart";
+import { RECHNUNG_ART, dokumentTitel, dokumentartInfo } from "@/lib/dokumentart";
 import { absenderZeile, type Firma } from "@/lib/firma";
 import { formatDatum, formatZahl } from "@/lib/format";
 import {
@@ -37,6 +37,8 @@ export type AngebotPdfDaten = {
   /** Dokumentart (Angebot, Kostenvoranschlag, …); leer = Angebot */
   dokumentart?: string;
   nachtrag?: boolean;
+  /** Gesetzt = fertige Rechnung der App (Nummer, Leistungszeitraum, Fälligkeit); dann ist `status` „versendet“ und es steht kein „Entwurf“ im Titel */
+  rechnung?: { nummer: string; leistungVon: string; leistungBis: string; faelligAm: string };
 };
 
 // Spalten der Tabelle
@@ -57,14 +59,14 @@ const euro = (w: number) => `${zahl(w)} €`;
 
 export async function angebotPdf(d: AngebotPdfDaten): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
-  const art = dokumentartInfo(d.dokumentart);
-  doc.setTitle(`${art.name} ${d.betreff}`.slice(0, 200));
+  const art = d.rechnung ? RECHNUNG_ART : dokumentartInfo(d.dokumentart);
+  doc.setTitle(`${art.name}${d.rechnung ? ` ${d.rechnung.nummer}` : ""} ${d.betreff}`.slice(0, 200));
   doc.setProducer("Maler Brinkmann");
   doc.setCreator("Maler Brinkmann");
   const z = new Zeichner(doc);
   await z.laden();
 
-  const titel = dokumentTitel(d.dokumentart, d.nachtrag ?? false, d.status === "entwurf");
+  const titel = d.rechnung ? `Rechnung Nr. ${d.rechnung.nummer}` : dokumentTitel(d.dokumentart, d.nachtrag ?? false, d.status === "entwurf");
   const bilder = new Map<string, PDFImage>();
   for (const [id, bytes] of Object.entries(d.bilder)) {
     try {
@@ -113,7 +115,9 @@ export async function angebotPdf(d: AngebotPdfDaten): Promise<Uint8Array> {
 
   // Kunde / Projekt / Datum rechts neben dem Anschriftfeld, der Titel darunter (Betreffzone ab 98,5 mm)
   const infoY = ausOben(65.5);
-  const spalten: [string, string][] = [["Kunde", d.kundennummer], ["Projekt", d.projektnummer], ["Datum", formatDatum(d.datum)]];
+  const spalten: [string, string][] = d.rechnung
+    ? [["Kunde", d.kundennummer], ["Rechnungsnr.", d.rechnung.nummer], ["Datum", formatDatum(d.datum)]]
+    : [["Kunde", d.kundennummer], ["Projekt", d.projektnummer], ["Datum", formatDatum(d.datum)]];
   const spaltenX = [355, 430, 495];
   spalten.forEach(([label, wert], i) => {
     z.text(label, spaltenX[i], infoY + 4, { font: z.bold, groesse: 8, farbe: GRAU });
@@ -135,6 +139,23 @@ export async function angebotPdf(d: AngebotPdfDaten): Promise<Uint8Array> {
     z.y -= ZEILE;
     for (const zeile of z.umbrechen(d.leistungsort, z.regular, SCHRIFT, INHALT_B)) {
       z.text(zeile, RAND_L, z.y);
+      z.y -= ZEILE;
+    }
+  }
+  if (d.rechnung) {
+    // Leistungszeitraum und Projekt gehören nach § 14 UStG bzw. für den Kunden auf die Rechnung
+    const von = formatDatum(d.rechnung.leistungVon);
+    const bis = formatDatum(d.rechnung.leistungBis);
+    z.y -= 6;
+    z.text("Leistungszeitraum", RAND_L, z.y, { font: z.bold });
+    z.y -= ZEILE;
+    z.text(von === bis ? von : `${von} bis ${bis}`, RAND_L, z.y);
+    z.y -= ZEILE;
+    if (d.projektnummer.trim()) {
+      z.y -= 6;
+      z.text("Projekt", RAND_L, z.y, { font: z.bold });
+      z.y -= ZEILE;
+      z.text(d.projektnummer, RAND_L, z.y);
       z.y -= ZEILE;
     }
   }
@@ -227,6 +248,7 @@ export async function angebotPdf(d: AngebotPdfDaten): Promise<Uint8Array> {
   // Zahlungsbedingungen und Gültigkeit direkt unter den Summen
   const bedingungen: string[] = [];
   if (mitSummen && d.zahlungsbedingung?.trim()) bedingungen.push(`Zahlungsbedingungen: ${d.zahlungsbedingung.trim()}.`);
+  if (d.rechnung) bedingungen.push(`Bitte überweisen Sie den Betrag bis zum ${formatDatum(d.rechnung.faelligAm)} unter Angabe der Rechnungsnummer ${d.rechnung.nummer}.`);
   if (art.gueltig && d.gueltigBis?.trim()) bedingungen.push(art.gueltig.replace("{datum}", formatDatum(d.gueltigBis)));
   if (bedingungen.length) {
     z.y -= 10;

@@ -7,13 +7,14 @@ import { toast } from "sonner";
 import { FormularMeldung } from "@/components/formular-meldung";
 import { Button, buttonVariants } from "@/components/ui/button";
 import type { RechnungStatus } from "@/lib/rechnung";
-import { rechnungAbgleichen, rechnungArchivieren, rechnungUebertragen, rechnungWiederFreigeben } from "../actions";
+import { rechnungAbgleichen, rechnungArchivieren, rechnungPdfNeuErzeugen, rechnungUebertragen, rechnungWiederFreigeben } from "../actions";
 
 /** Übertragung an die Buchhaltung (sevdesk bzw. Lexware), Abgleich, PDF und Link. Das Fertigstellen ist nicht rücknehmbar, deshalb mit Bestätigung. */
 export function BuchhaltungLeiste({
   rechnungId,
   status,
   name,
+  eigen = false,
   zugang,
   lexwareLink,
   hatPdf,
@@ -25,6 +26,8 @@ export function BuchhaltungLeiste({
   status: RechnungStatus;
   /** „sevdesk“ oder „Lexware“ */
   name: string;
+  /** Eigene Rechnung der App (Nummer und PDF kommen aus der App, kein Abgleich, kein Fremdsystem) */
+  eigen?: boolean;
   /** Name der Umgebungsvariable, die noch fehlt (SEVDESK_API_TOKEN bzw. LEXWARE_API_KEY) */
   zugang: string;
   lexwareLink: string | null;
@@ -72,13 +75,15 @@ export function BuchhaltungLeiste({
           {frage ? (
             <>
               <p className="text-sm">
-                {finalisieren
+                {eigen
+                  ? "Die Rechnung bekommt jetzt ihre Rechnungsnummer und wird als PDF festgeschrieben. Das lässt sich nicht mehr rückgängig machen, danach ist die Rechnung gesperrt. Prüfe vorher Betrag, Kunde, Rechnungsdatum und Leistungszeitraum."
+                  : finalisieren
                   ? `${name} erzeugt jetzt die fertige Rechnung mit Rechnungsnummer. Das lässt sich nicht mehr rückgängig machen, danach ist die Rechnung gesperrt. Prüfe vorher Betrag, Kunde und Leistungszeitraum.`
                   : `Test-Modus: ${name} legt die Rechnung nur als Entwurf an. Es entsteht keine Rechnungsnummer.`}
               </p>
               <div className="flex flex-wrap gap-2">
                 <Button type="button" onClick={() => ausfuehren(() => rechnungUebertragen(rechnungId), "Rechnung fertiggestellt")} disabled={laeuft || !eingerichtet}>
-                  <SendIcon /> {laeuft ? "Wird übertragen …" : finalisieren ? "Ja, Rechnung jetzt fertigstellen" : "Ja, als Entwurf anlegen"}
+                  <SendIcon /> {laeuft ? (eigen ? "Wird erstellt …" : "Wird übertragen …") : finalisieren ? "Ja, Rechnung jetzt fertigstellen" : "Ja, als Entwurf anlegen"}
                 </Button>
                 <Button type="button" variant="ghost" onClick={() => setFrage(false)} disabled={laeuft}>Abbrechen</Button>
               </div>
@@ -112,9 +117,16 @@ export function BuchhaltungLeiste({
 
       {status === "uebertragen" && (
         <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="outline" onClick={() => ausfuehren(() => rechnungAbgleichen(rechnungId), "Abgeglichen")} disabled={laeuft || !eingerichtet}>
-            <RefreshCwIcon /> {laeuft ? "Gleicht ab …" : "Abgleichen"}
-          </Button>
+          {!eigen && (
+            <Button type="button" variant="outline" onClick={() => ausfuehren(() => rechnungAbgleichen(rechnungId), "Abgeglichen")} disabled={laeuft || !eingerichtet}>
+              <RefreshCwIcon /> {laeuft ? "Gleicht ab …" : "Abgleichen"}
+            </Button>
+          )}
+          {eigen && !hatPdf && (
+            <Button type="button" variant="outline" onClick={() => ausfuehren(() => rechnungPdfNeuErzeugen(rechnungId), "PDF erzeugt")} disabled={laeuft}>
+              <RefreshCwIcon /> {laeuft ? "Erzeugt …" : "PDF neu erzeugen"}
+            </Button>
+          )}
           {hatPdf && (
             <>
               <a href={`/buero/rechnungen/${rechnungId}/pdf`} target="_blank" rel="noreferrer" className={buttonVariants({ variant: "outline" })}><EyeIcon /> Datei ansehen</a>
