@@ -66,7 +66,7 @@ export type RechnungDetail = {
   rechnung: RechnungKopf;
   bausteine: (RechnungsBaustein & { id: string })[];
   projekt: { id: string; name: string; projektnummer: string; adresse: string };
-  kunde: { id: string; name: string; kundennummer: string; lexwareKontaktId: string | null; sevdeskKontaktId: string | null; email: string; leitwegId: string; anschrift: string[] };
+  kunde: { id: string; name: string; kundennummer: string; lexwareKontaktId: string | null; sevdeskKontaktId: string | null; email: string; leitwegId: string; anschrift: string[]; strasse: string; plz: string; ort: string; land: string };
   mahnungen: { id: string; stufe: number; versendetAn: string | null; versendetAm: string | null; erstelltAm: string }[];
   angebot: { id: string; betreff: string } | null;
   abschlaege: AbschlagZeile[];
@@ -206,6 +206,10 @@ export async function rechnungLaden(id: string): Promise<RechnungDetail | null> 
       email: k?.email ?? "",
       leitwegId: k?.leitweg_id ?? "",
       anschrift: k ? briefanschrift(k) : [],
+      strasse: k?.strasse ?? "",
+      plz: k?.plz ?? "",
+      ort: k?.ort ?? "",
+      land: k?.land ?? "",
     },
     angebot: r.quotes ? { id: r.quotes.id, betreff: r.quotes.betreff } : null,
     abschlaege,

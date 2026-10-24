@@ -145,7 +145,7 @@ async function detail(id: string): Promise<RechnungDetail> {
     },
     bausteine: (items ?? []).map((i) => ({ id: i.id, typ: i.typ, kurztext: i.kurztext ?? "", langtext: i.langtext ?? "", menge: i.menge === null ? null : Number(i.menge), einheit: i.einheit ?? "", einzelpreis: i.einzelpreis === null ? null : Number(i.einzelpreis) })),
     projekt: { id: projekt, name: "", projektnummer: "", adresse: "" },
-    kunde: { id: kontakt, name: kennung, kundennummer: k!.kundennummer ?? "", lexwareKontaktId: k!.lexware_contact_id, sevdeskKontaktId: k!.sevdesk_contact_id, email: k!.email ?? "", leitwegId: k!.leitweg_id ?? "", anschrift: [] },
+    kunde: { id: kontakt, name: kennung, kundennummer: k!.kundennummer ?? "", lexwareKontaktId: k!.lexware_contact_id, sevdeskKontaktId: k!.sevdesk_contact_id, email: k!.email ?? "", leitwegId: k!.leitweg_id ?? "", anschrift: [], strasse: "", plz: "", ort: "", land: "" },
     angebot: null,
     abschlaege: [],
     folgedokumente: [],

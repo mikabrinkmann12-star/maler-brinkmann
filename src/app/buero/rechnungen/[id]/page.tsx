@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeftIcon, DownloadIcon, LockIcon } from "lucide-react";
+import { ArrowLeftIcon, DownloadIcon, FileCodeIcon, LockIcon } from "lucide-react";
 import { cn } from "cn";
+import { buttonVariants } from "@/components/ui/button";
 import { RechnungPdfAnsicht } from "@/components/rechnung-pdf";
 import { StatusPille } from "@/components/status-pille";
 import { heuteIso } from "@/lib/datum";
@@ -14,6 +15,8 @@ import { auswahlAusSteuer } from "@/lib/angebot-schema";
 import { formatBetrag, formatDatum, formatDatumZeit, formatZahl } from "@/lib/format";
 import { aktuellerAnbieter, anbieterName, sevdeskEingerichtet, sevdeskFinalisieren } from "@/lib/buchhaltung";
 import { firmaLaden } from "@/lib/firma-daten";
+import { smtpKonfiguration } from "@/lib/env";
+import { eRechnungFuer } from "@/lib/e-rechnung-daten";
 import { lexwareEingerichtet, lexwareFinalisieren } from "@/lib/lexware";
 import { mahnungMailVorschlag, rechnungMailVorschlag } from "@/lib/rechnung-mail";
 import { RECHNUNGS_ART_NAMEN, istGutschriftArt, lexwareLink, rechnungBerechnen } from "@/lib/rechnung";
@@ -63,13 +66,17 @@ export default async function RechnungSeite({ params }: PageProps<"/buero/rechnu
   const mahnHinweise = Object.fromEntries([1, 2, 3].map((n) => [n, mahnungsHinweis(vorgaben, n) ?? ""]).filter(([, t]) => t));
 
   const heute = heuteIso();
+  // E-Rechnung (nur eigene, fertige Rechnungen): Warnungen, was nach der Norm noch fehlt
+  const eRechnung = istEigen && r.status === "uebertragen" ? await eRechnungFuer(r.id) : null;
   // Die Datei der Buchhaltung lässt sich als PDF direkt anzeigen (eine XRechnung ist XML und nur als Download da)
   const zeigePdf = Boolean(r.pdfPfad) && !r.pdfPfad!.endsWith(".xml");
   const autoAbgleich = eingerichtet && !istEigen && abgleichFaellig({ status: r.status, lexwareStatus: r.lexwareStatus, hatDatei: Boolean(r.pdfPfad), abgeglichenAm: r.abgeglichenAm });
   const sevdeskAktiv = istSevdesk && r.status === "uebertragen";
-  const firma = sevdeskAktiv ? await firmaLaden() : null;
+  // Versand und Mahnung per E-Mail gibt es bei sevdesk und bei den eigenen Rechnungen (dann über das SMTP-Postfach der App)
+  const versandAktiv = sevdeskAktiv || (istEigen && r.status === "uebertragen");
+  const firma = versandAktiv ? await firmaLaden() : null;
   const angaben = { rechnungsnummer: r.rechnungsnummer, betreff: r.betreff, brutto: r.brutto, rechnungsdatum: r.rechnungsdatum, zahlungszielTage: r.zahlungszielTage, firma: firma?.name ?? "" };
-  const mahnSenden = sevdeskAktiv
+  const mahnSenden = versandAktiv && !istGutschriftArt(r.art)
     ? {
         an: r.versendetAn ?? kunde.email,
         vorschlaege: Object.fromEntries([1, 2, 3].map((n) => [n, mahnungMailVorschlag(angaben, n, vorgaben, heute)])),
@@ -231,10 +238,29 @@ export default async function RechnungSeite({ params }: PageProps<"/buero/rechnu
         festgehangen={festgehangen}
       />
 
-      {sevdeskAktiv && r.lexwareStatus !== "voided" && r.lexwareStatus !== "draft" && (
+      {eRechnung && (
+        <section className="flex flex-col gap-2 rounded-xl border p-4" aria-label="E-Rechnung">
+          <h2 className="flex items-center gap-2 text-base font-semibold"><FileCodeIcon className="size-4" /> E-Rechnung</h2>
+          <p className="text-sm text-muted-foreground">
+            Strukturierte Rechnung nach EN 16931 ({eRechnung.profil === "xrechnung" ? "XRechnung für Behörden, der Kunde hat eine Leitweg-ID" : "ZUGFeRD/Factur-X"}). Ab 2028 muss jeder Betrieb sie ausstellen können. Der Aufbau ist nach der Norm gebaut,
+            aber noch nicht mit dem amtlichen Prüfprogramm geprüft. Das PDF mit eingebettetem XML ist kein zertifiziertes PDF/A-3.
+          </p>
+          {eRechnung.warnungen.length > 0 && (
+            <ul className="list-disc rounded-lg bg-amber-50 px-6 py-2 text-sm text-amber-900">
+              {eRechnung.warnungen.map((w) => <li key={w}>{w}</li>)}
+            </ul>
+          )}
+          <div className="flex flex-wrap gap-2">
+            <a href={`/buero/rechnungen/${r.id}/e-rechnung?format=xml`} className={buttonVariants({ variant: "outline" })}><DownloadIcon /> {eRechnung.profil === "xrechnung" ? "XRechnung (XML)" : "E-Rechnung (XML)"}</a>
+            {r.pdfPfad && <a href={`/buero/rechnungen/${r.id}/e-rechnung?format=pdf`} className={buttonVariants({ variant: "outline" })}><DownloadIcon /> PDF mit E-Rechnung (ZUGFeRD)</a>}
+          </div>
+        </section>
+      )}
+
+      {versandAktiv && r.lexwareStatus !== "voided" && r.lexwareStatus !== "draft" && (
         <RechnungMailPanel
           rechnungId={r.id}
-          bereit={eingerichtet}
+          bereit={istEigen ? smtpKonfiguration() !== null : eingerichtet}
           start={{ an: r.versendetAn ?? kunde.email, ...rechnungMailVorschlag(angaben) }}
           zuletzt={r.versendetAm && r.versendetAn ? { am: r.versendetAm, an: r.versendetAn } : null}
         />

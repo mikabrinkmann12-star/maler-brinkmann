@@ -8,6 +8,12 @@ import { aktuellerAnbieter, sevdeskClient, sevdeskFinalisieren } from "@/lib/buc
 import { heuteIso, istIsoDatum } from "@/lib/datum";
 import { lexwareClient, lexwareFinalisieren } from "@/lib/lexware";
 import { firmaLaden } from "@/lib/firma-daten";
+import { eRechnungFuer, gespeichertesPdf, pdfMitXml } from "@/lib/e-rechnung-daten";
+import { mahnungPdf } from "@/lib/mahnung-pdf";
+import { mailSenden, firmaMitLogo } from "@/lib/rechnung-versand";
+import { rechnungsEinstellungenLaden } from "@/lib/rechnung-einstellungen-daten";
+import { MAHN_STUFEN_NAMEN, stufeSchluessel } from "@/lib/rechnung-einstellungen";
+import { faelligAm } from "@/lib/dashboard";
 import { rechnungMailSchema } from "@/lib/rechnung-mail";
 import { sevdeskAbgleichen, sevdeskBezahltBuchen, sevdeskMahnen, sevdeskPerMail, sevdeskStornieren, sevdeskUebertragen, type Ergebnis } from "@/lib/sevdesk-uebertragung";
 import { istMahnstufe } from "@/lib/mahnung";
@@ -15,13 +21,14 @@ import { LexwareFehler } from "@/lib/lexware-client";
 import { ersteMeldung } from "@/lib/nutzer-schema";
 import {
   lexwareKontaktPayload,
+  RECHNUNGS_ART_NAMEN,
   istGutschriftArt,
   lexwareRechnungPayload,
   rechnungBerechnen,
   type RechnungDaten,
 } from "@/lib/rechnung";
 import { rechnungLaden } from "@/lib/rechnung-daten";
-import { pflichtangabenFehlen, reverseChargeHinweis } from "@/lib/rechnung-eigen";
+import { faelligkeitsDatum, mahnBetraege, pflichtangabenFehlen, reverseChargeHinweis, tageUeberfaellig } from "@/lib/rechnung-eigen";
 import { rechnungPdfErzeugen } from "@/lib/rechnung-pdf-daten";
 import { folgedokumentEntwurf, rechnungEntwurfAusAngebot } from "@/lib/rechnung-erstellen";
 import { rechnungBausteinPruefen, rechnungKopfSchema, type RechnungBausteinEingabe } from "@/lib/rechnung-schema";
@@ -241,7 +248,32 @@ export async function rechnungPerMailSenden(id: string, eingabe: unknown): Promi
   if (!uuid.safeParse(id).success) return { fehler: "Ungültige Rechnung." };
   const pruefung = rechnungMailSchema.safeParse(eingabe);
   if (!pruefung.success) return { fehler: ersteMeldung(pruefung.error) };
+  const vorhanden = await rechnungLaden(id);
+  if (vorhanden?.rechnung.anbieter === "eigen") return eigenPerMail(id, pruefung.data);
   return mitSevdesk(id, (db, client, detail) => sevdeskPerMail(db, client, detail, pruefung.data));
+}
+
+/** Rechnung der App per E-Mail: das gespeicherte PDF wird angehängt (ein E-Rechnungs-XML kommt in der nächsten Stufe dazu). */
+async function eigenPerMail(id: string, mail: { an: string; betreff: string; text: string }): Promise<RechnungErgebnis> {
+  const detail = await rechnungLaden(id);
+  if (!detail) return { fehler: "Rechnung nicht gefunden." };
+  const { rechnung: r } = detail;
+  if (r.status !== "uebertragen" || !r.rechnungsnummer) return { fehler: "Nur eine fertige Rechnung lässt sich versenden." };
+  if (!r.pdfPfad) return { fehler: "Die Rechnung hat noch kein PDF. Tippe zuerst auf „PDF neu erzeugen“." };
+  const supabase = await createClient();
+  const pdf = await gespeichertesPdf(r.pdfPfad);
+  if (!pdf) return { fehler: "Das PDF konnte nicht geladen werden." };
+  // Das PDF geht mit eingebettetem XML (E-Rechnung) raus; für Behörden (Leitweg-ID) zusätzlich die XRechnung als eigene XML-Datei
+  const e = await eRechnungFuer(id);
+  const dateiname = `${RECHNUNGS_ART_NAMEN[r.art]}_${r.rechnungsnummer}`;
+  const anhaenge = [{ filename: `${dateiname}.pdf`, content: e ? await pdfMitXml(pdf, e.xml) : pdf, contentType: "application/pdf" }];
+  if (e?.profil === "xrechnung") anhaenge.push({ filename: `${dateiname}.xml`, content: new TextEncoder().encode(e.xml), contentType: "application/xml" });
+  const gesendet = await mailSenden({ ...mail, anhaenge });
+  if (gesendet.fehler) return { fehler: gesendet.fehler };
+  const { error } = await supabase.from("invoices").update({ versendet_am: new Date().toISOString(), versendet_an: mail.an }).eq("id", id);
+  if (error) return { fehler: `Die E-Mail ist an ${mail.an} gegangen, der Versand konnte aber nicht vermerkt werden.` };
+  aktualisieren(id, r.projectId);
+  return { id };
 }
 
 /** Zahlung buchen: die Rechnung gilt danach als bezahlt. */
@@ -291,7 +323,54 @@ export async function rechnungMahnen(id: string, stufe: number, eingabe: unknown
   if (!uuid.safeParse(id).success || !istMahnstufe(stufe)) return { fehler: "Ungültige Eingabe." };
   const pruefung = rechnungMailSchema.safeParse(eingabe);
   if (!pruefung.success) return { fehler: ersteMeldung(pruefung.error) };
+  const vorhanden = await rechnungLaden(id);
+  if (vorhanden?.rechnung.anbieter === "eigen") return eigenMahnen(id, stufe, pruefung.data);
   return mitSevdesk(id, (db, client, detail) => sevdeskMahnen(db, client, detail, stufe, pruefung.data));
+}
+
+/**
+ * Zahlungserinnerung bzw. Mahnung einer Rechnung der App: erzeugt das Mahnschreiben als PDF (Gebühr und Zinsen aus Einstellungen → Rechnungen), schickt es mit
+ * der Rechnung per E-Mail, vermerkt es im Verlauf und setzt die Mahnstufe.
+ */
+async function eigenMahnen(id: string, stufe: number, mail: { an: string; betreff: string; text: string }): Promise<RechnungErgebnis> {
+  const nutzer = await requireBueroRecht("rechnungen");
+  const detail = await rechnungLaden(id);
+  if (!detail) return { fehler: "Rechnung nicht gefunden." };
+  const { rechnung: r, kunde } = detail;
+  if (r.status !== "uebertragen" || r.lexwareStatus !== "open" || !r.rechnungsnummer || r.art === "gutschrift" || r.art === "storno") {
+    return { fehler: "Eine Mahnung gibt es nur zu einer offenen, fertigen Rechnung." };
+  }
+  if (stufe <= r.mahnstufe) return { fehler: "Diese Mahnstufe wurde schon gesendet." };
+  const schluessel = stufeSchluessel(stufe);
+  if (!schluessel) return { fehler: "Ungültige Mahnstufe." };
+  const vorgaben = (await rechnungsEinstellungenLaden())[schluessel];
+
+  const heute = heuteIso();
+  const offen = r.brutto ?? 0;
+  const tage = tageUeberfaellig(faelligAm(r.rechnungsdatum, r.zahlungszielTage) ?? faelligkeitsDatum(r.rechnungsdatum, r.zahlungszielTage), heute);
+  const betraege = mahnBetraege(offen, tage, { zinsenProzent: vorgaben.zinsenProzent, gebuehr: stufe > 1 ? vorgaben.gebuehr : 0 });
+  const frist = new Date(Date.parse(`${heute}T12:00:00Z`) + vorgaben.tage * 86_400_000).toISOString().slice(0, 10);
+
+  const supabase = await createClient();
+  const { firma, logo } = await firmaMitLogo();
+  const pdf = await mahnungPdf({
+    firma, logo, empfaenger: kunde.anschrift.length ? kunde.anschrift.join("\n") : kunde.name, kundennummer: kunde.kundennummer, stufeName: MAHN_STUFEN_NAMEN[schluessel], datum: heute,
+    rechnungsnummer: r.rechnungsnummer, rechnungsdatum: r.rechnungsdatum, betreff: r.betreff, frist, text: mail.text, betraege, zinsenProzent: vorgaben.zinsenProzent, tageUeberfaellig: tage,
+  });
+  const anhaenge = [{ filename: `${MAHN_STUFEN_NAMEN[schluessel].replace(/[^A-Za-z0-9]+/g, "_")}_${r.rechnungsnummer}.pdf`, content: pdf, contentType: "application/pdf" }];
+  if (r.pdfPfad) {
+    const { data: rechnungsPdf } = await supabase.storage.from("rechnungen").download(r.pdfPfad);
+    if (rechnungsPdf) anhaenge.push({ filename: `Rechnung_${r.rechnungsnummer}.pdf`, content: new Uint8Array(await rechnungsPdf.arrayBuffer()), contentType: "application/pdf" });
+  }
+  const gesendet = await mailSenden({ ...mail, anhaenge });
+  if (gesendet.fehler) return { fehler: gesendet.fehler };
+
+  const { error: verlaufFehler } = await supabase.from("invoice_reminders").insert({ invoice_id: id, stufe, versendet_an: mail.an, versendet_am: new Date().toISOString(), created_by: nutzer.id });
+  const { error } = await supabase.from("invoices").update({ mahnstufe: stufe, angemahnt_am: heute }).eq("id", id);
+  aktualisieren(id, r.projectId);
+  revalidatePath("/buero");
+  if (error || verlaufFehler) return { id, hinweis: `Die E-Mail ist an ${mail.an} gegangen, der Vermerk in der App konnte aber nicht gespeichert werden.` };
+  return { id };
 }
 
 /** Rechnung stornieren (Stornorechnung in der Buchhaltung, nicht rücknehmbar). */

@@ -94,3 +94,20 @@ export function gutschriftBetreff(art: RechnungsArt, bezugNummer: string, betref
 export function schlussZahlbetrag(gesamtBrutto: number, abschlaege: { brutto: number }[]): number {
   return aufCent(gesamtBrutto - abschlaege.reduce((s, a) => s + a.brutto, 0));
 }
+
+// ---------------------------------------------------------------------------
+// Mahnung
+// ---------------------------------------------------------------------------
+
+/** Tage zwischen Fälligkeit und heute (nie negativ). */
+export function tageUeberfaellig(faelligAm: string, heute: string): number {
+  const t = Math.floor((Date.parse(`${heute}T12:00:00Z`) - Date.parse(`${faelligAm}T12:00:00Z`)) / 86_400_000);
+  return t > 0 ? t : 0;
+}
+
+/** Beträge einer Mahnung: offener Betrag, Mahngebühr, Verzugszinsen (einfache Zinsen pro Jahr, auf Cent) und Summe. */
+export function mahnBetraege(offen: number, tage: number, stufe: { zinsenProzent: number; gebuehr: number }): { offen: number; gebuehr: number; zinsen: number; summe: number } {
+  const zinsen = stufe.zinsenProzent > 0 && tage > 0 ? aufCent((offen * stufe.zinsenProzent * tage) / 100 / 365) : 0;
+  const gebuehr = aufCent(stufe.gebuehr);
+  return { offen: aufCent(offen), gebuehr, zinsen, summe: aufCent(offen + gebuehr + zinsen) };
+}

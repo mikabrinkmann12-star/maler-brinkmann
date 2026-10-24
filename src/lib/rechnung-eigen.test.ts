@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { FIRMA_LEER, type Firma } from "./firma";
-import { abschlagBausteine, abschlagNetto, aufCent, faelligkeitsDatum, gutschriftBetreff, pflichtangabenFehlen, praefixGueltig, rechnungsnummerBeispiel, reverseChargeHinweis, schlussZahlbetrag } from "./rechnung-eigen";
+import { abschlagBausteine, abschlagNetto, aufCent, faelligkeitsDatum, gutschriftBetreff, mahnBetraege, tageUeberfaellig, pflichtangabenFehlen, praefixGueltig, rechnungsnummerBeispiel, reverseChargeHinweis, schlussZahlbetrag } from "./rechnung-eigen";
 
 const firma: Firma = { ...FIRMA_LEER, name: "Maler Betrieb Brinkmann", strasse: "Zur Ziegelei 18", plz: "26683", ort: "Saterland", steuernummer: "56/106/09816" };
 
@@ -85,5 +85,18 @@ describe("Gutschrift und Storno", () => {
   it("Betreff nennt die Rechnung", () => {
     expect(gutschriftBetreff("gutschrift", "R-2026-0001", "Innenanstrich")).toBe("Gutschrift zur Rechnung R-2026-0001: Innenanstrich");
     expect(gutschriftBetreff("storno", "R-2026-0001", "x".repeat(300))).toHaveLength(200);
+  });
+});
+
+describe("Mahnung", () => {
+  it("Tage überfällig, nie negativ", () => {
+    expect(tageUeberfaellig("2026-10-01", "2026-10-24")).toBe(23);
+    expect(tageUeberfaellig("2026-10-24", "2026-10-24")).toBe(0);
+    expect(tageUeberfaellig("2026-11-07", "2026-10-24")).toBe(0);
+  });
+  it("Gebühr, Zinsen auf den Cent und Summe", () => {
+    expect(mahnBetraege(1000, 30, { zinsenProzent: 0, gebuehr: 3 })).toEqual({ offen: 1000, gebuehr: 3, zinsen: 0, summe: 1003 });
+    expect(mahnBetraege(1000, 73, { zinsenProzent: 9, gebuehr: 5 })).toEqual({ offen: 1000, gebuehr: 5, zinsen: 18, summe: 1023 });
+    expect(mahnBetraege(1548.31, 0, { zinsenProzent: 9, gebuehr: 0 }).zinsen).toBe(0);
   });
 });
