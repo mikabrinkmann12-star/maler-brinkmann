@@ -2,7 +2,7 @@ import "server-only";
 import { pdfDateiname } from "@/lib/angebot-pdf-daten";
 import { angebotPdf } from "@/lib/angebot-pdf";
 import { angebotEinstellungenLaden, firmaLaden } from "@/lib/firma-daten";
-import { rechnungBerechnen, zahlungsbedingungText } from "@/lib/rechnung";
+import { RECHNUNGS_ART_NAMEN, rechnungBerechnen, zahlungsbedingungText } from "@/lib/rechnung";
 import { rechnungLaden } from "@/lib/rechnung-daten";
 import { faelligkeitsDatum } from "@/lib/rechnung-eigen";
 import { createClient } from "@/lib/supabase/server";
@@ -39,13 +39,17 @@ export async function rechnungPdfErzeugen(id: string): Promise<{ bytes: Uint8Arr
     reverseChargeText: vorgaben.reverse_charge_text,
     bilder: {},
     logo,
-    zahlungsbedingung: zahlungsbedingungText(r.zahlungszielTage, r.skontoProzent, r.skontoTage),
+    zahlungsbedingung: r.art === "gutschrift" || r.art === "storno" ? "" : zahlungsbedingungText(r.zahlungszielTage, r.skontoProzent, r.skontoTage),
     rechnung: {
       nummer: r.rechnungsnummer,
       leistungVon: r.leistungVon,
       leistungBis: r.leistungBis,
       faelligAm: faelligkeitsDatum(r.rechnungsdatum, r.zahlungszielTage),
+      art: r.art,
+      bezug: r.bezugId && r.bezugNummer && r.bezugDatum ? { nummer: r.bezugNummer, datum: r.bezugDatum } : undefined,
+      abschlaege: detail.abschlaege.length ? detail.abschlaege : undefined,
+      zahlbetrag: detail.abschlaege.length && r.brutto !== null ? r.brutto : undefined,
     },
   });
-  return { bytes, dateiname: pdfDateiname(r.rechnungsnummer, "Rechnung") };
+  return { bytes, dateiname: pdfDateiname(r.rechnungsnummer, RECHNUNGS_ART_NAMEN[r.art]) };
 }

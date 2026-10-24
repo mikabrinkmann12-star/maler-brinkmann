@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { formatBetrag, formatDatumZeit } from "@/lib/format";
 import { ersteMeldung } from "@/lib/nutzer-schema";
 import { rechnungMailSchema } from "@/lib/rechnung-mail";
-import { rechnungAlsBezahltBuchen, rechnungPerMailSenden, rechnungStornieren, rechnungZahlungZuruecknehmen } from "../actions";
+import { rechnungAlsBezahltBuchen, rechnungGutschriftErstellen, rechnungPerMailSenden, rechnungStornieren, rechnungZahlungZuruecknehmen } from "../actions";
 
 /** Rechnung per E-Mail an den Kunden schicken. Die E-Mail geht über die Buchhaltung (sie hängt die Rechnung an), Vorschlag zum Ändern. */
 export function RechnungMailPanel({
@@ -98,6 +98,7 @@ export function ZahlungKarte({
   kannBuchen,
   kannStornieren,
   kannZuruecknehmen = false,
+  kannGutschrift = false,
   bezahltAm,
 }: {
   rechnungId: string;
@@ -107,6 +108,8 @@ export function ZahlungKarte({
   kannStornieren: boolean;
   /** Eigene Rechnung, die als bezahlt gebucht ist: Zahlung wieder zurücknehmen */
   kannZuruecknehmen?: boolean;
+  /** Eigene Rechnung: Gutschrift (Teilerstattung) als Entwurf anlegen */
+  kannGutschrift?: boolean;
   bezahltAm: string | null;
 }) {
   const router = useRouter();
@@ -117,7 +120,7 @@ export function ZahlungKarte({
   const [hinweis, setHinweis] = useState<string | null>(null);
   const [laeuft, starte] = useTransition();
 
-  function ausfuehren(f: () => Promise<{ fehler?: string; hinweis?: string }>, ok: string) {
+  function ausfuehren(f: () => Promise<{ fehler?: string; hinweis?: string; id?: string }>, ok: string) {
     setFehler(null);
     setHinweis(null);
     starte(async () => {
@@ -129,13 +132,15 @@ export function ZahlungKarte({
         router.refresh();
         return;
       }
-      if (r.hinweis) setHinweis(r.hinweis);
       toast.success(ok);
+      // Storno und Gutschrift sind eigene Dokumente: dorthin wechseln
+      if (r.id && r.id !== rechnungId) return void router.push(`/buero/rechnungen/${r.id}`);
+      if (r.hinweis) setHinweis(r.hinweis);
       router.refresh();
     });
   }
 
-  if (!kannBuchen && !kannStornieren && !kannZuruecknehmen) return null;
+  if (!kannBuchen && !kannStornieren && !kannZuruecknehmen && !kannGutschrift) return null;
   return (
     <section className="flex flex-col gap-3 rounded-xl border p-4">
       <h2 className="flex items-center gap-2 text-base font-semibold"><WalletIcon className="size-4" /> Zahlung</h2>
@@ -164,6 +169,14 @@ export function ZahlungKarte({
       {kannZuruecknehmen && (
         <div>
           <Button type="button" variant="ghost" disabled={laeuft} onClick={() => window.confirm("Die Zahlung zurücknehmen? Die Rechnung ist dann wieder offen.") && ausfuehren(() => rechnungZahlungZuruecknehmen(rechnungId), "Zahlung zurückgenommen")}>Zahlung zurücknehmen</Button>
+        </div>
+      )}
+      {kannGutschrift && (
+        <div className="flex flex-col gap-2 border-t pt-3">
+          <p className="text-sm text-muted-foreground">Nur ein Teil der Rechnung wird erstattet (z. B. Preisnachlass wegen eines Mangels)? Dann lege eine Gutschrift an. Du kürzt die Positionen im Entwurf und stellst sie mit eigener Nummer fertig.</p>
+          <div>
+            <Button type="button" variant="outline" disabled={laeuft} onClick={() => ausfuehren(() => rechnungGutschriftErstellen(rechnungId), "Gutschrift als Entwurf angelegt: bitte prüfen")}>{laeuft ? "Legt an …" : "Gutschrift anlegen"}</Button>
+          </div>
         </div>
       )}
       {kannStornieren && (

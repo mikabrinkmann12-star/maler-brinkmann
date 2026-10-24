@@ -5,6 +5,7 @@
 
 import { PDFDocument, type PDFFont, type PDFImage } from "pdf-lib";
 import type { AngebotStatus, Berechnung, BerechneteZeile } from "@/lib/angebot";
+import { RECHNUNGS_ART_NAMEN, type RechnungsArt } from "@/lib/rechnung";
 import { RECHNUNG_ART, dokumentTitel, dokumentartInfo } from "@/lib/dokumentart";
 import { absenderZeile, type Firma } from "@/lib/firma";
 import { formatDatum, formatZahl } from "@/lib/format";
@@ -38,7 +39,20 @@ export type AngebotPdfDaten = {
   dokumentart?: string;
   nachtrag?: boolean;
   /** Gesetzt = fertige Rechnung der App (Nummer, Leistungszeitraum, Fälligkeit); dann ist `status` „versendet“ und es steht kein „Entwurf“ im Titel */
-  rechnung?: { nummer: string; leistungVon: string; leistungBis: string; faelligAm: string };
+  rechnung?: {
+    nummer: string;
+    leistungVon: string;
+    leistungBis: string;
+    faelligAm: string;
+    /** Rechnungsart; leer = normale Rechnung. Gutschrift und Storno zeigen negative Summen. */
+    art?: RechnungsArt;
+    /** Gutschrift und Storno: die Rechnung, auf die sie sich beziehen */
+    bezug?: { nummer: string; datum: string };
+    /** Schlussrechnung: abgezogene Abschlagsrechnungen */
+    abschlaege?: { nummer: string; datum: string; netto: number; brutto: number }[];
+    /** Schlussrechnung: noch zu zahlender Betrag brutto nach Abzug der Abschläge */
+    zahlbetrag?: number;
+  };
 };
 
 // Spalten der Tabelle
@@ -60,13 +74,16 @@ const euro = (w: number) => `${zahl(w)} €`;
 export async function angebotPdf(d: AngebotPdfDaten): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
   const art = d.rechnung ? RECHNUNG_ART : dokumentartInfo(d.dokumentart);
-  doc.setTitle(`${art.name}${d.rechnung ? ` ${d.rechnung.nummer}` : ""} ${d.betreff}`.slice(0, 200));
+  doc.setTitle(`${d.rechnung ? RECHNUNGS_ART_NAMEN[d.rechnung.art ?? "rechnung"] : art.name}${d.rechnung ? ` ${d.rechnung.nummer}` : ""} ${d.betreff}`.slice(0, 200));
   doc.setProducer("Maler Brinkmann");
   doc.setCreator("Maler Brinkmann");
   const z = new Zeichner(doc);
   await z.laden();
 
-  const titel = d.rechnung ? `Rechnung Nr. ${d.rechnung.nummer}` : dokumentTitel(d.dokumentart, d.nachtrag ?? false, d.status === "entwurf");
+  const rechnungsArt: RechnungsArt = d.rechnung?.art ?? "rechnung";
+  const istGutschrift = rechnungsArt === "gutschrift" || rechnungsArt === "storno";
+  const vz = istGutschrift ? -1 : 1;
+  const titel = d.rechnung ? `${RECHNUNGS_ART_NAMEN[rechnungsArt]} Nr. ${d.rechnung.nummer}` : dokumentTitel(d.dokumentart, d.nachtrag ?? false, d.status === "entwurf");
   const bilder = new Map<string, PDFImage>();
   for (const [id, bytes] of Object.entries(d.bilder)) {
     try {
@@ -151,6 +168,13 @@ export async function angebotPdf(d: AngebotPdfDaten): Promise<Uint8Array> {
     z.y -= ZEILE;
     z.text(von === bis ? von : `${von} bis ${bis}`, RAND_L, z.y);
     z.y -= ZEILE;
+    if (d.rechnung.bezug) {
+      z.y -= 6;
+      z.text("Bezug", RAND_L, z.y, { font: z.bold });
+      z.y -= ZEILE;
+      z.text(`Rechnung ${d.rechnung.bezug.nummer} vom ${formatDatum(d.rechnung.bezug.datum)}`, RAND_L, z.y);
+      z.y -= ZEILE;
+    }
     if (d.projektnummer.trim()) {
       z.y -= 6;
       z.text("Projekt", RAND_L, z.y, { font: z.bold });
@@ -216,14 +240,24 @@ export async function angebotPdf(d: AngebotPdfDaten): Promise<Uint8Array> {
   // Summen, Schlusstext, Unterschrift
   // ---------------------------------------------------------------------
   const b = d.berechnung;
-  const summenZeilen: { label: string; wert: string; stark?: boolean }[] = [{ label: "Nettosumme", wert: euro(b.netto) }];
+  // Gutschrift und Storno: Summen mit Minuszeichen (die Positionen bleiben positiv)
+  const ev = (w: number) => euro(w * vz);
+  const summenZeilen: { label: string; wert: string; stark?: boolean }[] = [{ label: istGutschrift ? "Nettosumme der Gutschrift" : "Nettosumme", wert: ev(b.netto) }];
   if (b.rabattProzent > 0) {
-    summenZeilen.push({ label: `Rabatt ${zahl(b.rabattProzent, 0, 2)} %`, wert: `-${euro(b.rabatt)}` });
-    summenZeilen.push({ label: "Netto nach Rabatt", wert: euro(b.nettoNachRabatt) });
+    summenZeilen.push({ label: `Rabatt ${zahl(b.rabattProzent, 0, 2)} %`, wert: euro(-b.rabatt * vz) });
+    summenZeilen.push({ label: "Netto nach Rabatt", wert: ev(b.nettoNachRabatt) });
   }
   if (!b.reverseCharge && b.steuersatz > 0) {
-    summenZeilen.push({ label: `Umsatzsteuer ${b.steuersatz} %`, wert: euro(b.ust) });
-    summenZeilen.push({ label: "Gesamtsumme brutto", wert: euro(b.brutto), stark: true });
+    summenZeilen.push({ label: `Umsatzsteuer ${b.steuersatz} %`, wert: ev(b.ust) });
+    summenZeilen.push({ label: istGutschrift ? "Gutschriftsbetrag brutto" : "Gesamtsumme brutto", wert: ev(b.brutto), stark: true });
+  }
+  // Schlussrechnung: bereits gestellte Abschlagsrechnungen abziehen (mit Entgelt und Steuer, § 14 Abs. 5 UStG)
+  if (d.rechnung?.abschlaege?.length) {
+    for (const a of d.rechnung.abschlaege) {
+      const ust = Math.round((a.brutto - a.netto) * 100) / 100;
+      summenZeilen.push({ label: `abzgl. Abschlag ${a.nummer} (netto ${euro(a.netto)}, USt ${euro(ust)})`, wert: euro(-a.brutto) });
+    }
+    summenZeilen.push({ label: "Noch zu zahlender Betrag", wert: euro(d.rechnung.zahlbetrag ?? b.brutto), stark: true });
   }
   const hinweisZeilen = b.reverseCharge ? z.umbrechen(d.reverseChargeText, z.regular, 8.5, INHALT_B) : [];
 
@@ -248,7 +282,8 @@ export async function angebotPdf(d: AngebotPdfDaten): Promise<Uint8Array> {
   // Zahlungsbedingungen und Gültigkeit direkt unter den Summen
   const bedingungen: string[] = [];
   if (mitSummen && d.zahlungsbedingung?.trim()) bedingungen.push(`Zahlungsbedingungen: ${d.zahlungsbedingung.trim()}.`);
-  if (d.rechnung) bedingungen.push(`Bitte überweisen Sie den Betrag bis zum ${formatDatum(d.rechnung.faelligAm)} unter Angabe der Rechnungsnummer ${d.rechnung.nummer}.`);
+  if (d.rechnung && istGutschrift) bedingungen.push(`Wir erstatten Ihnen den Betrag bzw. verrechnen ihn mit offenen Forderungen (${RECHNUNGS_ART_NAMEN[rechnungsArt]} ${d.rechnung.nummer}).`);
+  else if (d.rechnung) bedingungen.push(`Bitte überweisen Sie ${d.rechnung.abschlaege?.length ? "den noch zu zahlenden Betrag" : "den Betrag"} bis zum ${formatDatum(d.rechnung.faelligAm)} unter Angabe der Rechnungsnummer ${d.rechnung.nummer}.`);
   if (art.gueltig && d.gueltigBis?.trim()) bedingungen.push(art.gueltig.replace("{datum}", formatDatum(d.gueltigBis)));
   if (bedingungen.length) {
     z.y -= 10;

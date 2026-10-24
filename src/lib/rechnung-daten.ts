@@ -1,7 +1,7 @@
 import "server-only";
 import { briefanschrift } from "@/lib/kontakt-schema";
 import { kontaktName, adresseText } from "@/lib/projekt";
-import { rechnungBerechnen, type RechnungStatus, type RechnungsBaustein } from "@/lib/rechnung";
+import { istRechnungsArt, rechnungBerechnen, type RechnungStatus, type RechnungsArt, type RechnungsBaustein } from "@/lib/rechnung";
 import { suchtext } from "@/lib/suche";
 import { createClient } from "@/lib/supabase/server";
 
@@ -45,7 +45,22 @@ export type RechnungKopf = {
   mahnstufe: number;
   angemahntAm: string | null;
   notiz: string;
+  /** Rechnungsart (normale Rechnung, Abschlag, Schluss, Gutschrift, Storno) */
+  art: RechnungsArt;
+  /** Bei Gutschrift und Storno: die Rechnung, auf die sich das Dokument bezieht */
+  bezugId: string | null;
+  bezugNummer: string;
+  bezugDatum: string | null;
+  /** Schlussrechnung: abgezogene Abschlagsrechnungen (Summen); netto/brutto sind dann der Zahlbetrag */
+  abzugNetto: number;
+  abzugBrutto: number;
 };
+
+/** Abgezogene (Schlussrechnung fertig) bzw. noch abzuziehende (Entwurf) Abschlagsrechnung. */
+export type AbschlagZeile = { id: string; nummer: string; datum: string; netto: number; brutto: number };
+
+/** Gutschriften und Stornos, die sich auf diese Rechnung beziehen. */
+export type FolgeDokument = { id: string; art: RechnungsArt; nummer: string; datum: string; brutto: number };
 
 export type RechnungDetail = {
   rechnung: RechnungKopf;
@@ -54,6 +69,8 @@ export type RechnungDetail = {
   kunde: { id: string; name: string; kundennummer: string; lexwareKontaktId: string | null; sevdeskKontaktId: string | null; email: string; leitwegId: string; anschrift: string[] };
   mahnungen: { id: string; stufe: number; versendetAn: string | null; versendetAm: string | null; erstelltAm: string }[];
   angebot: { id: string; betreff: string } | null;
+  abschlaege: AbschlagZeile[];
+  folgedokumente: FolgeDokument[];
 };
 
 export async function rechnungLaden(id: string): Promise<RechnungDetail | null> {
@@ -61,7 +78,7 @@ export async function rechnungLaden(id: string): Promise<RechnungDetail | null> 
   const { data: r, error } = await supabase
     .from("invoices")
     .select(
-      "id, project_id, quote_id, contact_id, status, betreff, rechnungsdatum, leistung_von, leistung_bis, zahlungsziel_tage, skonto_prozent, skonto_tage, steuersatz, reverse_charge, rabatt_prozent, einleitung, schlusstext, anbieter, lexware_id, sevdesk_id, versendet_am, versendet_an, bezahlt_am, storniert_am, rechnungsnummer, lexware_status, netto, brutto, uebertragen_am, abgeglichen_am, pdf_pfad, archiviert_am, mahnstufe, angemahnt_am, notiz, projects(id, name, projektnummer, baustelle_strasse, baustelle_plz, baustelle_ort), contacts(id, kundennummer, typ, anrede, firmenname, ansprechpartner, vorname, nachname, strasse, plz, ort, land, empfaenger, email, lexware_contact_id, sevdesk_contact_id, leitweg_id), quotes(id, betreff)",
+      "id, project_id, quote_id, contact_id, status, betreff, rechnungsdatum, leistung_von, leistung_bis, zahlungsziel_tage, skonto_prozent, skonto_tage, steuersatz, reverse_charge, rabatt_prozent, einleitung, schlusstext, anbieter, lexware_id, sevdesk_id, versendet_am, versendet_an, bezahlt_am, storniert_am, rechnungsnummer, lexware_status, netto, brutto, uebertragen_am, abgeglichen_am, pdf_pfad, archiviert_am, mahnstufe, angemahnt_am, notiz, art, bezug_id, abzug_netto, abzug_brutto, projects(id, name, projektnummer, baustelle_strasse, baustelle_plz, baustelle_ort), contacts(id, kundennummer, typ, anrede, firmenname, ansprechpartner, vorname, nachname, strasse, plz, ort, land, empfaenger, email, lexware_contact_id, sevdesk_contact_id, leitweg_id), quotes(id, betreff)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -83,6 +100,41 @@ export async function rechnungLaden(id: string): Promise<RechnungDetail | null> 
     .eq("invoice_id", id)
     .order("created_at", { ascending: false })
     .limit(20);
+
+  // Bezug (Gutschrift/Storno), abgezogene bzw. noch abzuziehende Abschläge und Folgedokumente
+  let bezugNummer = "";
+  let bezugDatum: string | null = null;
+  if (r.bezug_id) {
+    const { data: b } = await supabase.from("invoices").select("rechnungsnummer, rechnungsdatum").eq("id", r.bezug_id).maybeSingle();
+    bezugNummer = b?.rechnungsnummer ?? "";
+    bezugDatum = b?.rechnungsdatum ?? null;
+  }
+  let abschlaege: AbschlagZeile[] = [];
+  if (r.art === "schluss") {
+    if (r.status === "uebertragen") {
+      const { data: z } = await supabase.from("invoice_abschlaege").select("abschlag_id, netto, brutto").eq("invoice_id", id);
+      const ids = (z ?? []).map((x) => x.abschlag_id);
+      const { data: a } = ids.length ? await supabase.from("invoices").select("id, rechnungsnummer, rechnungsdatum").in("id", ids) : { data: [] };
+      abschlaege = (z ?? []).map((x) => {
+        const q = (a ?? []).find((y) => y.id === x.abschlag_id);
+        return { id: x.abschlag_id, nummer: q?.rechnungsnummer ?? "", datum: q?.rechnungsdatum ?? "", netto: Number(x.netto), brutto: Number(x.brutto) };
+      });
+    } else if (r.quote_id) {
+      const { data: a } = await supabase
+        .from("invoices")
+        .select("id, rechnungsnummer, rechnungsdatum, netto, brutto")
+        .eq("quote_id", r.quote_id).eq("art", "abschlag").eq("status", "uebertragen").eq("anbieter", "eigen").neq("lexware_status", "voided");
+      abschlaege = (a ?? []).map((q) => ({ id: q.id, nummer: q.rechnungsnummer ?? "", datum: q.rechnungsdatum, netto: Number(q.netto ?? 0), brutto: Number(q.brutto ?? 0) }));
+    }
+    abschlaege.sort((x, y) => x.datum.localeCompare(y.datum) || x.nummer.localeCompare(y.nummer));
+  }
+  const { data: folge } = await supabase
+    .from("invoices")
+    .select("id, art, rechnungsnummer, rechnungsdatum, brutto")
+    .eq("bezug_id", id)
+    .eq("status", "uebertragen")
+    .order("rechnungsdatum");
+  const folgedokumente: FolgeDokument[] = (folge ?? []).map((f) => ({ id: f.id, art: istRechnungsArt(f.art) ? f.art : "gutschrift", nummer: f.rechnungsnummer ?? "", datum: f.rechnungsdatum, brutto: Number(f.brutto ?? 0) }));
 
   const p = r.projects;
   const k = r.contacts;
@@ -123,6 +175,12 @@ export async function rechnungLaden(id: string): Promise<RechnungDetail | null> 
       mahnstufe: r.mahnstufe,
       angemahntAm: r.angemahnt_am,
       notiz: r.notiz ?? "",
+      art: istRechnungsArt(r.art) ? r.art : "rechnung",
+      bezugId: r.bezug_id,
+      bezugNummer,
+      bezugDatum,
+      abzugNetto: Number(r.abzug_netto ?? 0),
+      abzugBrutto: Number(r.abzug_brutto ?? 0),
     },
     bausteine: items.map((i) => ({
       id: i.id,
@@ -150,6 +208,8 @@ export async function rechnungLaden(id: string): Promise<RechnungDetail | null> 
       anschrift: k ? briefanschrift(k) : [],
     },
     angebot: r.quotes ? { id: r.quotes.id, betreff: r.quotes.betreff } : null,
+    abschlaege,
+    folgedokumente,
     mahnungen: (mahn ?? []).map((m) => ({ id: m.id, stufe: m.stufe, versendetAn: m.versendet_an, versendetAm: m.versendet_am, erstelltAm: m.created_at })),
   };
 }
@@ -179,6 +239,7 @@ export type RechnungListenZeile = {
   hatXml: boolean;
   anbieter: "lexware" | "sevdesk" | "eigen";
   lexwareId: string | null;
+  art: RechnungsArt;
 };
 
 export const MAX_RECHNUNGEN = 300;
@@ -196,7 +257,7 @@ export async function rechnungenLaden(opts: {
   let abfrage = supabase
     .from("invoices")
     .select(
-      "id, project_id, betreff, rechnungsdatum, status, rechnungsnummer, lexware_status, zahlungsziel_tage, abgeglichen_am, pdf_pfad, anbieter, lexware_id, mahnstufe, steuersatz, reverse_charge, rabatt_prozent, netto, brutto, archiviert_am, created_at, projects(name, projektnummer), contacts(firmenname, vorname, nachname), invoice_items(typ, kurztext, langtext, menge, einheit, einzelpreis)",
+      "id, project_id, betreff, rechnungsdatum, status, rechnungsnummer, lexware_status, zahlungsziel_tage, abgeglichen_am, pdf_pfad, anbieter, lexware_id, mahnstufe, steuersatz, reverse_charge, rabatt_prozent, netto, brutto, art, archiviert_am, created_at, projects(name, projektnummer), contacts(firmenname, vorname, nachname), invoice_items(typ, kurztext, langtext, menge, einheit, einzelpreis)",
     );
   abfrage = opts.archiv ? abfrage.not("archiviert_am", "is", null) : abfrage.is("archiviert_am", null);
   if (opts.status) abfrage = abfrage.eq("status", opts.status);
@@ -220,8 +281,8 @@ export async function rechnungenLaden(opts: {
       rechnungsnummer: r.rechnungsnummer ?? "",
       lexwareStatus: r.lexware_status ?? "",
       // Nach der Übertragung gilt der Betrag, den Lexware zurückgemeldet hat
-      netto: r.netto == null ? rechnung.nettoNachRabatt : Number(r.netto),
-      brutto: r.brutto == null ? rechnung.brutto : Number(r.brutto),
+      netto: r.netto == null ? (r.art === "gutschrift" || r.art === "storno" ? -rechnung.nettoNachRabatt : rechnung.nettoNachRabatt) : Number(r.netto),
+      brutto: r.brutto == null ? (r.art === "gutschrift" || r.art === "storno" ? -rechnung.brutto : rechnung.brutto) : Number(r.brutto),
       archiviert: r.archiviert_am != null,
       projektId: r.project_id,
       projektnummer: r.projects?.projektnummer ?? "",
@@ -235,6 +296,7 @@ export async function rechnungenLaden(opts: {
       hatXml: Boolean(r.pdf_pfad) && r.pdf_pfad!.endsWith(".xml"),
       anbieter: r.anbieter === "sevdesk" ? "sevdesk" : r.anbieter === "eigen" ? "eigen" : "lexware",
       lexwareId: r.lexware_id,
+      art: istRechnungsArt(r.art) ? r.art : "rechnung",
     };
   });
 

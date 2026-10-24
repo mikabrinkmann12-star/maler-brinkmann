@@ -141,11 +141,14 @@ async function detail(id: string): Promise<RechnungDetail> {
       bezahltAm: r!.bezahlt_am, storniertAm: r!.storniert_am, rechnungsnummer: r!.rechnungsnummer ?? "", lexwareStatus: r!.lexware_status ?? "",
       netto: r!.netto === null ? null : Number(r!.netto), brutto: r!.brutto === null ? null : Number(r!.brutto), uebertragenAm: r!.uebertragen_am, abgeglichenAm: r!.abgeglichen_am,
       pdfPfad: r!.pdf_pfad, archiviert: r!.archiviert_am !== null, mahnstufe: r!.mahnstufe, angemahntAm: r!.angemahnt_am, notiz: "",
+      art: "rechnung", bezugId: null, bezugNummer: "", bezugDatum: null, abzugNetto: 0, abzugBrutto: 0,
     },
     bausteine: (items ?? []).map((i) => ({ id: i.id, typ: i.typ, kurztext: i.kurztext ?? "", langtext: i.langtext ?? "", menge: i.menge === null ? null : Number(i.menge), einheit: i.einheit ?? "", einzelpreis: i.einzelpreis === null ? null : Number(i.einzelpreis) })),
     projekt: { id: projekt, name: "", projektnummer: "", adresse: "" },
     kunde: { id: kontakt, name: kennung, kundennummer: k!.kundennummer ?? "", lexwareKontaktId: k!.lexware_contact_id, sevdeskKontaktId: k!.sevdesk_contact_id, email: k!.email ?? "", leitwegId: k!.leitweg_id ?? "", anschrift: [] },
     angebot: null,
+    abschlaege: [],
+    folgedokumente: [],
     mahnungen: (mahn ?? []).map((m) => ({ id: m.id, stufe: m.stufe, versendetAn: m.versendet_an, versendetAm: m.versendet_am, erstelltAm: m.created_at })),
   };
 }

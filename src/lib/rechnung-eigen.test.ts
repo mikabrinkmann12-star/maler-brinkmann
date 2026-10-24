@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { FIRMA_LEER, type Firma } from "./firma";
-import { faelligkeitsDatum, pflichtangabenFehlen, praefixGueltig, rechnungsnummerBeispiel, reverseChargeHinweis } from "./rechnung-eigen";
+import { abschlagBausteine, abschlagNetto, aufCent, faelligkeitsDatum, gutschriftBetreff, pflichtangabenFehlen, praefixGueltig, rechnungsnummerBeispiel, reverseChargeHinweis, schlussZahlbetrag } from "./rechnung-eigen";
 
 const firma: Firma = { ...FIRMA_LEER, name: "Maler Betrieb Brinkmann", strasse: "Zur Ziegelei 18", plz: "26683", ort: "Saterland", steuernummer: "56/106/09816" };
 
@@ -51,5 +51,39 @@ describe("faelligkeitsDatum / Hinweis", () => {
   it("Hinweis nur bei Reverse-Charge", () => {
     expect(reverseChargeHinweis(false)).toBeNull();
     expect(reverseChargeHinweis(true)).toContain("USt-IdNr.");
+  });
+});
+
+describe("Abschlag", () => {
+  it("Prozent oder fester Betrag, auf den Cent", () => {
+    expect(abschlagNetto(1301.1, { modus: "prozent", prozent: 30 })).toEqual({ netto: 390.33 });
+    expect(abschlagNetto(1000, { modus: "betrag", netto: 250.456 })).toEqual({ netto: 250.46 });
+    expect(aufCent(1.005)).toBe(1.01);
+  });
+  it("lehnt Unsinn und zu hohe Summen ab", () => {
+    expect(abschlagNetto(1000, { modus: "prozent", prozent: 0 })).toHaveProperty("fehler");
+    expect(abschlagNetto(1000, { modus: "prozent", prozent: 120 })).toHaveProperty("fehler");
+    expect(abschlagNetto(0, { modus: "prozent", prozent: 30 })).toHaveProperty("fehler");
+    expect(abschlagNetto(1000, { modus: "betrag", netto: 500 }, 600)).toHaveProperty("fehler");
+    expect(abschlagNetto(1000, { modus: "betrag", netto: 400 }, 600)).toEqual({ netto: 400 });
+  });
+  it("eine Position mit dem Betrag, Nummer und Bezug zum Angebot", () => {
+    const b = abschlagBausteine("Innenanstrich", { modus: "prozent", prozent: 30 }, 390.33, 2);
+    expect(b).toHaveLength(1);
+    expect(b[0]).toMatchObject({ typ: "position", menge: 1, einheit: "psch", einzelpreis: 390.33 });
+    expect(b[0].kurztext).toContain("2. Abschlagszahlung");
+    expect(b[0].kurztext).toContain("30 %");
+    expect(b[0].langtext).toContain("Innenanstrich");
+  });
+  it("Zahlbetrag der Schlussrechnung", () => {
+    expect(schlussZahlbetrag(1548.31, [{ brutto: 464.5 }, { brutto: 100 }])).toBe(983.81);
+    expect(schlussZahlbetrag(1000, [])).toBe(1000);
+  });
+});
+
+describe("Gutschrift und Storno", () => {
+  it("Betreff nennt die Rechnung", () => {
+    expect(gutschriftBetreff("gutschrift", "R-2026-0001", "Innenanstrich")).toBe("Gutschrift zur Rechnung R-2026-0001: Innenanstrich");
+    expect(gutschriftBetreff("storno", "R-2026-0001", "x".repeat(300))).toHaveLength(200);
   });
 });

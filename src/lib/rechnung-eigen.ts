@@ -2,6 +2,8 @@
 // Der Steuerberater von Ralf muss das Verfahren vor dem echten Einsatz bestätigen (GoBD, ab 2028 E-Rechnung).
 
 import type { Firma } from "@/lib/firma";
+import { formatBetrag, formatZahl } from "@/lib/format";
+import type { RechnungsArt, RechnungsBaustein } from "@/lib/rechnung";
 
 /** Nummernkreis aus den Einstellungen: Kürzel und Startnummer (gilt nur für die erste Rechnung eines Jahres). */
 export const RECHNUNG_PRAEFIX_STANDARD = "R-";
@@ -42,4 +44,53 @@ export function faelligkeitsDatum(rechnungsdatum: string, zahlungszielTage: numb
   const d = new Date(`${rechnungsdatum}T12:00:00Z`);
   d.setUTCDate(d.getUTCDate() + zahlungszielTage);
   return d.toISOString().slice(0, 10);
+}
+
+// ---------------------------------------------------------------------------
+// Rechnungsarten: Abschlag, Schluss, Gutschrift, Storno
+// ---------------------------------------------------------------------------
+
+/** Cent genau runden (0,5 rundet auf), ohne Gleitkomma-Fehler wie 1,005 → 1,00. */
+export function aufCent(betrag: number): number {
+  return Math.round((betrag + Number.EPSILON) * 100) / 100;
+}
+
+export type AbschlagWahl = { modus: "prozent"; prozent: number } | { modus: "betrag"; netto: number };
+
+/** Netto-Betrag der Abschlagsrechnung: Prozent der Netto-Auftragssumme (nach Rabatt) oder ein fester Betrag; Fehlertext, wenn er nicht passt. */
+export function abschlagNetto(auftragssummeNetto: number, wahl: AbschlagWahl, bereitsAbgerechnetNetto = 0): { netto: number } | { fehler: string } {
+  if (auftragssummeNetto <= 0) return { fehler: "Das Angebot hat keine Summe, von der ein Abschlag berechnet werden könnte." };
+  const netto = wahl.modus === "prozent" ? aufCent((auftragssummeNetto * wahl.prozent) / 100) : aufCent(wahl.netto);
+  if (!Number.isFinite(netto) || netto <= 0) return { fehler: "Bitte einen Prozentsatz oder Betrag über 0 angeben." };
+  if (wahl.modus === "prozent" && wahl.prozent > 100) return { fehler: "Der Abschlag kann nicht mehr als 100 % betragen." };
+  if (netto + bereitsAbgerechnetNetto > auftragssummeNetto + 0.005) {
+    return { fehler: `Mit diesem Abschlag wären ${formatBetrag(netto + bereitsAbgerechnetNetto)} netto abgerechnet, das Angebot hat aber nur ${formatBetrag(auftragssummeNetto)} netto.` };
+  }
+  return { netto };
+}
+
+/** Eine Position für die Abschlagsrechnung (Leistungsbeschreibung nach § 14 UStG: Abschlag für das genannte Angebot/Projekt). */
+export function abschlagBausteine(angebotBetreff: string, wahl: AbschlagWahl, netto: number, nummer: number): RechnungsBaustein[] {
+  const anteil = wahl.modus === "prozent" ? ` (${formatZahl(wahl.prozent, { min: 0, max: 2 })} % der Auftragssumme)` : "";
+  return [
+    {
+      typ: "position",
+      kurztext: `${nummer}. Abschlagszahlung${anteil}`,
+      langtext: `Abschlag auf die vereinbarte Leistung „${angebotBetreff}“. Die Leistung wird mit der Schlussrechnung abgerechnet, der Abschlag wird dort angerechnet.`,
+      menge: 1,
+      einheit: "psch",
+      einzelpreis: netto,
+    },
+  ];
+}
+
+/** Betreff der Folgedokumente: „Gutschrift zur Rechnung R-2026-0001: …“. */
+export function gutschriftBetreff(art: RechnungsArt, bezugNummer: string, betreff: string): string {
+  const kopf = art === "storno" ? "Storno der Rechnung" : "Gutschrift zur Rechnung";
+  return `${kopf} ${bezugNummer}: ${betreff}`.slice(0, 200);
+}
+
+/** Zahlbetrag der Schlussrechnung nach Abzug der Abschläge (Summe der Abschläge brutto vom Gesamtbetrag brutto). */
+export function schlussZahlbetrag(gesamtBrutto: number, abschlaege: { brutto: number }[]): number {
+  return aufCent(gesamtBrutto - abschlaege.reduce((s, a) => s + a.brutto, 0));
 }

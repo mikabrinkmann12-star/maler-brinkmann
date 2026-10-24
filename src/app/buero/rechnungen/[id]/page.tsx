@@ -16,7 +16,7 @@ import { aktuellerAnbieter, anbieterName, sevdeskEingerichtet, sevdeskFinalisier
 import { firmaLaden } from "@/lib/firma-daten";
 import { lexwareEingerichtet, lexwareFinalisieren } from "@/lib/lexware";
 import { mahnungMailVorschlag, rechnungMailVorschlag } from "@/lib/rechnung-mail";
-import { lexwareLink, rechnungBerechnen } from "@/lib/rechnung";
+import { RECHNUNGS_ART_NAMEN, istGutschriftArt, lexwareLink, rechnungBerechnen } from "@/lib/rechnung";
 import { rechnungLaden } from "@/lib/rechnung-daten";
 import { kopfStart } from "@/lib/rechnung-formular";
 import { abgleichFaellig } from "@/lib/rechnung-abgleich";
@@ -39,14 +39,18 @@ export default async function RechnungSeite({ params }: PageProps<"/buero/rechnu
   if (!UUID.test(id)) notFound();
   const detail = await rechnungLaden(id);
   if (!detail) notFound();
-  const { rechnung: r, bausteine, projekt, kunde, angebot } = detail;
+  const { rechnung: r, bausteine, projekt, kunde, angebot, abschlaege, folgedokumente } = detail;
+  const artName = RECHNUNGS_ART_NAMEN[r.art];
+  // Gutschrift und Storno: Mengen und Preise positiv, die Summen negativ
+  const vz = istGutschriftArt(r.art) ? -1 : 1;
 
   const gesperrt = r.status !== "entwurf" || r.archiviert;
   const rechnung = rechnungBerechnen(bausteine, { rabattProzent: r.rabattProzent, steuersatz: r.steuersatz, reverseCharge: r.reverseCharge });
   // Nach der Übertragung zählt, was Lexware zurückgemeldet hat
-  const netto = r.netto ?? rechnung.nettoNachRabatt;
-  const brutto = r.brutto ?? rechnung.brutto;
-  const abweichung = r.netto !== null && Math.abs(r.netto - rechnung.nettoNachRabatt) > 0.01;
+  const netto = r.netto ?? vz * rechnung.nettoNachRabatt;
+  const brutto = r.brutto ?? vz * rechnung.brutto;
+  const istEigenRechnung = r.anbieter === "eigen" || (r.status === "entwurf" && aktuellerAnbieter() === "eigen");
+  const abweichung = !istEigenRechnung && r.netto !== null && Math.abs(r.netto - rechnung.nettoNachRabatt) > 0.01;
   const festgehangen = r.status === "wird_uebertragen";
   // Neue Rechnungen gehen an den eingestellten Anbieter (sevdesk im Hintergrund), bereits übertragene bleiben bei ihrem
   const anbieter = r.status === "entwurf" ? (aktuellerAnbieter() ?? "lexware") : r.anbieter;
@@ -112,8 +116,9 @@ export default async function RechnungSeite({ params }: PageProps<"/buero/rechnu
         <div className="grid gap-6 border-t py-5 text-[13px] md:grid-cols-2 xl:grid-cols-4">
           <div className="flex flex-col gap-0.5">
             <h2 className="mb-1 font-semibold">Allgemein</h2>
-            <p>Rechnung</p>
+            <p>{artName}</p>
             <p>{r.betreff}</p>
+            {r.bezugId && r.bezugNummer && <p>Bezug: <Link href={`/buero/rechnungen/${r.bezugId}`} className="font-medium hover:underline">{r.bezugNummer}</Link></p>}
             {r.rechnungsnummer && <p>{r.rechnungsnummer}</p>}
             <p>{formatDatum(r.rechnungsdatum)}</p>
           </div>
@@ -127,7 +132,7 @@ export default async function RechnungSeite({ params }: PageProps<"/buero/rechnu
             {rechnung.reverseCharge ? (
               <p className="max-w-56 text-muted-foreground">Reverse-Charge (§ 13b UStG)</p>
             ) : (
-              <p className="flex max-w-56 justify-between gap-6"><span>{rechnung.steuersatz} % USt</span><span className="tabular-nums">{formatBetrag(r.brutto !== null && r.netto !== null ? r.brutto - r.netto : rechnung.ust)}</span></p>
+              <p className="flex max-w-56 justify-between gap-6"><span>{rechnung.steuersatz} % USt</span><span className="tabular-nums">{formatBetrag(r.brutto !== null && r.netto !== null ? r.brutto - r.netto : vz * rechnung.ust)}</span></p>
             )}
             <p className="flex max-w-56 justify-between gap-6 border-t pt-0.5 font-semibold"><span>Brutto</span><span className="tabular-nums">{formatBetrag(brutto)}</span></p>
           </div>
@@ -138,6 +143,39 @@ export default async function RechnungSeite({ params }: PageProps<"/buero/rechnu
             <p className="text-muted-foreground">Leistungszeitraum {formatDatum(r.leistungVon)} bis {formatDatum(r.leistungBis)}</p>
           </div>
         </div>
+
+        {r.art === "schluss" && (
+          <div className={abschnitt}>
+            <h2 className={ueberschrift}>Abzug der Abschlagsrechnungen</h2>
+            {abschlaege.length ? (
+              <ul className="flex flex-col gap-1 px-3 text-[13px]">
+                {abschlaege.map((a) => (
+                  <li key={a.id} className="flex max-w-xl justify-between gap-6">
+                    <span><Link href={`/buero/rechnungen/${a.id}`} className="font-medium hover:underline">{a.nummer}</Link> vom {formatDatum(a.datum)}</span>
+                    <span className="tabular-nums">{formatBetrag(a.brutto)} brutto</span>
+                  </li>
+                ))}
+                <li className="flex max-w-xl justify-between gap-6 border-t pt-1 font-semibold"><span>{r.status === "uebertragen" ? "Noch zu zahlen" : "Gesamt brutto abzüglich Abschläge"}</span><span className="tabular-nums">{formatBetrag(r.status === "uebertragen" ? (r.brutto ?? 0) : rechnung.brutto - abschlaege.reduce((s, a) => s + a.brutto, 0))}</span></li>
+              </ul>
+            ) : (
+              <p className="px-3 text-[13px] text-muted-foreground">Zu diesem Angebot gibt es noch keine fertige Abschlagsrechnung. Beim Fertigstellen werden alle fertigen Abschläge des Angebots abgezogen.</p>
+            )}
+          </div>
+        )}
+
+        {folgedokumente.length > 0 && (
+          <div className={abschnitt}>
+            <h2 className={ueberschrift}>Gutschriften und Stornos</h2>
+            <ul className="flex flex-col gap-1 px-3 text-[13px]">
+              {folgedokumente.map((f) => (
+                <li key={f.id} className="flex max-w-xl justify-between gap-6">
+                  <span>{RECHNUNGS_ART_NAMEN[f.art]} <Link href={`/buero/rechnungen/${f.id}`} className="font-medium hover:underline">{f.nummer}</Link> vom {formatDatum(f.datum)}</span>
+                  <span className="tabular-nums">{formatBetrag(f.brutto)}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         <div className={abschnitt}>
           <h2 className={ueberschrift}>Zahlungen</h2>
@@ -184,6 +222,7 @@ export default async function RechnungSeite({ params }: PageProps<"/buero/rechnu
         status={r.status}
         name={name}
         eigen={istEigen}
+        artName={artName}
         zugang={istSevdesk ? "SEVDESK_API_TOKEN" : "LEXWARE_API_KEY"}
         lexwareLink={!istSevdesk && r.lexwareId ? lexwareLink(r.lexwareId) : null}
         hatPdf={Boolean(r.pdfPfad)}
@@ -207,7 +246,8 @@ export default async function RechnungSeite({ params }: PageProps<"/buero/rechnu
           brutto={brutto}
           heute={heute}
           kannBuchen={r.lexwareStatus === "open"}
-          kannStornieren={sevdeskAktiv && (r.lexwareStatus === "open" || r.lexwareStatus === "paid")}
+          kannStornieren={(sevdeskAktiv || (istEigen && !istGutschriftArt(r.art))) && (r.lexwareStatus === "open" || r.lexwareStatus === "paid")}
+          kannGutschrift={istEigen && !istGutschriftArt(r.art) && r.lexwareStatus !== "voided"}
           kannZuruecknehmen={istEigen && r.lexwareStatus === "paid"}
           bezahltAm={r.bezahltAm}
         />

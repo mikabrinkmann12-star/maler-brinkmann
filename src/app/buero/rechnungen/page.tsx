@@ -19,7 +19,7 @@ import {
 } from "@/lib/rechnung-liste";
 import { rechnungenLaden } from "@/lib/rechnung-daten";
 import { SAMMEL_MAX_DATEIEN, rechnungFilterLesen } from "@/lib/rechnung-filter";
-import { lexwareLink } from "@/lib/rechnung";
+import { RECHNUNGS_ART_NAMEN, lexwareLink } from "@/lib/rechnung";
 import { vorgabeFuer } from "@/lib/zeitraum";
 import { RechnungZeilenMenue } from "./zeilen-menue";
 import { SammelDownload } from "./sammel-download";
@@ -112,7 +112,7 @@ export default async function RechnungsListe({ searchParams }: PageProps<"/buero
                   </td>
                   <td className="max-w-72 px-3 py-2.5">
                     <span className="block truncate font-medium">{z.betreff}</span>
-                    <span className="block truncate text-xs text-muted-foreground">Rechnung · {[z.projektnummer, z.projektName].filter(Boolean).join(" · ")}</span>
+                    <span className="block truncate text-xs text-muted-foreground">{RECHNUNGS_ART_NAMEN[z.art]} · {[z.projektnummer, z.projektName].filter(Boolean).join(" · ")}</span>
                   </td>
                   <td className="hidden max-w-44 truncate px-3 py-2.5 md:table-cell">{z.kunde || "–"}</td>
                   <td className="hidden px-3 py-2.5 whitespace-nowrap sm:table-cell">{formatDatum(z.rechnungsdatum)}</td>
@@ -122,7 +122,7 @@ export default async function RechnungsListe({ searchParams }: PageProps<"/buero
                   <td className={cn("hidden px-3 py-2.5 text-right tabular-nums lg:table-cell", (z.anzeige === "ueberfaellig" || z.anzeige === "angemahnt") && "font-semibold text-destructive")}>{o ? formatBetrag(o) : "–"}</td>
                   <td className="px-1 py-2.5 text-right"><RechnungZeilenMenue
                       rechnungId={z.id}
-                      titel={`Rechnung ${z.rechnungsnummer || "Entwurf"} – ${z.betreff}`}
+                      titel={`${RECHNUNGS_ART_NAMEN[z.art]} ${z.rechnungsnummer || "Entwurf"} – ${z.betreff}`}
                       projektId={z.projektId}
                       hatPdf={z.hatPdf}
                       hatXml={z.hatXml}

@@ -15,6 +15,7 @@ import { LexwareFehler } from "@/lib/lexware-client";
 import { ersteMeldung } from "@/lib/nutzer-schema";
 import {
   lexwareKontaktPayload,
+  istGutschriftArt,
   lexwareRechnungPayload,
   rechnungBerechnen,
   type RechnungDaten,
@@ -22,7 +23,7 @@ import {
 import { rechnungLaden } from "@/lib/rechnung-daten";
 import { pflichtangabenFehlen, reverseChargeHinweis } from "@/lib/rechnung-eigen";
 import { rechnungPdfErzeugen } from "@/lib/rechnung-pdf-daten";
-import { rechnungEntwurfAusAngebot } from "@/lib/rechnung-erstellen";
+import { folgedokumentEntwurf, rechnungEntwurfAusAngebot } from "@/lib/rechnung-erstellen";
 import { rechnungBausteinPruefen, rechnungKopfSchema, type RechnungBausteinEingabe } from "@/lib/rechnung-schema";
 import { createClient } from "@/lib/supabase/server";
 
@@ -57,11 +58,21 @@ function aktualisieren(id?: string, projektId?: string) {
  * Zahlungsziel und Skonto vom Kunden, der Leistungszeitraum vom Projekt (sonst heute). Gibt es für das Angebot schon eine
  * Rechnung, wird diese geöffnet.
  */
-export async function rechnungAusAngebotErstellen(angebotId: string): Promise<RechnungErgebnis> {
+export async function rechnungAusAngebotErstellen(
+  angebotId: string,
+  optionen?: { art?: "rechnung" | "abschlag" | "schluss"; abschlag?: { modus: "prozent"; prozent: number } | { modus: "betrag"; netto: number } },
+): Promise<RechnungErgebnis> {
   await requireBueroRecht("rechnungen");
   if (!uuid.safeParse(angebotId).success) return { fehler: "Ungültiges Angebot." };
+  const o = z
+    .object({
+      art: z.enum(["rechnung", "abschlag", "schluss"]).optional(),
+      abschlag: z.union([z.object({ modus: z.literal("prozent"), prozent: z.number().gt(0).max(100) }), z.object({ modus: z.literal("betrag"), netto: z.number().gt(0).max(10_000_000) })]).optional(),
+    })
+    .safeParse(optionen ?? {});
+  if (!o.success) return { fehler: "Bitte einen Prozentsatz (1 bis 100) oder einen Betrag angeben." };
   const supabase = await createClient();
-  const r = await rechnungEntwurfAusAngebot(supabase, angebotId);
+  const r = await rechnungEntwurfAusAngebot(supabase, angebotId, o.data);
   if (r.id && !r.hinweis) aktualisieren(r.id, r.projektId);
   return { fehler: r.fehler, id: r.id, hinweis: r.hinweis };
 }
@@ -287,7 +298,36 @@ export async function rechnungMahnen(id: string, stufe: number, eingabe: unknown
 export async function rechnungStornieren(id: string): Promise<RechnungErgebnis> {
   await requireBueroRecht("rechnungen");
   if (!uuid.safeParse(id).success) return { fehler: "Ungültige Rechnung." };
+  const vorhanden = await rechnungLaden(id);
+  if (!vorhanden) return { fehler: "Rechnung nicht gefunden." };
+  if (vorhanden.rechnung.anbieter === "eigen") return eigenStornieren(id);
   return mitSevdesk(id, (db, client, detail) => sevdeskStornieren(db, client, detail));
+}
+
+/** Stornorechnung zu einer fertigen eigenen Rechnung: kopiert alle Positionen, stellt sofort fertig (eigene Nummer „G-…“) und markiert die Rechnung als storniert. */
+async function eigenStornieren(id: string): Promise<RechnungErgebnis> {
+  const supabase = await createClient();
+  const e = await folgedokumentEntwurf(supabase, id, "storno");
+  if (e.fehler || !e.id) return { fehler: e.fehler ?? "Die Stornorechnung konnte nicht angelegt werden." };
+  const fertig = await eigenFertigstellen(e.id);
+  if (fertig.fehler) {
+    // Ohne Nummer bleibt kein Entwurf liegen
+    await supabase.from("invoices").update({ archiviert_am: new Date().toISOString() }).eq("id", e.id).eq("status", "entwurf");
+    return { fehler: fertig.fehler };
+  }
+  aktualisieren(id, e.projektId);
+  return { id: e.id, hinweis: fertig.hinweis };
+}
+
+/** Entwurf einer Gutschrift (Teilerstattung) zu einer fertigen eigenen Rechnung; die Positionen lassen sich danach kürzen, dann „Gutschrift fertigstellen“. */
+export async function rechnungGutschriftErstellen(id: string): Promise<RechnungErgebnis> {
+  await requireBueroRecht("rechnungen");
+  if (!uuid.safeParse(id).success) return { fehler: "Ungültige Rechnung." };
+  const supabase = await createClient();
+  const e = await folgedokumentEntwurf(supabase, id, "gutschrift");
+  if (e.fehler || !e.id) return { fehler: e.fehler ?? "Die Gutschrift konnte nicht angelegt werden." };
+  aktualisieren(e.id, e.projektId);
+  return { id: e.id };
 }
 
 /**
@@ -345,12 +385,19 @@ async function eigenFertigstellen(id: string): Promise<RechnungErgebnis> {
   if (r.status !== "entwurf") return { fehler: "Diese Rechnung ist schon fertiggestellt." };
   if (!bausteine.some((b) => b.typ === "position")) return { fehler: "Die Rechnung hat keine Position." };
 
+  if (r.art === "rechnung" && r.quoteId) {
+    const supabaseA = await createClient();
+    const { count } = await supabaseA.from("invoices").select("id", { count: "exact", head: true }).eq("quote_id", r.quoteId).eq("art", "abschlag").eq("status", "uebertragen").neq("lexware_status", "voided");
+    if (count) return { fehler: "Zu diesem Angebot gibt es fertige Abschlagsrechnungen. Bitte eine Schlussrechnung anlegen (im Angebot), damit sie angerechnet werden." };
+  }
   const fehlt = pflichtangabenFehlen(await firmaLaden(), kunde.anschrift, r.reverseCharge);
   if (fehlt.length) return { fehler: `Für eine gültige Rechnung fehlt noch: ${fehlt.join(", ")}. Firmendaten stehen unter Einstellungen → Unternehmen, die Anschrift des Kunden im Kontakt.` };
 
   const summen = rechnungBerechnen(bausteine, { rabattProzent: r.rabattProzent, steuersatz: r.steuersatz, reverseCharge: r.reverseCharge });
+  // Gutschrift und Storno: die Summen sind negativ (Mengen und Preise bleiben positiv). Bei der Schlussrechnung zieht die Datenbank die Abschläge ab.
+  const vz = istGutschriftArt(r.art) ? -1 : 1;
   const supabase = await createClient();
-  const { data: nummer, error } = await supabase.rpc("rechnung_finalisieren", { p_id: id, p_netto: summen.nettoNachRabatt, p_brutto: summen.brutto });
+  const { data: nummer, error } = await supabase.rpc("rechnung_finalisieren", { p_id: id, p_netto: vz * summen.nettoNachRabatt, p_brutto: vz * summen.brutto });
   if (error) return { fehler: dbMeldung(error) };
 
   let hinweis = reverseChargeHinweis(r.reverseCharge) ?? undefined;

@@ -8,6 +8,7 @@ import { FormularMeldung } from "@/components/formular-meldung";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { STATUS_NAMEN, type AngebotStatus } from "@/lib/angebot";
 import { DOKUMENTARTEN, DOKUMENTART_INFO, rechnungMoeglich } from "@/lib/dokumentart";
+import { Rechnungsarten } from "./rechnungsarten";
 import { angebotArchivieren, angebotKopieren, angebotStatusSetzen } from "../actions";
 import { arbeitsanweisungErstellen, materialListeErstellen } from "../anweisung-actions";
 import { rechnungAusAngebotErstellen } from "../../rechnungen/actions";
@@ -104,7 +105,10 @@ export function AktionenLeiste({ angebotId, status, archiviert, dokumentart }: {
           {DOKUMENTARTEN.filter((a) => a !== dokumentart).map((a) => <option key={a} value={a}>{DOKUMENTART_INFO[a].name}</option>)}
         </select>
         {rechnungMoeglich(dokumentart) && (status === "versendet" || status === "angenommen") && (
-          <Button type="button" variant="outline" onClick={rechnung} disabled={laeuft}><ReceiptTextIcon /> Rechnung erstellen</Button>
+          <>
+            <Button type="button" variant="outline" onClick={rechnung} disabled={laeuft}><ReceiptTextIcon /> Rechnung erstellen</Button>
+            <Rechnungsarten angebotId={angebotId} />
+          </>
         )}
         <Button type="button" variant="outline" onClick={materialliste} disabled={laeuft}><PackageCheckIcon /> Materialliste erstellen</Button>
         <Button type="button" variant="outline" onClick={anweisung} disabled={laeuft}><ClipboardListIcon /> Arbeitsanweisung erstellen</Button>

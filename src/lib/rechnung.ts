@@ -5,6 +5,27 @@ import { angebotBerechnen, type Baustein, type Berechnung } from "@/lib/angebot"
 
 export type RechnungStatus = "entwurf" | "wird_uebertragen" | "uebertragen";
 
+/** Rechnungsarten der eigenen Rechnungen: Gutschrift und Storno haben negative Summen (Mengen und Preise bleiben positiv). */
+export const RECHNUNGS_ARTEN = ["rechnung", "abschlag", "schluss", "gutschrift", "storno"] as const;
+export type RechnungsArt = (typeof RECHNUNGS_ARTEN)[number];
+
+export const RECHNUNGS_ART_NAMEN: Record<RechnungsArt, string> = {
+  rechnung: "Rechnung",
+  abschlag: "Abschlagsrechnung",
+  schluss: "Schlussrechnung",
+  gutschrift: "Gutschrift",
+  storno: "Stornorechnung",
+};
+
+export function istRechnungsArt(wert: unknown): wert is RechnungsArt {
+  return typeof wert === "string" && (RECHNUNGS_ARTEN as readonly string[]).includes(wert);
+}
+
+/** Gutschrift und Storno gehören in den eigenen Nummernkreis und haben negative Summen. */
+export function istGutschriftArt(art: RechnungsArt): boolean {
+  return art === "gutschrift" || art === "storno";
+}
+
 export const RECHNUNG_STATUS_NAMEN: Record<RechnungStatus, string> = {
   entwurf: "Entwurf",
   wird_uebertragen: "Wird übertragen …",

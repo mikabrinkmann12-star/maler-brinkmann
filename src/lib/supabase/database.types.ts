@@ -840,18 +840,57 @@ export type Database = {
           },
         ]
       }
+      invoice_abschlaege: {
+        Row: {
+          abschlag_id: string
+          brutto: number
+          invoice_id: string
+          netto: number
+        }
+        Insert: {
+          abschlag_id: string
+          brutto: number
+          invoice_id: string
+          netto: number
+        }
+        Update: {
+          abschlag_id?: string
+          brutto?: number
+          invoice_id?: string
+          netto?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_abschlaege_abschlag_id_fkey"
+            columns: ["abschlag_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_abschlaege_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoice_counters: {
         Row: {
+          gruppe: string
           jahr: number
           letzte: number
           updated_at: string
         }
         Insert: {
+          gruppe?: string
           jahr: number
           letzte: number
           updated_at?: string
         }
         Update: {
+          gruppe?: string
           jahr?: number
           letzte?: number
           updated_at?: string
@@ -959,11 +998,15 @@ export type Database = {
       invoices: {
         Row: {
           abgeglichen_am: string | null
+          abzug_brutto: number
+          abzug_netto: number
           anbieter: string
           angemahnt_am: string | null
           archiviert_am: string | null
+          art: string
           betreff: string
           bezahlt_am: string | null
+          bezug_id: string | null
           brutto: number | null
           contact_id: string
           created_at: string
@@ -999,11 +1042,15 @@ export type Database = {
         }
         Insert: {
           abgeglichen_am?: string | null
+          abzug_brutto?: number
+          abzug_netto?: number
           anbieter?: string
           angemahnt_am?: string | null
           archiviert_am?: string | null
+          art?: string
           betreff: string
           bezahlt_am?: string | null
+          bezug_id?: string | null
           brutto?: number | null
           contact_id: string
           created_at?: string
@@ -1039,11 +1086,15 @@ export type Database = {
         }
         Update: {
           abgeglichen_am?: string | null
+          abzug_brutto?: number
+          abzug_netto?: number
           anbieter?: string
           angemahnt_am?: string | null
           archiviert_am?: string | null
+          art?: string
           betreff?: string
           bezahlt_am?: string | null
+          bezug_id?: string | null
           brutto?: number | null
           contact_id?: string
           created_at?: string
@@ -1078,6 +1129,13 @@ export type Database = {
           zahlungsziel_tage?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "invoices_bezug_id_fkey"
+            columns: ["bezug_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "invoices_contact_id_fkey"
             columns: ["contact_id"]

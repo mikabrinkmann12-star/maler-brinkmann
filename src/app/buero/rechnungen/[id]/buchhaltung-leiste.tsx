@@ -15,6 +15,7 @@ export function BuchhaltungLeiste({
   status,
   name,
   eigen = false,
+  artName = "Rechnung",
   zugang,
   lexwareLink,
   hatPdf,
@@ -28,6 +29,8 @@ export function BuchhaltungLeiste({
   name: string;
   /** Eigene Rechnung der App (Nummer und PDF kommen aus der App, kein Abgleich, kein Fremdsystem) */
   eigen?: boolean;
+  /** Name der Rechnungsart für die Knöpfe („Rechnung“, „Schlussrechnung“, „Gutschrift“ …) */
+  artName?: string;
   /** Name der Umgebungsvariable, die noch fehlt (SEVDESK_API_TOKEN bzw. LEXWARE_API_KEY) */
   zugang: string;
   lexwareLink: string | null;
@@ -76,21 +79,21 @@ export function BuchhaltungLeiste({
             <>
               <p className="text-sm">
                 {eigen
-                  ? "Die Rechnung bekommt jetzt ihre Rechnungsnummer und wird als PDF festgeschrieben. Das lässt sich nicht mehr rückgängig machen, danach ist die Rechnung gesperrt. Prüfe vorher Betrag, Kunde, Rechnungsdatum und Leistungszeitraum."
+                  ? `${artName === "Rechnung" ? "Die Rechnung" : "Das Dokument"} bekommt jetzt seine Nummer und wird als PDF festgeschrieben. Das lässt sich nicht mehr rückgängig machen, danach ist die Rechnung gesperrt. Prüfe vorher Betrag, Kunde, Rechnungsdatum und Leistungszeitraum.`
                   : finalisieren
                   ? `${name} erzeugt jetzt die fertige Rechnung mit Rechnungsnummer. Das lässt sich nicht mehr rückgängig machen, danach ist die Rechnung gesperrt. Prüfe vorher Betrag, Kunde und Leistungszeitraum.`
                   : `Test-Modus: ${name} legt die Rechnung nur als Entwurf an. Es entsteht keine Rechnungsnummer.`}
               </p>
               <div className="flex flex-wrap gap-2">
                 <Button type="button" onClick={() => ausfuehren(() => rechnungUebertragen(rechnungId), "Rechnung fertiggestellt")} disabled={laeuft || !eingerichtet}>
-                  <SendIcon /> {laeuft ? (eigen ? "Wird erstellt …" : "Wird übertragen …") : finalisieren ? "Ja, Rechnung jetzt fertigstellen" : "Ja, als Entwurf anlegen"}
+                  <SendIcon /> {laeuft ? (eigen ? "Wird erstellt …" : "Wird übertragen …") : finalisieren ? `Ja, ${artName} jetzt fertigstellen` : "Ja, als Entwurf anlegen"}
                 </Button>
                 <Button type="button" variant="ghost" onClick={() => setFrage(false)} disabled={laeuft}>Abbrechen</Button>
               </div>
             </>
           ) : (
             <div className="flex flex-wrap gap-2">
-              <Button type="button" onClick={() => setFrage(true)} disabled={!eingerichtet}><SendIcon /> Rechnung fertigstellen</Button>
+              <Button type="button" onClick={() => setFrage(true)} disabled={!eingerichtet}><SendIcon /> {artName} fertigstellen</Button>
               {frageArchiv ? (
                 <>
                   <Button type="button" variant="destructive" disabled={laeuft} onClick={() => ausfuehren(() => rechnungArchivieren(rechnungId), "Entwurf archiviert")}>Wirklich archivieren</Button>
