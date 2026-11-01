@@ -46,7 +46,7 @@ const EINTRAEGE: Eintrag[] = [
   { href: "/buero/rechnungen", name: "Ausgangsrechnungen", icon: ReceiptTextIcon, recht: "rechnungen" },
   { href: "/buero/eingangsrechnungen", name: "Eingangsrechnungen", icon: InboxIcon, recht: "eingangsrechnungen" },
   { href: "/buero/zeiten", name: "Zeiten", icon: ClockIcon, recht: "zeiten_alle", plus: { href: "/buero/zeiten/neu", titel: "Neue Zeit", recht: "zeiten_alle", ereignis: NEUE_ZEIT_OEFFNEN }, auch: ["/buero/urlaub"] },
-  { href: "/buero/katalog", name: "Stammdaten", icon: LayersIcon, recht: "katalog", neu: true },
+  { href: "/buero/katalog", name: "Stammdaten", icon: LayersIcon, recht: "katalog" },
   { href: "/buero/ki-system", name: "KI-System", icon: BotIcon, nurAdmin: true },
   { href: "/buero/kontakte", name: "Kontakte", icon: UsersIcon, recht: "kontakte_ansehen", plus: { href: "/buero/kontakte/neu", titel: "Neuer Kontakt", recht: "kontakte_bearbeiten" } },
   { href: "/buero/anrufe", name: "Anrufe", icon: PhoneIcon, recht: "buero_zugang" },

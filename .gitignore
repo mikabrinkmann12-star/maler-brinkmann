@@ -56,3 +56,4 @@ zugangsdaten-*.txt
 
 # Graphify (Wissensgraph, wird lokal erzeugt)
 /graphify-out/
+muster-steuerberater/
