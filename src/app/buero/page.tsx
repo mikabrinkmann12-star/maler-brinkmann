@@ -128,7 +128,7 @@ export default async function BueroUebersicht({ searchParams }: PageProps<"/buer
             </li>
           ))}
         </ul>
-        <p className="text-xs text-muted-foreground">Brutto, nach Rechnungsdatum im gewählten Zeitraum. Stand vom letzten Abgleich mit Lexware. „Angemahnt“ vermerkt das Büro in der Rechnung (die Mahnungen selbst laufen in Lexware).</p>
+        <p className="text-xs text-muted-foreground">Brutto, nach Rechnungsdatum im gewählten Zeitraum. Zahlungen und Mahnungen trägt das Büro in der Rechnung ein; „Angemahnt“ steht, sobald eine Mahnstufe gesetzt ist.</p>
         <Link href="/buero/rechnungen" className="flex w-fit items-center gap-1 text-sm text-muted-foreground hover:underline">
           Alle Rechnungen anzeigen <ChevronRightIcon className="size-4" />
         </Link>

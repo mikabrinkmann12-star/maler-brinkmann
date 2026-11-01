@@ -1,4 +1,6 @@
-# Eigene Rechnungen – Stand 24.10.2026
+# Eigene Rechnungen – Stand 25.10.2026
+
+> **25.10.2026:** Lexware und sevdesk sind komplett aus der App entfernt (Einstellungsseiten, Übertragung, Abgleich, Clients, Umgebungsvariablen `LEXWARE_*`, `SEVDESK_*`, `BUCHHALTUNG_ANBIETER`). Rechnungen laufen nur noch über die App. Bestehende Rechnungen aus den alten Systemen bleiben als „ältere Rechnung“ lesbar, bezahlbar und mahnbar; stornieren und Gutschrift gibt es nur für Rechnungen der App.
 
 **Entscheidung (Mika, 24.10.2026):** Paul will nicht extra für Lexware zahlen und nicht von deren Preisen abhängen, nur für das, was Mika selbst gebaut hat. Darum macht die App Rechnungsnummer und Rechnungs-PDF jetzt selbst. Lexware und sevdesk bleiben als abschaltbarer Anschluss im Code (`BUCHHALTUNG_ANBIETER=lexware` oder `sevdesk` plus Zugang), sind aber nicht mehr nötig. Plancraft macht es genauso (Nummern wie `R-(24)22721`).
 
@@ -39,5 +41,5 @@
 
 ## Umstellung und Live
 - Die Migrationen `…20261024100000_eigene_rechnungen` und `…20261024110000_rechnungsarten` liegen bisher nur in **dev**. Vor dem Push des Codes nach **live** muss sie dort eingespielt sein (sonst bricht das Fertigstellen ab).
-- Standard ist jetzt „eigen“, **auch online**. Online ist Lexware (`LEXWARE_API_KEY`, `LEXWARE_MODUS=entwurf`) eingetragen. Wer weiter über Lexware arbeiten will, setzt in Vercel `BUCHHALTUNG_ANBIETER=lexware`. Bereits übertragene Lexware-Rechnungen bleiben unverändert bei ihrem Anbieter.
+- Es gibt nur noch „eigen“, auch online. Die alten Variablen (`LEXWARE_API_KEY`, `LEXWARE_MODUS`, `SEVDESK_API_TOKEN`, `SEVDESK_MODUS`, `BUCHHALTUNG_ANBIETER`) in Vercel und `.env.local` werden nicht mehr gelesen und können gelöscht werden (`npx vercel@latest env rm NAME production`).
 - In live liegt die Zähler-Tabelle erst nach der Migration. Wurde in diesem Jahr schon außerhalb geschrieben, vorher unter Nummernkreise die Startnummer eintragen.

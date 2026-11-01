@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
- * Originaldatei der Rechnung (nur Büro/Admin): die Kopie, die Lexware erzeugt hat (PDF/ZUGFeRD oder bei XRechnung XML). Die App erzeugt nie selbst ein Rechnungs-PDF.
+ * Gespeicherte Rechnungsdatei (nur Büro/Admin): das beim Fertigstellen erzeugte PDF (bei älteren Rechnungen ggf. XML).
  * Route Handler brauchen eine eigene Rollenprüfung, die Layouts greifen hier nicht.
  */
 export async function GET(anfrage: Request, { params }: RouteContext<"/buero/rechnungen/[id]/pdf">) {

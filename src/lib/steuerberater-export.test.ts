@@ -45,9 +45,9 @@ describe("DATEV", () => {
     expect(zeilen[3].startsWith('119,00;"H";"EUR"')).toBe(true);
     expect(zeilen[3]).toContain("Gutschrift Mueller & Soehne");
   });
-  it("buchte stornierte Rechnungen aus Lexware/sevdesk nicht (kein Storno-Beleg), eigene schon (der Storno-Beleg gleicht aus)", () => {
+  it("buchte stornierte ältere Rechnungen nicht (kein Storno-Beleg), eigene schon (der Storno-Beleg gleicht aus)", () => {
     const csv = datevCsv(
-      [z({ nummer: "RE1", anbieter: "lexware", status: "storniert" }), z({ nummer: "R-2026-0002", status: "storniert" }), z({ nummer: "G-2026-0001", art: "storno", brutto: -1548.31, netto: -1301.1 })],
+      [z({ nummer: "RE1", anbieter: "aelter", status: "storniert" }), z({ nummer: "R-2026-0002", status: "storniert" }), z({ nummer: "G-2026-0001", art: "storno", brutto: -1548.31, netto: -1301.1 })],
       e, { von: "2026-10-01", bis: "2026-10-31" }, jetzt,
     );
     const zeilen = csv.trim().split("\r\n");

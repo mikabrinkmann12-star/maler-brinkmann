@@ -20,7 +20,7 @@ import {
 } from "@/lib/rechnung-liste";
 import { rechnungenLaden } from "@/lib/rechnung-daten";
 import { SAMMEL_MAX_DATEIEN, rechnungFilterLesen } from "@/lib/rechnung-filter";
-import { RECHNUNGS_ART_NAMEN, lexwareLink } from "@/lib/rechnung";
+import { RECHNUNGS_ART_NAMEN } from "@/lib/rechnung";
 import { vorgabeFuer } from "@/lib/zeitraum";
 import { RechnungZeilenMenue } from "./zeilen-menue";
 import { SammelDownload } from "./sammel-download";
@@ -67,7 +67,7 @@ export default async function RechnungsListe({ searchParams }: PageProps<"/buero
         <div>
           <h1 className="text-xl font-semibold">Ausgangsrechnungen</h1>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Eine Rechnung entsteht aus einem Angebot („Rechnung erstellen“ im Angebot). Nummer und PDF kommen aus der App; nur bei älteren Rechnungen aus einer angebundenen Buchhaltung (Lexware/sevdesk), deren Status und Fälligkeit vom letzten Abgleich.
+            Eine Rechnung entsteht aus einem Angebot („Rechnung erstellen“ im Angebot). Nummer und PDF kommen aus der App. Ältere Rechnungen aus früheren Systemen stehen ebenfalls hier (nur lesbar, bezahlbar und mahnbar).
           </p>
         </div>
         <Link href="/buero/rechnungen/steuerberater" className={buttonVariants({ variant: "outline" })}>Export für den Steuerberater</Link>
@@ -130,8 +130,6 @@ export default async function RechnungsListe({ searchParams }: PageProps<"/buero
                       projektId={z.projektId}
                       hatPdf={z.hatPdf}
                       hatXml={z.hatXml}
-                      anbieterLink={z.anbieter === "lexware" && z.lexwareId ? lexwareLink(z.lexwareId) : null}
-                      anbieterName="Lexware"
                       istEntwurf={z.status === "entwurf"}
                       archiviert={z.archiviert}
                     /></td>

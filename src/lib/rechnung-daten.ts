@@ -26,10 +26,8 @@ export type RechnungKopf = {
   rabattProzent: number;
   einleitung: string;
   schlusstext: string;
-  /** Wer hat die Rechnung übertragen? Neue Rechnungen gehen an sevdesk, ältere an Lexware. */
-  anbieter: "lexware" | "sevdesk" | "eigen";
-  lexwareId: string | null;
-  sevdeskId: string | null;
+  /** „eigen“ = Rechnung der App; „aelter“ = übernommene Rechnung aus einem früheren System (fertig, gesperrt, nur lesbar, bezahlbar, mahnbar) */
+  anbieter: "eigen" | "aelter";
   versendetAm: string | null;
   versendetAn: string | null;
   bezahltAm: string | null;
@@ -66,7 +64,7 @@ export type RechnungDetail = {
   rechnung: RechnungKopf;
   bausteine: (RechnungsBaustein & { id: string })[];
   projekt: { id: string; name: string; projektnummer: string; adresse: string };
-  kunde: { id: string; name: string; kundennummer: string; lexwareKontaktId: string | null; sevdeskKontaktId: string | null; email: string; leitwegId: string; anschrift: string[]; strasse: string; plz: string; ort: string; land: string };
+  kunde: { id: string; name: string; kundennummer: string; email: string; leitwegId: string; anschrift: string[]; strasse: string; plz: string; ort: string; land: string };
   mahnungen: { id: string; stufe: number; versendetAn: string | null; versendetAm: string | null; erstelltAm: string }[];
   angebot: { id: string; betreff: string } | null;
   abschlaege: AbschlagZeile[];
@@ -157,9 +155,7 @@ export async function rechnungLaden(id: string): Promise<RechnungDetail | null> 
       rabattProzent: Number(r.rabatt_prozent),
       einleitung: r.einleitung ?? "",
       schlusstext: r.schlusstext ?? "",
-      anbieter: r.anbieter === "sevdesk" ? "sevdesk" : r.anbieter === "eigen" ? "eigen" : "lexware",
-      lexwareId: r.lexware_id,
-      sevdeskId: r.sevdesk_id,
+      anbieter: r.anbieter === "eigen" ? "eigen" : "aelter",
       versendetAm: r.versendet_am,
       versendetAn: r.versendet_an,
       bezahltAm: r.bezahlt_am,
@@ -201,8 +197,6 @@ export async function rechnungLaden(id: string): Promise<RechnungDetail | null> 
       id: r.contact_id,
       name: kontaktName(k),
       kundennummer: k?.kundennummer ?? "",
-      lexwareKontaktId: k?.lexware_contact_id ?? null,
-      sevdeskKontaktId: k?.sevdesk_contact_id ?? null,
       email: k?.email ?? "",
       leitwegId: k?.leitweg_id ?? "",
       anschrift: k ? briefanschrift(k) : [],
@@ -241,8 +235,7 @@ export type RechnungListenZeile = {
   hatPdf: boolean;
   /** Die Datei ist eine XRechnung (XML) */
   hatXml: boolean;
-  anbieter: "lexware" | "sevdesk" | "eigen";
-  lexwareId: string | null;
+  anbieter: "eigen" | "aelter";
   art: RechnungsArt;
 };
 
@@ -284,7 +277,7 @@ export async function rechnungenLaden(opts: {
       status: r.status,
       rechnungsnummer: r.rechnungsnummer ?? "",
       lexwareStatus: r.lexware_status ?? "",
-      // Nach der Übertragung gilt der Betrag, den Lexware zurückgemeldet hat
+      // Nach dem Fertigstellen gelten die festgeschriebenen Beträge
       netto: r.netto == null ? (r.art === "gutschrift" || r.art === "storno" ? -rechnung.nettoNachRabatt : rechnung.nettoNachRabatt) : Number(r.netto),
       brutto: r.brutto == null ? (r.art === "gutschrift" || r.art === "storno" ? -rechnung.brutto : rechnung.brutto) : Number(r.brutto),
       archiviert: r.archiviert_am != null,
@@ -298,8 +291,7 @@ export async function rechnungenLaden(opts: {
       pdfPfad: r.pdf_pfad,
       hatPdf: Boolean(r.pdf_pfad) && !r.pdf_pfad!.endsWith(".xml"),
       hatXml: Boolean(r.pdf_pfad) && r.pdf_pfad!.endsWith(".xml"),
-      anbieter: r.anbieter === "sevdesk" ? "sevdesk" : r.anbieter === "eigen" ? "eigen" : "lexware",
-      lexwareId: r.lexware_id,
+      anbieter: r.anbieter === "eigen" ? "eigen" : "aelter",
       art: istRechnungsArt(r.art) ? r.art : "rechnung",
     };
   });

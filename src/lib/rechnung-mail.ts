@@ -1,5 +1,5 @@
 // E-Mail zur Rechnung und zur Mahnung: Vorschläge für Betreff und Text (das Büro ändert sie vor dem Senden) und Prüfung der Eingaben.
-// Gesendet wird über die Buchhaltung (sevdesk hängt die Rechnung als PDF bzw. XML an). Auch im Browser nutzbar.
+// Gesendet wird über das SMTP-Postfach der App (die Rechnung hängt als PDF an). Auch im Browser nutzbar.
 
 import { z } from "zod";
 import { formatBetrag, formatDatum } from "@/lib/format";

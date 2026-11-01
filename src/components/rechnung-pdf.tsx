@@ -11,7 +11,7 @@ const rahmenAdresse = (id: string) => `${dateiAdresse(id)}#navpanes=0`;
 
 /**
  * Vollbild-Fenster über der aktuellen Seite wie in Plancraft: Titel, Drucken, Herunterladen, Schließen, darunter die eingebettete Rechnung.
- * Die Datei kommt von der Buchhaltung (Lexware/sevdesk), die App zeigt sie nur an.
+ * Die App zeigt die beim Fertigstellen gespeicherte Datei nur an.
  */
 export function RechnungPdfFenster({ rechnungId, titel, onClose, autoDrucken = false }: { rechnungId: string; titel: string; onClose: () => void; autoDrucken?: boolean }) {
   const rahmen = useRef<HTMLIFrameElement>(null);

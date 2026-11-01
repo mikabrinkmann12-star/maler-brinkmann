@@ -50,7 +50,7 @@ export async function exportRechnungenLaden(zeitraum: { von: string; bis: string
     bezahltAm: r.bezahlt_am,
     bezugNummer: r.bezug_id ? (bezugNr.get(r.bezug_id) ?? "") : "",
     abzugBrutto: Number(r.abzug_brutto ?? 0),
-    anbieter: r.anbieter === "sevdesk" ? "sevdesk" : r.anbieter === "eigen" ? "eigen" : "lexware",
+    anbieter: r.anbieter === "eigen" ? "eigen" : "aelter",
   }));
 }
 

@@ -23,8 +23,8 @@ export type MahnungSenden = {
 };
 
 /**
- * Mahnung bei einer offenen Rechnung. Mit `senden` (sevdesk im Hintergrund) legt die App die Zahlungserinnerung bzw. Mahnung an und schickt sie per
- * E-Mail; ohne (ältere Lexware-Rechnungen) vermerkt sie nur, wie weit gemahnt wurde, damit die Rechnung auf der Übersicht bei „Angemahnt“ (rot) steht.
+ * Mahnung bei einer offenen Rechnung. Mit `senden` legt die App die Zahlungserinnerung bzw. Mahnung an und schickt sie per E-Mail;
+ * ohne vermerkt sie nur, wie weit gemahnt wurde, damit die Rechnung auf der Übersicht bei „Angemahnt“ (rot) steht.
  */
 export function MahnungKarte({
   rechnungId,
@@ -146,7 +146,7 @@ export function MahnungKarte({
       ) : (
         <>
           <p className="text-sm text-muted-foreground">
-            Mahnungen schreibst du in Lexware. Hier vermerkst du nur, wie weit gemahnt wurde, damit die Rechnung auf der Übersicht bei „Angemahnt“ (rot) steht.
+            Hier vermerkst du nur, wie weit gemahnt wurde (es wird nichts versendet), damit die Rechnung auf der Übersicht bei „Angemahnt“ (rot) steht.
           </p>
           {hinweise[neu] && <p className="text-sm">{hinweise[neu]}</p>}
           {vermerk}

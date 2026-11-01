@@ -18,7 +18,7 @@ const ABWESENHEIT: Record<string, string> = {
 
 /**
  * Zahlen für die Büro-Startseite. Alles mit den Rechten des eingeloggten Nutzers (RLS); der Aufrufer hat requireRole(BUERO_ROLLEN) geprüft.
- * Die Forderungen zeigen den Stand vom letzten Abgleich mit Lexware.
+ * Die Forderungen zeigen den gespeicherten Rechnungsstatus.
  */
 export async function dashboardLaden(heute: string, forderungsZeitraum: ForderungsZeitraum = FORDERUNGS_STANDARD) {
   const supabase = await createClient();

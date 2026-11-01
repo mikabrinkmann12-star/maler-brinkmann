@@ -4,14 +4,14 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArchiveIcon, ArchiveRestoreIcon, DownloadIcon, EllipsisVerticalIcon, EyeIcon, ExternalLinkIcon, FileCodeIcon, FolderIcon, PrinterIcon } from "lucide-react";
+import { ArchiveIcon, ArchiveRestoreIcon, DownloadIcon, EllipsisVerticalIcon, EyeIcon, FileCodeIcon, FolderIcon, PrinterIcon } from "lucide-react";
 import { RechnungPdfFenster } from "@/components/rechnung-pdf";
 import { rechnungArchivieren, rechnungWiederherstellen } from "./actions";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 /**
  * Drei-Punkte-Menü einer Rechnungszeile wie in Plancraft: PDF ansehen, Projekt öffnen, PDF herunterladen, XRechnung herunterladen, Drucken.
- * Die Datei kommt von der Buchhaltung (die App erzeugt nie selbst ein Rechnungs-PDF). Ohne Datei sind die Datei-Einträge ausgegraut.
+ * Ohne gespeicherte Datei sind die Datei-Einträge ausgegraut.
  */
 export function RechnungZeilenMenue({
   rechnungId,
@@ -19,8 +19,6 @@ export function RechnungZeilenMenue({
   projektId,
   hatPdf,
   hatXml,
-  anbieterLink,
-  anbieterName,
   istEntwurf,
   archiviert,
 }: {
@@ -29,10 +27,7 @@ export function RechnungZeilenMenue({
   projektId: string;
   hatPdf: boolean;
   hatXml: boolean;
-  /** Link zur Rechnung im Buchhaltungsprogramm (nur Lexware), sonst null */
-  anbieterLink: string | null;
-  anbieterName: string;
-  /** Nur Entwürfe lassen sich archivieren; übertragene Rechnungen bleiben (GoBD) */
+  /** Nur Entwürfe lassen sich archivieren; fertige Rechnungen bleiben (GoBD) */
   istEntwurf: boolean;
   archiviert: boolean;
 }) {
@@ -69,12 +64,6 @@ export function RechnungZeilenMenue({
             <>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={archivUmschalten}>{archiviert ? <ArchiveRestoreIcon /> : <ArchiveIcon />} {archiviert ? "Wiederherstellen" : "Entwurf archivieren"}</DropdownMenuItem>
-            </>
-          )}
-          {anbieterLink && (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem render={<a href={anbieterLink} target="_blank" rel="noreferrer" />}><ExternalLinkIcon /> In {anbieterName} öffnen</DropdownMenuItem>
             </>
           )}
         </DropdownMenuContent>

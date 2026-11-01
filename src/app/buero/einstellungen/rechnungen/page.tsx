@@ -14,7 +14,7 @@ export default async function RechnungenVorgabenSeite() {
       <div>
         <h1 className="text-xl font-semibold">Rechnungen – Vorgaben</h1>
         <p className="mt-1 text-[13px] text-muted-foreground">
-          Zahlungsziel und Skonto der Firma sowie die Mahnstufen. Die Rechnungsnummer und die fertige Rechnung kommen weiter von Lexware Office.
+          Zahlungsziel und Skonto der Firma sowie die Mahnstufen. Die Rechnungsnummern stellst du unter „Nummernkreise“ ein.
         </p>
       </div>
       <RechnungenFormular start={eingabeAusEinstellungen(einstellungen)} />

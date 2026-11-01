@@ -20,8 +20,8 @@ export type OffeneRechnung = {
 const cent = (euro: number) => Math.round(euro * 100);
 
 /**
- * Offene Forderungen aus den Rechnungen, die Lexware zuletzt gemeldet hat („Stand vom letzten Abgleich“):
- * offen = übertragen und bei Lexware „open“; überfällig = offen und Fälligkeit liegt vor heute.
+ * Offene Forderungen aus den fertigen Rechnungen:
+ * offen = fertig und im Status „open“; überfällig = offen und Fälligkeit liegt vor heute.
  */
 export function forderungen(rechnungen: OffeneRechnung[], heute: string) {
   let offen = { anzahl: 0, cent: 0 };

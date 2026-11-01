@@ -11,7 +11,7 @@ describe("anzeigeStatus", () => {
     expect(anzeigeStatus(r({ status: "entwurf", lexwareStatus: "" }), heute)).toBe("entwurf");
     expect(anzeigeStatus(r({ status: "wird_uebertragen" }), heute)).toBe("uebertragung");
   });
-  it("offen, überfällig, bezahlt, storniert nach dem Stand von Lexware", () => {
+  it("offen, überfällig, bezahlt, storniert nach dem gespeicherten Status", () => {
     expect(anzeigeStatus(r(), heute)).toBe("offen"); // fällig am 24.10.
     expect(anzeigeStatus(r({ rechnungsdatum: "2026-10-01" }), heute)).toBe("ueberfaellig"); // fällig am 15.10.
     expect(anzeigeStatus(r({ rechnungsdatum: "2026-10-04" }), heute)).toBe("offen"); // fällig genau heute: noch nicht überfällig

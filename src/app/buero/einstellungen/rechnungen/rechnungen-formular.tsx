@@ -79,8 +79,8 @@ export function RechnungenFormular({ start }: { start: RechnungsEinstellungenEin
         <div>
           <h2 className="text-[15px] font-semibold">Texte auf der Rechnung</h2>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Mit diesen Texten werden neue Rechnungen vorbelegt. Sie gehen so an die Buchhaltung (sevdesk) und stehen auf der Rechnung. Im Rechnungsentwurf lassen sie sich
-            ändern. Die Zahlungsbedingungen (Zahlungsziel, Skonto) hängt die App selbst unter den Schlusstext. Ganz leer lassen = die Buchhaltung nimmt ihren eigenen Text.
+            Mit diesen Texten werden neue Rechnungen vorbelegt. Sie stehen so auf der Rechnung. Im Rechnungsentwurf lassen sie sich
+            ändern. Die Zahlungsbedingungen (Zahlungsziel, Skonto) hängt die App selbst unter den Schlusstext. Ganz leer lassen = kein Text.
           </p>
         </div>
         <label className="flex flex-col gap-1 text-[13px]">
@@ -97,7 +97,7 @@ export function RechnungenFormular({ start }: { start: RechnungsEinstellungenEin
         <div>
           <h2 className="text-[15px] font-semibold">Mahnungen</h2>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Frist, Verzugszinsen und Gebühr je Stufe. Die Mahnung selbst schreibst du in Lexware; die Werte erscheinen als Hinweis in der Rechnung, wenn du dort eine Mahnstufe vermerkst.
+            Frist, Verzugszinsen und Gebühr je Stufe. Diese Werte nutzt die App für das Mahnschreiben (PDF), das sie per E-Mail an den Kunden schickt.
           </p>
         </div>
         <div className="flex flex-col gap-4">

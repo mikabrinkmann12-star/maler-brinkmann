@@ -1,6 +1,6 @@
 // Dokumentarten des Dokument-Editors (Mika, 21.10.2026, wie „Neues Dokument“ in Plancraft). Alle teilen Editor, PDF und Liste der Angebote
 // (Tabelle `quotes`). Was sich unterscheidet: ob Preise und Summen gezeigt werden, ob es eine Positionstabelle gibt und ob unten ein
-// Annahme-Block zum Unterschreiben steht. Rechnung und Gutschrift gehören der Buchhaltung (Lexware) und sind hier nicht dabei.
+// Annahme-Block zum Unterschreiben steht. Rechnung und Gutschrift laufen über die Rechnungen (Ausgangsrechnungen) und sind hier nicht dabei.
 
 export const DOKUMENTARTEN = ["angebot", "kostenvoranschlag", "auftragsbestaetigung", "lieferschein", "bestellschein", "brief"] as const;
 export type Dokumentart = (typeof DOKUMENTARTEN)[number];

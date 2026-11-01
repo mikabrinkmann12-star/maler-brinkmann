@@ -14,8 +14,8 @@ import type { RechnungKopfStart } from "@/lib/rechnung-formular";
 import { rechnungKopfSpeichern } from "../actions";
 
 /** Kopfdaten der Rechnung: Betreff, Datum, Leistungszeitraum, Zahlungsbedingungen, Steuer, Rabatt, Texte. */
-export function RechnungKopf({ rechnungId, start, gesperrt, eigen = false }: { rechnungId: string; start: RechnungKopfStart; gesperrt: boolean; eigen?: boolean }) {
-  const textHinweis = eigen ? "Leer = kein Text." : "Leer = Lexware nimmt seinen eigenen Standardtext.";
+export function RechnungKopf({ rechnungId, start, gesperrt }: { rechnungId: string; start: RechnungKopfStart; gesperrt: boolean }) {
+  const textHinweis = "Leer = kein Text.";
   const router = useRouter();
   const [w, setW] = useState<RechnungKopfStart>(start);
   const [fehler, setFehler] = useState<string | null>(null);

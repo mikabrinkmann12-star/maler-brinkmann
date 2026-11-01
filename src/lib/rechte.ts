@@ -103,7 +103,7 @@ export const FESTE_RECHTE: { name: string; hinweis?: string }[] = [
   { name: "Mitarbeiter anlegen, Rollen ändern, Zugänge sperren, Passwörter zurücksetzen" },
   { name: "Rollen & Zugriffsrechte ändern (diese Seite)" },
   { name: "Soll, Überstundenkonto und Urlaubsanspruch ändern", hinweis: "Stehen im Mitarbeiter-Profil." },
-  { name: "API-Schlüssel, Buchhaltungs-Anbindung (sevdesk, Lexware), Postfach-Einrichtung" },
+  { name: "API-Schlüssel, Postfach-Einrichtung" },
 ];
 
 export const ALLE_RECHTE: RechtDef[] = RECHT_GRUPPEN.flatMap((g) => g.rechte);

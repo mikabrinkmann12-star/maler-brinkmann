@@ -4,9 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireBueroRecht } from "@/lib/auth";
 import { steuerAusAuswahl } from "@/lib/angebot-schema";
-import { aktuellerAnbieter, sevdeskClient, sevdeskFinalisieren } from "@/lib/buchhaltung";
 import { heuteIso, istIsoDatum } from "@/lib/datum";
-import { lexwareClient, lexwareFinalisieren } from "@/lib/lexware";
 import { firmaLaden } from "@/lib/firma-daten";
 import { eRechnungFuer, gespeichertesPdf, pdfMitXml } from "@/lib/e-rechnung-daten";
 import { mahnungPdf } from "@/lib/mahnung-pdf";
@@ -15,18 +13,9 @@ import { rechnungsEinstellungenLaden } from "@/lib/rechnung-einstellungen-daten"
 import { MAHN_STUFEN_NAMEN, stufeSchluessel } from "@/lib/rechnung-einstellungen";
 import { faelligAm } from "@/lib/dashboard";
 import { rechnungMailSchema } from "@/lib/rechnung-mail";
-import { sevdeskAbgleichen, sevdeskBezahltBuchen, sevdeskMahnen, sevdeskPerMail, sevdeskStornieren, sevdeskUebertragen, type Ergebnis } from "@/lib/sevdesk-uebertragung";
 import { istMahnstufe } from "@/lib/mahnung";
-import { LexwareFehler } from "@/lib/lexware-client";
 import { ersteMeldung } from "@/lib/nutzer-schema";
-import {
-  lexwareKontaktPayload,
-  RECHNUNGS_ART_NAMEN,
-  istGutschriftArt,
-  lexwareRechnungPayload,
-  rechnungBerechnen,
-  type RechnungDaten,
-} from "@/lib/rechnung";
+import { RECHNUNGS_ART_NAMEN, istGutschriftArt, rechnungBerechnen } from "@/lib/rechnung";
 import { rechnungLaden } from "@/lib/rechnung-daten";
 import { faelligkeitsDatum, mahnBetraege, pflichtangabenFehlen, reverseChargeHinweis, tageUeberfaellig } from "@/lib/rechnung-eigen";
 import { rechnungPdfErzeugen } from "@/lib/rechnung-pdf-daten";
@@ -34,8 +23,9 @@ import { folgedokumentEntwurf, rechnungEntwurfAusAngebot } from "@/lib/rechnung-
 import { rechnungBausteinPruefen, rechnungKopfSchema, type RechnungBausteinEingabe } from "@/lib/rechnung-schema";
 import { createClient } from "@/lib/supabase/server";
 
-// Rechnungen (Büro und Admin). Verbindlich regeln RLS und Trigger der Datenbank die Rechte und die Sperre nach der Übertragung.
-// Seit 24.10.2026 vergibt die App Nummer und PDF standardmäßig selbst (Anbieter „eigen"); Lexware/sevdesk bleiben optionale Anschlüsse.
+// Rechnungen (Büro und Admin). Verbindlich regeln RLS und Trigger der Datenbank die Rechte und die Sperre nach dem Fertigstellen.
+// Die App vergibt Nummer und PDF selbst (invoices.anbieter = „eigen“). Rechnungen mit einem anderen Anbieter sind ältere Rechnungen aus früheren Systemen:
+// sie bleiben les- und mahnbar, werden aber nicht mehr verändert oder storniert.
 
 export type RechnungErgebnis = { fehler?: string; id?: string; hinweis?: string };
 
@@ -171,7 +161,7 @@ export async function rechnungBausteinVerschieben(rechnungId: string, id: string
   const supabase = await createClient();
   const { data: r } = await supabase.from("invoices").select("status").eq("id", rechnungId).maybeSingle();
   if (!r) return { fehler: "Rechnung nicht gefunden." };
-  if (r.status !== "entwurf") return { fehler: "Diese Rechnung wurde schon an Lexware übertragen und ist gesperrt." };
+  if (r.status !== "entwurf") return { fehler: "Diese Rechnung ist fertiggestellt und gesperrt." };
 
   const { data } = await supabase.from("invoice_items").select("id, sortierung").eq("invoice_id", rechnungId).order("sortierung").order("created_at");
   const ids = (data ?? []).map((z) => z.id);
@@ -188,7 +178,7 @@ export async function rechnungBausteinVerschieben(rechnungId: string, id: string
   return { id };
 }
 
-/** Einen Rechnungsentwurf ausblenden (archivieren). Übertragene Rechnungen bleiben sichtbar. */
+/** Einen Rechnungsentwurf ausblenden (archivieren). Fertige Rechnungen bleiben sichtbar. */
 export async function rechnungArchivieren(id: string): Promise<RechnungErgebnis> {
   await requireBueroRecht("rechnungen");
   if (!uuid.safeParse(id).success) return { fehler: "Ungültige Rechnung." };
@@ -200,7 +190,7 @@ export async function rechnungArchivieren(id: string): Promise<RechnungErgebnis>
     .eq("status", "entwurf")
     .select("id, project_id");
   if (error) return { fehler: dbMeldung(error) };
-  if (!data?.length) return { fehler: "Nur Entwürfe lassen sich archivieren. Übertragene Rechnungen bleiben sichtbar." };
+  if (!data?.length) return { fehler: "Nur Entwürfe lassen sich archivieren. Fertige Rechnungen bleiben sichtbar." };
   aktualisieren(id, data[0].project_id);
   return { id };
 }
@@ -224,37 +214,16 @@ export async function rechnungWiederherstellen(id: string): Promise<RechnungErge
 }
 
 // ---------------------------------------------------------------------------
-// Übertragung an die Buchhaltung (sevdesk im Hintergrund, ältere Rechnungen bei Lexware) und Abgleich
+// Versand, Zahlung, Mahnung und Storno
 // ---------------------------------------------------------------------------
 
-/** Gemeinsamer Rahmen für alle Abläufe mit sevdesk: Rechte sind geprüft, Client und Rechnung werden geladen, danach werden Seiten neu geladen. */
-async function mitSevdesk(
-  id: string,
-  ablauf: (db: Awaited<ReturnType<typeof createClient>>, client: NonNullable<ReturnType<typeof sevdeskClient>>, detail: NonNullable<Awaited<ReturnType<typeof rechnungLaden>>>) => Promise<Ergebnis>,
-): Promise<RechnungErgebnis> {
-  const client = sevdeskClient();
-  if (!client) return { fehler: "Die Buchhaltung ist noch nicht eingerichtet (der sevdesk-Token fehlt)." };
-  const detail = await rechnungLaden(id);
-  if (!detail) return { fehler: "Rechnung nicht gefunden." };
-  const r = await ablauf(await createClient(), client, detail);
-  aktualisieren(id, detail.rechnung.projectId);
-  revalidatePath("/buero");
-  return r;
-}
-
-/** Rechnung per E-Mail an den Kunden schicken (über die Buchhaltung, die PDF bzw. XML anhängt). */
+/** Rechnung per E-Mail an den Kunden schicken: das gespeicherte PDF wird angehängt, bei Rechnungen der App mit eingebetteter E-Rechnung. */
 export async function rechnungPerMailSenden(id: string, eingabe: unknown): Promise<RechnungErgebnis> {
   await requireBueroRecht("rechnungen");
   if (!uuid.safeParse(id).success) return { fehler: "Ungültige Rechnung." };
   const pruefung = rechnungMailSchema.safeParse(eingabe);
   if (!pruefung.success) return { fehler: ersteMeldung(pruefung.error) };
-  const vorhanden = await rechnungLaden(id);
-  if (vorhanden?.rechnung.anbieter === "eigen") return eigenPerMail(id, pruefung.data);
-  return mitSevdesk(id, (db, client, detail) => sevdeskPerMail(db, client, detail, pruefung.data));
-}
-
-/** Rechnung der App per E-Mail: das gespeicherte PDF wird angehängt (ein E-Rechnungs-XML kommt in der nächsten Stufe dazu). */
-async function eigenPerMail(id: string, mail: { an: string; betreff: string; text: string }): Promise<RechnungErgebnis> {
+  const mail = pruefung.data;
   const detail = await rechnungLaden(id);
   if (!detail) return { fehler: "Rechnung nicht gefunden." };
   const { rechnung: r } = detail;
@@ -283,22 +252,20 @@ export async function rechnungAlsBezahltBuchen(id: string, datum: string): Promi
   if (!istIsoDatum(datum) || datum > heuteIso()) return { fehler: "Bitte ein Zahlungsdatum angeben, das nicht in der Zukunft liegt." };
   const detail = await rechnungLaden(id);
   if (!detail) return { fehler: "Rechnung nicht gefunden." };
-  if (detail.rechnung.anbieter === "eigen") {
-    const { rechnung: r } = detail;
-    if (r.status !== "uebertragen" || r.lexwareStatus !== "open") return { fehler: "Nur eine offene, fertige Rechnung lässt sich als bezahlt buchen." };
-    if (datum < r.rechnungsdatum) return { fehler: "Das Zahlungsdatum liegt vor dem Rechnungsdatum." };
-    const supabase = await createClient();
-    const { data, error } = await supabase.from("invoices").update({ lexware_status: "paid", bezahlt_am: datum, mahnstufe: 0, angemahnt_am: null }).eq("id", id).eq("lexware_status", "open").select("id");
-    if (error) return { fehler: dbMeldung(error) };
-    if (!data?.length) return { fehler: "Das hat nicht geklappt (vielleicht ist die Rechnung schon bezahlt)." };
-    aktualisieren(id, r.projectId);
-    revalidatePath("/buero");
-    return { id };
-  }
-  return mitSevdesk(id, (db, client, d) => sevdeskBezahltBuchen(db, client, d, datum));
+  const { rechnung: r } = detail;
+  if (r.status !== "uebertragen" || r.lexwareStatus !== "open") return { fehler: "Nur eine offene, fertige Rechnung lässt sich als bezahlt buchen." };
+  if (datum < r.rechnungsdatum) return { fehler: "Das Zahlungsdatum liegt vor dem Rechnungsdatum." };
+  const supabase = await createClient();
+  // Die Spalte heißt noch lexware_status (aus einer früheren Anbindung), sie bedeutet: open = offen, paid = bezahlt, voided = storniert
+  const { data, error } = await supabase.from("invoices").update({ lexware_status: "paid", bezahlt_am: datum, mahnstufe: 0, angemahnt_am: null }).eq("id", id).eq("lexware_status", "open").select("id");
+  if (error) return { fehler: dbMeldung(error) };
+  if (!data?.length) return { fehler: "Das hat nicht geklappt (vielleicht ist die Rechnung schon bezahlt)." };
+  aktualisieren(id, r.projectId);
+  revalidatePath("/buero");
+  return { id };
 }
 
-/** Zahlung zurücknehmen (z. B. falsch gebucht): die Rechnung ist wieder offen. Nur bei eigenen Rechnungen. */
+/** Zahlung zurücknehmen (z. B. falsch gebucht): die Rechnung ist wieder offen. */
 export async function rechnungZahlungZuruecknehmen(id: string): Promise<RechnungErgebnis> {
   await requireBueroRecht("rechnungen");
   if (!uuid.safeParse(id).success) return { fehler: "Ungültige Rechnung." };
@@ -307,7 +274,6 @@ export async function rechnungZahlungZuruecknehmen(id: string): Promise<Rechnung
     .from("invoices")
     .update({ lexware_status: "open", bezahlt_am: null })
     .eq("id", id)
-    .eq("anbieter", "eigen")
     .eq("lexware_status", "paid")
     .select("id, project_id");
   if (error) return { fehler: dbMeldung(error) };
@@ -317,23 +283,16 @@ export async function rechnungZahlungZuruecknehmen(id: string): Promise<Rechnung
   return { id };
 }
 
-/** Zahlungserinnerung bzw. Mahnung anlegen und per E-Mail senden. */
+/**
+ * Zahlungserinnerung bzw. Mahnung: erzeugt das Mahnschreiben als PDF (Gebühr und Zinsen aus Einstellungen → Rechnungen), schickt es mit der Rechnung per E-Mail,
+ * vermerkt es im Verlauf und setzt die Mahnstufe.
+ */
 export async function rechnungMahnen(id: string, stufe: number, eingabe: unknown): Promise<RechnungErgebnis> {
-  await requireBueroRecht("rechnungen");
+  const nutzer = await requireBueroRecht("rechnungen");
   if (!uuid.safeParse(id).success || !istMahnstufe(stufe)) return { fehler: "Ungültige Eingabe." };
   const pruefung = rechnungMailSchema.safeParse(eingabe);
   if (!pruefung.success) return { fehler: ersteMeldung(pruefung.error) };
-  const vorhanden = await rechnungLaden(id);
-  if (vorhanden?.rechnung.anbieter === "eigen") return eigenMahnen(id, stufe, pruefung.data);
-  return mitSevdesk(id, (db, client, detail) => sevdeskMahnen(db, client, detail, stufe, pruefung.data));
-}
-
-/**
- * Zahlungserinnerung bzw. Mahnung einer Rechnung der App: erzeugt das Mahnschreiben als PDF (Gebühr und Zinsen aus Einstellungen → Rechnungen), schickt es mit
- * der Rechnung per E-Mail, vermerkt es im Verlauf und setzt die Mahnstufe.
- */
-async function eigenMahnen(id: string, stufe: number, mail: { an: string; betreff: string; text: string }): Promise<RechnungErgebnis> {
-  const nutzer = await requireBueroRecht("rechnungen");
+  const mail = pruefung.data;
   const detail = await rechnungLaden(id);
   if (!detail) return { fehler: "Rechnung nicht gefunden." };
   const { rechnung: r, kunde } = detail;
@@ -373,18 +332,16 @@ async function eigenMahnen(id: string, stufe: number, mail: { an: string; betref
   return { id };
 }
 
-/** Rechnung stornieren (Stornorechnung in der Buchhaltung, nicht rücknehmbar). */
+/**
+ * Rechnung stornieren (nicht rücknehmbar): kopiert alle Positionen, stellt die Stornorechnung sofort fertig (eigene Nummer „G-…“) und markiert die Rechnung als storniert.
+ * Nur bei Rechnungen der App.
+ */
 export async function rechnungStornieren(id: string): Promise<RechnungErgebnis> {
   await requireBueroRecht("rechnungen");
   if (!uuid.safeParse(id).success) return { fehler: "Ungültige Rechnung." };
   const vorhanden = await rechnungLaden(id);
   if (!vorhanden) return { fehler: "Rechnung nicht gefunden." };
-  if (vorhanden.rechnung.anbieter === "eigen") return eigenStornieren(id);
-  return mitSevdesk(id, (db, client, detail) => sevdeskStornieren(db, client, detail));
-}
-
-/** Stornorechnung zu einer fertigen eigenen Rechnung: kopiert alle Positionen, stellt sofort fertig (eigene Nummer „G-…“) und markiert die Rechnung als storniert. */
-async function eigenStornieren(id: string): Promise<RechnungErgebnis> {
+  if (vorhanden.rechnung.anbieter !== "eigen") return { fehler: "Ältere Rechnungen aus früheren Systemen lassen sich hier nicht stornieren." };
   const supabase = await createClient();
   const e = await folgedokumentEntwurf(supabase, id, "storno");
   if (e.fehler || !e.id) return { fehler: e.fehler ?? "Die Stornorechnung konnte nicht angelegt werden." };
@@ -409,30 +366,8 @@ export async function rechnungGutschriftErstellen(id: string): Promise<RechnungE
   return { id: e.id };
 }
 
-/**
- * Original-Datei der Rechnung aus Lexware holen und als Kopie in der App ablegen: bei einer normalen Rechnung und bei ZUGFeRD ein PDF
- * (ZUGFeRD trägt die Rechnungsdaten eingebettet), bei einer XRechnung (Behörden, mit Leitweg-ID) eine XML-Datei. Fehler sind hier nicht
- * schlimm, „Aus Lexware abgleichen“ holt es nach.
- */
-async function dateiSichern(rechnungId: string, lexwareId: string): Promise<boolean> {
-  const client = lexwareClient();
-  if (!client) return false;
-  try {
-    const datei = await client.rechnungDatei(lexwareId);
-    const endung = datei.contentType.includes("xml") ? "xml" : "pdf";
-    const supabase = await createClient();
-    const pfad = `${rechnungId}.${endung}`;
-    const { error } = await supabase.storage.from("rechnungen").upload(pfad, datei.bytes, { contentType: endung === "xml" ? "application/xml" : "application/pdf", upsert: true });
-    if (error) return false;
-    const { error: dbFehler } = await supabase.from("invoices").update({ pdf_pfad: pfad }).eq("id", rechnungId);
-    return !dbFehler;
-  } catch {
-    return false;
-  }
-}
-
 // ---------------------------------------------------------------------------
-// Eigene Rechnungen (Standard seit 24.10.2026): Nummer und PDF kommen aus der App selbst
+// Fertigstellen: Nummer und PDF kommen aus der App selbst
 // ---------------------------------------------------------------------------
 
 /** PDF der fertigen Rechnung erzeugen und als unveränderliche Kopie im Speicher ablegen (wird nie überschrieben). */
@@ -502,183 +437,16 @@ export async function rechnungPdfNeuErzeugen(id: string): Promise<RechnungErgebn
   return { id };
 }
 
-/**
- * Rechnung an Lexware Office übertragen. Standard: Lexware FINALISIERT sofort (vergibt die Nummer und erzeugt das PDF, nicht rücknehmbar);
- * mit LEXWARE_MODUS=entwurf nur als Entwurf. Danach kommen Nummer, Status, Summen und PDF zurück in die App.
- * Zuerst wird die Rechnung hier „reserviert“ (Status wird_uebertragen), damit ein Doppelklick nie zwei Rechnungen erzeugt.
- */
-export async function rechnungUebertragen(id: string): Promise<RechnungErgebnis> {
+/** Rechnung fertigstellen (Nummer und PDF aus der App, nicht rücknehmbar). */
+export async function rechnungFertigstellen(id: string): Promise<RechnungErgebnis> {
   await requireBueroRecht("rechnungen");
   if (!uuid.safeParse(id).success) return { fehler: "Ungültige Rechnung." };
-  if (aktuellerAnbieter() === "eigen") return eigenFertigstellen(id);
-  if (aktuellerAnbieter() === "sevdesk") return mitSevdesk(id, (db, client, detail) => sevdeskUebertragen(db, client, detail, sevdeskFinalisieren()));
-  const client = lexwareClient();
-  if (!client) return { fehler: "Lexware ist noch nicht eingerichtet (der API-Schlüssel fehlt)." };
-
-  const detail = await rechnungLaden(id);
-  if (!detail) return { fehler: "Rechnung nicht gefunden." };
-  const { rechnung: r, bausteine, kunde } = detail;
-  if (r.archiviert) return { fehler: "Diese Rechnung ist archiviert." };
-  if (r.status !== "entwurf") return { fehler: "Diese Rechnung ist schon übertragen (oder wird gerade übertragen)." };
-  if (!bausteine.some((b) => b.typ === "position")) return { fehler: "Die Rechnung hat keine Position." };
-
-  const supabase = await createClient();
-  const { data: reserviert, error: reserviertFehler } = await supabase
-    .from("invoices")
-    .update({ status: "wird_uebertragen" })
-    .eq("id", id)
-    .eq("status", "entwurf")
-    .select("id");
-  if (reserviertFehler) return { fehler: dbMeldung(reserviertFehler) };
-  if (!reserviert?.length) return { fehler: "Diese Rechnung wird gerade übertragen oder ist schon übertragen." };
-
-  const zurueck = async () => {
-    await supabase.from("invoices").update({ status: "entwurf" }).eq("id", id);
-  };
-
-  let lexwareId: string;
-  try {
-    // 1. Kunde in Lexware (einmalig anlegen, die ID merkt sich die App am Kontakt)
-    let kontaktId = kunde.lexwareKontaktId;
-    if (!kontaktId) {
-      const { data: k } = await supabase
-        .from("contacts")
-        .select("typ, anrede, firmenname, ansprechpartner, vorname, nachname, strasse, plz, ort, email, leitweg_id")
-        .eq("id", r.contactId)
-        .maybeSingle();
-      if (!k) throw new LexwareFehler(0, "Der Kunde wurde nicht gefunden.");
-      kontaktId = await client.kontaktAnlegen(lexwareKontaktPayload(k));
-      await supabase.from("contacts").update({ lexware_contact_id: kontaktId }).eq("id", r.contactId);
-    }
-
-    // 2. Rechnung anlegen (finalisiert oder als Entwurf)
-    const daten: RechnungDaten = {
-      betreff: r.betreff,
-      rechnungsdatum: r.rechnungsdatum,
-      leistungVon: r.leistungVon,
-      leistungBis: r.leistungBis,
-      zahlungszielTage: r.zahlungszielTage,
-      skontoProzent: r.skontoProzent,
-      skontoTage: r.skontoTage,
-      steuersatz: r.steuersatz,
-      reverseCharge: r.reverseCharge,
-      rabattProzent: r.rabattProzent,
-      einleitung: r.einleitung,
-      schlusstext: r.schlusstext,
-      leitwegId: kunde.leitwegId,
-    };
-    lexwareId = await client.rechnungAnlegen(lexwareRechnungPayload(daten, bausteine, kontaktId), lexwareFinalisieren());
-  } catch (fehler) {
-    await zurueck();
-    return { fehler: fehler instanceof LexwareFehler ? fehler.message : "Die Übertragung an Lexware hat nicht geklappt. Bitte nochmal versuchen." };
-  }
-
-  // Die Rechnung existiert jetzt in Lexware: SOFORT festhalten, sonst könnte sie ein zweites Mal entstehen.
-  const { error: festFehler } = await supabase
-    .from("invoices")
-    .update({ status: "uebertragen", lexware_id: lexwareId, uebertragen_am: new Date().toISOString() })
-    .eq("id", id);
-  if (festFehler) {
-    console.error("[lexware] Rechnung angelegt, aber nicht gespeichert:", lexwareId);
-    return { fehler: `Die Rechnung wurde in Lexware angelegt (ID ${lexwareId}), konnte aber in der App nicht gespeichert werden. Bitte nicht nochmal senden und Mika Bescheid geben.` };
-  }
-
-  // Rückmeldung von Lexware (Nummer, Status, Summen) und PDF; Fehler hier sind nicht schlimm, „Abgleichen“ holt es nach.
-  let hinweis: string | undefined;
-  try {
-    const info = await client.rechnungLesen(lexwareId);
-    await supabase
-      .from("invoices")
-      .update({
-        rechnungsnummer: info.rechnungsnummer || null,
-        lexware_status: info.status || null,
-        netto: info.netto,
-        brutto: info.brutto,
-        abgeglichen_am: new Date().toISOString(),
-      })
-      .eq("id", id);
-    const erwartet = rechnungBerechnen(bausteine, { rabattProzent: r.rabattProzent, steuersatz: r.steuersatz, reverseCharge: r.reverseCharge });
-    if (info.netto !== null && Math.abs(info.netto - erwartet.nettoNachRabatt) > 0.01) {
-      hinweis = `Achtung: Lexware rechnet netto ${info.netto.toFixed(2).replace(".", ",")} €, die App ${erwartet.nettoNachRabatt.toFixed(2).replace(".", ",")} €. Bitte die Rechnung in Lexware prüfen.`;
-    }
-    if (info.status === "open" || info.status === "paid") {
-      if (!(await dateiSichern(id, lexwareId))) hinweis = `${hinweis ? `${hinweis} ` : ""}Das PDF konnte noch nicht geholt werden. Tippe später auf „Aus Lexware abgleichen“.`;
-    } else if (!lexwareFinalisieren()) {
-      hinweis = "Die Rechnung liegt in Lexware als Entwurf (Test-Modus). Finalisiere sie dort, dann gleiche sie hier ab.";
-    }
-  } catch {
-    hinweis = "Die Rechnung ist in Lexware angelegt. Nummer und PDF konnten noch nicht geholt werden: tippe gleich auf „Aus Lexware abgleichen“.";
-  }
-  aktualisieren(id, r.projectId);
-  return { id, hinweis };
-}
-
-/** Nummer, Status, Summen und (falls noch nicht vorhanden) das PDF aus Lexware holen. */
-export async function rechnungAbgleichen(id: string): Promise<RechnungErgebnis> {
-  await requireBueroRecht("rechnungen");
-  if (!uuid.safeParse(id).success) return { fehler: "Ungültige Rechnung." };
-  const detail = await rechnungLaden(id);
-  if (!detail) return { fehler: "Rechnung nicht gefunden." };
-  if (detail.rechnung.anbieter === "eigen") return { id, hinweis: "Rechnungen der App müssen nicht abgeglichen werden." };
-  if (detail.rechnung.anbieter === "sevdesk") return mitSevdesk(id, (db, client, d) => sevdeskAbgleichen(db, client, d));
-  const client = lexwareClient();
-  if (!client) return { fehler: "Lexware ist noch nicht eingerichtet (der API-Schlüssel fehlt)." };
-  const { rechnung: r } = detail;
-  if (!r.lexwareId) return { fehler: "Diese Rechnung ist noch nicht an Lexware übertragen." };
-
-  const supabase = await createClient();
-  try {
-    const info = await client.rechnungLesen(r.lexwareId);
-    const { error } = await supabase
-      .from("invoices")
-      .update({
-        rechnungsnummer: info.rechnungsnummer || null,
-        lexware_status: info.status || null,
-        netto: info.netto,
-        brutto: info.brutto,
-        abgeglichen_am: new Date().toISOString(),
-      })
-      .eq("id", id);
-    if (error) return { fehler: dbMeldung(error) };
-    let hinweis: string | undefined;
-    if ((info.status === "open" || info.status === "paid") && !r.pdfPfad) {
-      if (!(await dateiSichern(id, r.lexwareId))) hinweis = "Das PDF konnte noch nicht geholt werden. Bitte später nochmal abgleichen.";
-    } else if (info.status === "draft") {
-      hinweis = "Die Rechnung ist in Lexware noch ein Entwurf. Nach dem Finalisieren dort gibt es Nummer und PDF.";
-    }
-    aktualisieren(id, r.projectId);
-    return { id, hinweis };
-  } catch (fehler) {
-    return { fehler: fehler instanceof LexwareFehler ? fehler.message : "Der Abgleich mit Lexware hat nicht geklappt." };
-  }
+  return eigenFertigstellen(id);
 }
 
 /**
- * Notausgang: Bleibt eine Rechnung im Status „wird übertragen“ hängen (z. B. weil der Server mittendrin abbrach), geht sie nach
- * fünf Minuten zurück auf „Entwurf“. Nur wenn Lexware noch keine Rechnung dazu hat (keine Lexware-ID), sonst könnte sie doppelt entstehen.
- */
-export async function rechnungWiederFreigeben(id: string): Promise<RechnungErgebnis> {
-  await requireBueroRecht("rechnungen");
-  if (!uuid.safeParse(id).success) return { fehler: "Ungültige Rechnung." };
-  const supabase = await createClient();
-  const grenze = new Date(Date.now() - 5 * 60_000).toISOString();
-  const { data, error } = await supabase
-    .from("invoices")
-    .update({ status: "entwurf" })
-    .eq("id", id)
-    .eq("status", "wird_uebertragen")
-    .is("lexware_id", null)
-    .lt("updated_at", grenze)
-    .select("id, project_id");
-  if (error) return { fehler: dbMeldung(error) };
-  if (!data?.length) return { fehler: "Die Rechnung lässt sich noch nicht freigeben (sie wird vielleicht gerade übertragen, bitte fünf Minuten warten)." };
-  aktualisieren(id, data[0].project_id);
-  return { id };
-}
-
-/**
- * Vermerkt, wie weit eine offene Rechnung gemahnt wurde (0 = nicht gemahnt, 1 = Zahlungserinnerung, 2 = 1. Mahnung, 3 = 2. Mahnung).
- * Die Mahnung selbst schreibt das Büro in Lexware; hier steht nur der Vermerk, der in den offenen Forderungen als „Angemahnt“ erscheint.
+ * Vermerkt, wie weit eine offene Rechnung gemahnt wurde (0 = nicht gemahnt, 1 = Zahlungserinnerung, 2 = 1. Mahnung, 3 = 2. Mahnung), ohne etwas zu versenden
+ * (z. B. nach einem Anruf). Der Vermerk erscheint in den offenen Forderungen als „Angemahnt“.
  */
 export async function rechnungMahnstufeSetzen(id: string, stufe: number): Promise<RechnungErgebnis> {
   await requireBueroRecht("rechnungen");
@@ -686,7 +454,7 @@ export async function rechnungMahnstufeSetzen(id: string, stufe: number): Promis
   const supabase = await createClient();
   const { data: r } = await supabase.from("invoices").select("status, lexware_status, project_id").eq("id", id).maybeSingle();
   if (!r) return { fehler: "Rechnung nicht gefunden." };
-  if (r.status !== "uebertragen" || r.lexware_status !== "open") return { fehler: "Eine Mahnung lässt sich nur bei einer offenen, an Lexware übertragenen Rechnung vermerken." };
+  if (r.status !== "uebertragen" || r.lexware_status !== "open") return { fehler: "Eine Mahnung lässt sich nur bei einer offenen, fertigen Rechnung vermerken." };
   const { error } = await supabase.from("invoices").update({ mahnstufe: stufe, angemahnt_am: stufe > 0 ? heuteIso() : null }).eq("id", id);
   if (error) return { fehler: dbMeldung(error) };
   aktualisieren(id, r.project_id);
@@ -694,7 +462,7 @@ export async function rechnungMahnstufeSetzen(id: string, stufe: number): Promis
   return { id };
 }
 
-/** Notiz zur Rechnung (intern, nicht auf dem PDF). Bleibt auch nach der Übertragung änderbar. */
+/** Notiz zur Rechnung (intern, nicht auf dem PDF). Bleibt auch nach dem Fertigstellen änderbar. */
 export async function rechnungNotizSpeichern(id: string, text: string): Promise<RechnungErgebnis> {
   await requireBueroRecht("rechnungen");
   if (!uuid.safeParse(id).success) return { fehler: "Ungültige Rechnung." };

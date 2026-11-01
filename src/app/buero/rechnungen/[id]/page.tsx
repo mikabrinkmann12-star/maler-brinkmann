@@ -13,18 +13,14 @@ import { RechnungNotiz } from "./rechnung-notiz";
 import { requireBueroRecht } from "@/lib/auth";
 import { auswahlAusSteuer } from "@/lib/angebot-schema";
 import { formatBetrag, formatDatum, formatDatumZeit, formatZahl } from "@/lib/format";
-import { aktuellerAnbieter, anbieterName, sevdeskEingerichtet, sevdeskFinalisieren } from "@/lib/buchhaltung";
 import { firmaLaden } from "@/lib/firma-daten";
 import { smtpKonfiguration } from "@/lib/env";
 import { eRechnungFuer } from "@/lib/e-rechnung-daten";
-import { lexwareEingerichtet, lexwareFinalisieren } from "@/lib/lexware";
 import { mahnungMailVorschlag, rechnungMailVorschlag } from "@/lib/rechnung-mail";
-import { RECHNUNGS_ART_NAMEN, istGutschriftArt, lexwareLink, rechnungBerechnen } from "@/lib/rechnung";
+import { RECHNUNGS_ART_NAMEN, istGutschriftArt, rechnungBerechnen } from "@/lib/rechnung";
 import { rechnungLaden } from "@/lib/rechnung-daten";
 import { kopfStart } from "@/lib/rechnung-formular";
-import { abgleichFaellig } from "@/lib/rechnung-abgleich";
-import { AutoAbgleich } from "./auto-abgleich";
-import { BuchhaltungLeiste } from "./buchhaltung-leiste";
+import { RechnungLeiste } from "./rechnung-leiste";
 import { MahnungKarte } from "./mahnung-karte";
 import { mahnungsHinweis } from "@/lib/rechnung-einstellungen";
 import { rechnungsEinstellungenLaden } from "@/lib/rechnung-einstellungen-daten";
@@ -49,31 +45,22 @@ export default async function RechnungSeite({ params }: PageProps<"/buero/rechnu
 
   const gesperrt = r.status !== "entwurf" || r.archiviert;
   const rechnung = rechnungBerechnen(bausteine, { rabattProzent: r.rabattProzent, steuersatz: r.steuersatz, reverseCharge: r.reverseCharge });
-  // Nach der Übertragung zählt, was Lexware zurückgemeldet hat
+  // Nach dem Fertigstellen zählen die festgeschriebenen Summen
   const netto = r.netto ?? vz * rechnung.nettoNachRabatt;
   const brutto = r.brutto ?? vz * rechnung.brutto;
-  const istEigenRechnung = r.anbieter === "eigen" || (r.status === "entwurf" && aktuellerAnbieter() === "eigen");
-  const abweichung = !istEigenRechnung && r.netto !== null && Math.abs(r.netto - rechnung.nettoNachRabatt) > 0.01;
-  const festgehangen = r.status === "wird_uebertragen";
-  // Neue Rechnungen gehen an den eingestellten Anbieter (sevdesk im Hintergrund), bereits übertragene bleiben bei ihrem
-  const anbieter = r.status === "entwurf" ? (aktuellerAnbieter() ?? "lexware") : r.anbieter;
-  const name = anbieterName(anbieter);
-  const istSevdesk = anbieter === "sevdesk";
-  const istEigen = anbieter === "eigen";
-  const eingerichtet = istEigen || (istSevdesk ? sevdeskEingerichtet() : lexwareEingerichtet());
-  const finalisieren = istEigen || (istSevdesk ? sevdeskFinalisieren() : lexwareFinalisieren());
+  // Entwürfe und fertige Rechnungen der App (anbieter „eigen“). Alles andere sind ältere Rechnungen aus früheren Systemen: fertig, gesperrt, nur lesbar, bezahlbar und mahnbar.
+  const istEigen = r.anbieter === "eigen" || r.status === "entwurf";
   const vorgaben = await rechnungsEinstellungenLaden();
   const mahnHinweise = Object.fromEntries([1, 2, 3].map((n) => [n, mahnungsHinweis(vorgaben, n) ?? ""]).filter(([, t]) => t));
 
   const heute = heuteIso();
   // E-Rechnung (nur eigene, fertige Rechnungen): Warnungen, was nach der Norm noch fehlt
   const eRechnung = istEigen && r.status === "uebertragen" ? await eRechnungFuer(r.id) : null;
-  // Die Datei der Buchhaltung lässt sich als PDF direkt anzeigen (eine XRechnung ist XML und nur als Download da)
+  // Das gespeicherte PDF lässt sich direkt anzeigen (eine ältere XRechnung ist XML und nur als Download da)
   const zeigePdf = Boolean(r.pdfPfad) && !r.pdfPfad!.endsWith(".xml");
-  const autoAbgleich = eingerichtet && !istEigen && abgleichFaellig({ status: r.status, lexwareStatus: r.lexwareStatus, hatDatei: Boolean(r.pdfPfad), abgeglichenAm: r.abgeglichenAm });
-  const sevdeskAktiv = istSevdesk && r.status === "uebertragen";
-  // Versand und Mahnung per E-Mail gibt es bei sevdesk und bei den eigenen Rechnungen (dann über das SMTP-Postfach der App)
-  const versandAktiv = sevdeskAktiv || (istEigen && r.status === "uebertragen");
+  // Versand und Mahnung per E-Mail laufen über das SMTP-Postfach der App
+  const fertig = r.status === "uebertragen";
+  const versandAktiv = fertig;
   const firma = versandAktiv ? await firmaLaden() : null;
   const angaben = { rechnungsnummer: r.rechnungsnummer, betreff: r.betreff, brutto: r.brutto, rechnungsdatum: r.rechnungsdatum, zahlungszielTage: r.zahlungszielTage, firma: firma?.name ?? "" };
   const mahnSenden = versandAktiv && !istGutschriftArt(r.art)
@@ -187,9 +174,9 @@ export default async function RechnungSeite({ params }: PageProps<"/buero/rechnu
         <div className={abschnitt}>
           <h2 className={ueberschrift}>Zahlungen</h2>
           {anzeige === "bezahlt" ? (
-            <p className="px-3 text-[13px]">Diese Rechnung ist bezahlt ({formatBetrag(brutto)}){r.bezahltAm ? ` am ${formatDatum(r.bezahltAm)}` : ""}.{!istEigen && ` Die einzelnen Zahlungen stehen in ${name}.`}</p>
+            <p className="px-3 text-[13px]">Diese Rechnung ist bezahlt ({formatBetrag(brutto)}){r.bezahltAm ? ` am ${formatDatum(r.bezahltAm)}` : ""}</p>
           ) : r.status === "uebertragen" ? (
-            <p className="px-3 text-[13px] text-muted-foreground">{istSevdesk || istEigen ? "Noch keine Zahlung gebucht. Unten kannst du sie als bezahlt buchen." : "Noch keine Zahlung gemeldet. Zahlungen trägst du in Lexware ein; danach „Abgleichen“."}</p>
+            <p className="px-3 text-[13px] text-muted-foreground">Noch keine Zahlung gebucht. Unten kannst du sie als bezahlt buchen.</p>
           ) : (
             <p className="px-3 text-[13px] text-muted-foreground">Zahlungen gibt es erst, wenn die Rechnung fertiggestellt ist.</p>
           )}
@@ -219,24 +206,10 @@ export default async function RechnungSeite({ params }: PageProps<"/buero/rechnu
         <Link href={`/buero/kontakte/${kunde.id}`} className="font-medium text-foreground hover:underline">{kunde.name}</Link>
         {kunde.kundennummer && ` (${kunde.kundennummer})`}
         {angebot && <> · aus Angebot <Link href={`/buero/angebote/${angebot.id}`} className="font-medium text-foreground hover:underline">{angebot.betreff}</Link></>}
-        {r.uebertragenAm && (istEigen ? <> · Fertiggestellt am {formatDatumZeit(r.uebertragenAm)}</> : <> · An {name} übertragen am {formatDatumZeit(r.uebertragenAm)}{r.abgeglichenAm && <>, zuletzt abgeglichen am {formatDatumZeit(r.abgeglichenAm)}</>}</>)}
+        {r.uebertragenAm && <> · Fertiggestellt am {formatDatumZeit(r.uebertragenAm)}</>}
       </p>
 
-      {autoAbgleich && <AutoAbgleich rechnungId={r.id} name={name} />}
-
-      <BuchhaltungLeiste
-        rechnungId={r.id}
-        status={r.status}
-        name={name}
-        eigen={istEigen}
-        artName={artName}
-        zugang={istSevdesk ? "SEVDESK_API_TOKEN" : "LEXWARE_API_KEY"}
-        lexwareLink={!istSevdesk && r.lexwareId ? lexwareLink(r.lexwareId) : null}
-        hatPdf={Boolean(r.pdfPfad)}
-        eingerichtet={eingerichtet}
-        finalisieren={finalisieren}
-        festgehangen={festgehangen}
-      />
+      <RechnungLeiste rechnungId={r.id} status={r.status} eigen={istEigen} artName={artName} hatPdf={Boolean(r.pdfPfad)} />
 
       {eRechnung && (
         <section className="flex flex-col gap-2 rounded-xl border p-4" aria-label="E-Rechnung">
@@ -260,21 +233,21 @@ export default async function RechnungSeite({ params }: PageProps<"/buero/rechnu
       {versandAktiv && r.lexwareStatus !== "voided" && r.lexwareStatus !== "draft" && (
         <RechnungMailPanel
           rechnungId={r.id}
-          bereit={istEigen ? smtpKonfiguration() !== null : eingerichtet}
+          bereit={smtpKonfiguration() !== null}
           start={{ an: r.versendetAn ?? kunde.email, ...rechnungMailVorschlag(angaben) }}
           zuletzt={r.versendetAm && r.versendetAn ? { am: r.versendetAm, an: r.versendetAn } : null}
         />
       )}
 
-      {(sevdeskAktiv || (istEigen && r.status === "uebertragen")) && (
+      {fertig && (
         <ZahlungKarte
           rechnungId={r.id}
           brutto={brutto}
           heute={heute}
           kannBuchen={r.lexwareStatus === "open"}
-          kannStornieren={(sevdeskAktiv || (istEigen && !istGutschriftArt(r.art))) && (r.lexwareStatus === "open" || r.lexwareStatus === "paid")}
+          kannStornieren={istEigen && !istGutschriftArt(r.art) && (r.lexwareStatus === "open" || r.lexwareStatus === "paid")}
           kannGutschrift={istEigen && !istGutschriftArt(r.art) && r.lexwareStatus !== "voided"}
-          kannZuruecknehmen={istEigen && r.lexwareStatus === "paid"}
+          kannZuruecknehmen={r.lexwareStatus === "paid"}
           bezahltAm={r.bezahltAm}
         />
       )}
@@ -286,7 +259,11 @@ export default async function RechnungSeite({ params }: PageProps<"/buero/rechnu
       {gesperrt && (
         <p className="flex items-center gap-2 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900">
           <LockIcon className="size-4 shrink-0" />
-          {r.archiviert ? "Diese Rechnung ist archiviert." : istEigen ? "Diese Rechnung ist fertiggestellt und gesperrt (Nummer und PDF sind festgeschrieben)." : `Diese Rechnung ist an ${name} übertragen und gesperrt (Nummer und PDF stammen von ${name}).`}
+          {r.archiviert
+            ? "Diese Rechnung ist archiviert."
+            : istEigen
+            ? "Diese Rechnung ist fertiggestellt und gesperrt (Nummer und PDF sind festgeschrieben). Korrekturen gehen nur über eine Gutschrift oder ein Storno."
+            : "Das ist eine ältere Rechnung aus einem früheren System. Nummer und PDF wurden übernommen und lassen sich nicht ändern. Du kannst sie ansehen, als bezahlt buchen und mahnen."}
         </p>
       )}
 
@@ -294,7 +271,6 @@ export default async function RechnungSeite({ params }: PageProps<"/buero/rechnu
         key={`kopf:${r.betreff}|${r.rechnungsdatum}|${r.leistungVon}|${r.leistungBis}|${r.zahlungszielTage}|${r.skontoProzent}|${r.skontoTage}|${r.steuersatz}|${r.reverseCharge}|${r.rabattProzent}|${r.einleitung}|${r.schlusstext}`}
         rechnungId={r.id}
         gesperrt={gesperrt}
-        eigen={istEigenRechnung}
         start={kopfStart({
           betreff: r.betreff, rechnungsdatum: r.rechnungsdatum, leistungVon: r.leistungVon, leistungBis: r.leistungBis,
           zahlungszielTage: r.zahlungszielTage, skontoProzent: r.skontoProzent, skontoTage: r.skontoTage,
@@ -307,9 +283,6 @@ export default async function RechnungSeite({ params }: PageProps<"/buero/rechnu
         <PositionenEditor rechnungId={r.id} projektId={projekt.id} bausteine={bausteine} gesperrt={gesperrt} />
       </section>
 
-      {r.netto !== null && abweichung && (
-        <p className="text-sm text-destructive">Laut {name}: netto {formatBetrag(netto)}{brutto !== null && <>, brutto {formatBetrag(brutto)}</>} – weicht von der App ab, bitte prüfen!</p>
-      )}
     </div>
   );
 }

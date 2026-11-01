@@ -1,4 +1,4 @@
-// Mahnstufen einer Rechnung. Mahnungen schreibt das Büro in Lexware (die API kennt sie nicht); in der App wird nur vermerkt, wie weit gemahnt wurde.
+// Mahnstufen einer Rechnung. Die App schreibt Zahlungserinnerung und Mahnungen selbst (PDF per E-Mail) und vermerkt, wie weit gemahnt wurde.
 
 export const MAHNSTUFEN = [
   { stufe: 0, name: "Nicht gemahnt" },

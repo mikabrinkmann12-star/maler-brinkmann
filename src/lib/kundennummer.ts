@@ -6,7 +6,7 @@
 // Es zählen ALLE Kontakte, auch archivierte.
 //
 // Hinweis zur „Regelkonformität“: Gesetzlich vorgeschrieben ist eine lückenlose, eindeutige Nummer
-// nur bei Rechnungen (§ 14 UStG, GoBD). Die vergibt Lexware, nicht diese Funktion. Eine Kundennummer
+// nur bei Rechnungen (§ 14 UStG, GoBD). Die vergibt rechnung_finalisieren in der Datenbank, nicht diese Funktion. Eine Kundennummer
 // muss nur eindeutig sein.
 
 /** Erkennt „KD-241350“ und „KD241350“ (mit oder ohne Bindestrich), mindestens 5 Ziffern. */

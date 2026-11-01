@@ -14,7 +14,7 @@ describe("faelligAm", () => {
 });
 
 describe("forderungen", () => {
-  it("zählt nur übertragene, bei Lexware offene Rechnungen", () => {
+  it("zählt nur übertragene, im Status offene Rechnungen", () => {
     const f = forderungen([r({}), r({ lexwareStatus: "paid" }), r({ status: "entwurf", lexwareStatus: "" }), r({ lexwareStatus: "voided" })], "2026-10-10");
     expect(f.offen).toEqual({ anzahl: 1, summe: 100 });
     expect(f.ueberfaellig.anzahl).toBe(0);

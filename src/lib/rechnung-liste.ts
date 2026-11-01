@@ -1,5 +1,5 @@
 // Rechnungsliste wie bei „Ausgangsrechnungen“ in Plancraft: Status (Offen, Überfällig, Bezahlt …), Fälligkeit, offener Betrag.
-// Alles beruht auf dem, was Lexware zuletzt gemeldet hat (Stand vom letzten Abgleich). Reine Logik, auch im Browser nutzbar.
+// Alles beruht auf dem gespeicherten Rechnungsstatus (Spalte lexware_status, ein Name aus früherer Zeit: open, paid, voided, draft). Reine Logik, auch im Browser nutzbar.
 
 import { tageZwischen } from "@/lib/datum";
 import { faelligAm } from "@/lib/dashboard";

@@ -31,7 +31,7 @@ Für das Gespräch mit Ralf am Samstag, 24.10.2026. Bis dahin ist alles **kosten
 4. **Zusätzlicher Datenbank-Export** und eine **Wiederherstellungs-Anleitung** (noch nicht gebaut, siehe `docs/SETUP.md`, Abschnitt 9).
 5. Erst dann echte Zeiten, Fotos und Kunden eintragen. Das Datenschutz-Gespräch mit Ralf gehört auch dazu (Mitarbeiterdaten).
 
-### 3.2 sevdesk einrichten
+### 3.2 sevdesk einrichten (entfällt: sevdesk und Lexware sind seit 25.10.2026 aus der App entfernt, Rechnungen macht die App selbst)
 1. Tarif **Buchhaltung Pro** buchen und das **Buchführungssystem 2.0** nutzen (Voraussetzung für die API).
 2. In sevdesk unter **Einstellungen → Benutzer** den **API-Token** erzeugen (32 Zeichen). Den Token niemals in den Chat, in Dateien im Projekt oder ins Frontend schreiben.
 3. In sevdesk die **Firmendaten, Bankverbindung (IBAN/BIC) und Steuernummer** vollständig eintragen (für XRechnung nötig).

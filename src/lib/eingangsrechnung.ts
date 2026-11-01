@@ -1,5 +1,5 @@
 // Eingangsrechnungen (Rechnungen von Lieferanten, wie in Plancraft): Status, Zuweisung, Filter und Eingabeprüfung.
-// Reine Logik, auch im Browser nutzbar. Keine Buchhaltung: Die bleibt in Lexware.
+// Reine Logik, auch im Browser nutzbar. Keine Buchhaltung: gebucht wird hier nichts.
 
 import { z } from "zod";
 import { tageZwischen } from "@/lib/datum";

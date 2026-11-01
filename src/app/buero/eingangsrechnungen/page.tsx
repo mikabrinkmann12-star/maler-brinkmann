@@ -73,7 +73,7 @@ export default async function EingangsrechnungenListe({ searchParams }: PageProp
         <div>
           <h1 className="text-xl font-semibold">Eingangsrechnungen</h1>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Rechnungen von Lieferanten. Beim Hinzufügen werden Nummer, Datum und Beträge automatisch aus der Datei gelesen (E-Rechnung oder PDF) und bleiben „Zu prüfen“, bis du sie bestätigst. Die Buchhaltung bleibt in Lexware.
+            Rechnungen von Lieferanten. Beim Hinzufügen werden Nummer, Datum und Beträge automatisch aus der Datei gelesen (E-Rechnung oder PDF) und bleiben „Zu prüfen“, bis du sie bestätigst. Gebucht wird hier nichts: Die Liste dient der Übersicht und dem Export für den Steuerberater.
           </p>
         </div>
         <div className="flex items-center gap-2">

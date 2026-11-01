@@ -25,7 +25,7 @@ export type JournalZeile = {
   bezahltAm: string | null;
   bezugNummer: string;
   abzugBrutto: number;
-  anbieter: "eigen" | "lexware" | "sevdesk";
+  anbieter: "eigen" | "aelter";
 };
 
 const komma = (w: number): string => (Math.round(w * 100) / 100).toFixed(2).replace(".", ",");
@@ -41,7 +41,7 @@ export function journalCsv(zeilen: JournalZeile[]): string {
   const daten = sortiert.map((z) => [
     csvText(z.nummer), RECHNUNGS_ART_NAMEN[z.art], tt(z.datum), tt(z.leistungVon), tt(z.leistungBis), csvText(z.kunde), csvText(z.kundennummer), csvText(z.projektnummer), csvText(z.betreff),
     komma(z.netto), z.reverseCharge ? "0" : String(z.steuersatz).replace(".", ","), komma(z.brutto - z.netto), komma(z.brutto), z.reverseCharge ? "ja" : "nein",
-    komma(z.abzugBrutto), z.status, tt(z.bezahltAm ?? ""), csvText(z.bezugNummer), z.anbieter === "eigen" ? "App" : z.anbieter === "lexware" ? "Lexware" : "sevdesk",
+    komma(z.abzugBrutto), z.status, tt(z.bezahltAm ?? ""), csvText(z.bezugNummer), z.anbieter === "eigen" ? "App" : "ältere Rechnung",
   ]);
   const summe = sortiert.reduce((s, z) => ({ netto: s.netto + z.netto, brutto: s.brutto + z.brutto }), { netto: 0, brutto: 0 });
   const fuss = ["Summe", "", "", "", "", "", "", "", "", komma(summe.netto), "", komma(summe.brutto - summe.netto), komma(summe.brutto), "", "", "", "", "", ""];
@@ -114,7 +114,7 @@ export function datevCsv(zeilen: JournalZeile[], e: DatevEinstellungen, zeitraum
     "Umsatz (ohne Soll/Haben-Kz)", "Soll/Haben-Kennzeichen", "WKZ Umsatz", "Kurs", "Basis-Umsatz", "WKZ Basis-Umsatz", "Konto", "Gegenkonto (ohne BU-Schlüssel)", "BU-Schlüssel",
     "Belegdatum", "Belegfeld 1", "Belegfeld 2", "Skonto", "Buchungstext",
   ].map((s) => `"${s}"`).join(";");
-  // Eine in Lexware/sevdesk stornierte Rechnung hat bei uns keinen Storno-Beleg, der sie ausgleicht: sie nicht buchen (steht weiter im Journal). Bei eigenen Rechnungen gleicht der Storno-Beleg aus.
+  // Eine bei einer älteren Rechnung (aus einem früheren System) vermerkte Stornierung hat bei uns keinen Storno-Beleg, der sie ausgleicht: sie nicht buchen (steht weiter im Journal). Bei eigenen Rechnungen gleicht der Storno-Beleg aus.
   const sortiert = zeilen.filter((z) => !(z.status === "storniert" && z.anbieter !== "eigen")).sort((a, b) => a.datum.localeCompare(b.datum) || a.nummer.localeCompare(b.nummer));
   const buchungen = sortiert.map((z) => {
     const gutschrift = z.art === "gutschrift" || z.art === "storno";
