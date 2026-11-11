@@ -62,7 +62,8 @@ describe("angebotPdf", () => {
       { rabattProzent: 2.5, steuersatz: 0, reverseCharge: true },
     ]) {
       const bytes = await angebotPdf(daten(posten, { status: "versendet" }, rechnung));
-      expect((await PDFDocument.load(bytes)).getPageCount()).toBe(1);
+      // Layout wie Plancraft: Inhalt beginnt tiefer, Schlusstext darf auf Seite 2 stehen
+      expect((await PDFDocument.load(bytes)).getPageCount()).toBeLessThanOrEqual(2);
     }
   });
 
@@ -100,13 +101,13 @@ describe("angebotPdf", () => {
     const groessen: Record<string, number> = {};
     for (const art of ["angebot", "kostenvoranschlag", "auftragsbestaetigung", "lieferschein", "bestellschein", "brief"]) {
       const bytes = await angebotPdf(daten(posten, { dokumentart: art, gueltigBis: "2026-11-17", zahlungsbedingung: "14 Tage netto" }));
-      expect((await PDFDocument.load(bytes)).getPageCount()).toBe(1);
+      expect((await PDFDocument.load(bytes)).getPageCount()).toBeLessThanOrEqual(2);
       groessen[art] = bytes.length;
     }
     // Ohne Preise, Summen und Tabelle bleibt weniger Inhalt übrig
     expect(groessen.lieferschein).toBeLessThan(groessen.angebot);
     expect(groessen.brief).toBeLessThan(groessen.lieferschein);
     const nachtrag = await angebotPdf(daten(posten, { dokumentart: "auftragsbestaetigung", nachtrag: true, status: "versendet" }));
-    expect((await PDFDocument.load(nachtrag)).getPageCount()).toBe(1);
+    expect((await PDFDocument.load(nachtrag)).getPageCount()).toBeLessThanOrEqual(2);
   });
 });

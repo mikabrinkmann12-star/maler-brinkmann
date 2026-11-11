@@ -2,7 +2,7 @@
 // Firmenblock mit Logo oben und Fußzeile mit Steuer-, Bank- und Seitenangaben.
 // Läuft auf dem Server (pdf-lib ist reines JavaScript, die Schriften sind eingebaut).
 
-import { type PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
+import { type PDFDocument, type PDFImage, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
 import type { Firma } from "@/lib/firma";
 
 // Maße in Punkt (1 pt = 1/72 Zoll). A4 = 595,28 × 841,89.
@@ -12,7 +12,7 @@ export const RAND_L = 56.7;
 export const RAND_R = 56.7;
 export const INHALT_B = SEITE_B - RAND_L - RAND_R;
 export const KOPF_OBEN = 800;
-export const UNTEN = 104; // darunter beginnt die Fußzeile
+export const UNTEN = 100; // darunter beginnt die Fußzeile
 export const SCHRIFT = 9.5;
 export const ZEILE = 12;
 
@@ -138,18 +138,70 @@ export async function firmenKopfZeichnen(z: Zeichner, f: Firma, logoBytes?: Uint
   }
 }
 
-/** Fußzeile auf jeder Seite: Inhaber, Steuerangaben, Bank, „Seite x von y“. */
+/** Logo einbetten (PNG oder JPEG); kaputt → undefined. */
+export async function logoEinbetten(z: Zeichner, logoBytes?: Uint8Array): Promise<PDFImage | undefined> {
+  if (!logoBytes) return undefined;
+  try {
+    const istPng = logoBytes[0] === 0x89 && logoBytes[1] === 0x50;
+    return istPng ? await z.doc.embedPng(logoBytes) : await z.doc.embedJpg(logoBytes);
+  } catch {
+    return undefined;
+  }
+}
+
+/** Logo rechtsbündig in einen Kasten (Breite × Höhe) zeichnen, Oberkante bei `oben`. Gibt die Unterkante zurück. */
+export function logoZeichnen(z: Zeichner, logo: PDFImage | undefined, oben: number, maxB: number, maxH: number): number {
+  if (!logo) return oben;
+  const faktor = Math.min(maxB / logo.width, maxH / logo.height, 1);
+  const w = logo.width * faktor;
+  const h = logo.height * faktor;
+  z.seite.drawImage(logo, { x: SEITE_B - RAND_R - w, y: oben - h, width: w, height: h });
+  return oben - h;
+}
+
+/**
+ * Briefkopf wie Plancraft (Angebote und Rechnungen): Logo oben rechts, darunter der Firmenblock
+ * (Name fett, Anschrift, „Telefon“/„E-Mail“ mit eingerückten Werten, optional die Ansprechperson).
+ */
+export function briefKopfZeichnen(z: Zeichner, f: Firma, logo: PDFImage | undefined, ansprechperson?: { name: string; telefon?: string }): number {
+  logoZeichnen(z, logo, 735, 165, 75);
+  const x = SEITE_B - RAND_R - 150;
+  let y = 631;
+  const zeile = (t: string, bold = false) => { if (t) { z.text(t, x, y, { font: bold ? z.bold : z.regular }); y -= 11.7; } };
+  zeile(f.name, true);
+  zeile(f.strasse);
+  zeile([f.plz, f.ort].filter(Boolean).join(" "));
+  y -= 4;
+  const paar = (label: string, wert: string) => { if (wert) { z.text(label, x, y); z.text(wert, x + 45, y); y -= 11.7; } };
+  paar("Telefon", f.telefon);
+  paar("E-Mail", f.email);
+  if (f.website) zeile(f.website);
+  if (ansprechperson?.name) {
+    y -= 5;
+    zeile("Ansprechperson", true);
+    zeile(ansprechperson.name);
+    if (ansprechperson.telefon) { y -= 4; paar("Telefon", ansprechperson.telefon); }
+  }
+  return y; // Unterkante des Blocks
+}
+
+
+/** Fußzeile auf jeder Seite wie Plancraft: Inhaber, Steuerangaben, Bank (Überschriften fett), „Seite x von y“. */
 export function fussZeilenZeichnen(z: Zeichner, f: Firma) {
   const gesamtSeiten = z.seiten.length;
+  const dunkel = rgb(0.15, 0.15, 0.15);
   z.seiten.forEach((seite, i) => {
     z.seite = seite;
-    z.linie(RAND_L, 86, SEITE_B - RAND_R, 86, 0.5, LINIE);
-    const spalte1 = [f.inhaber ? `Inhaber` : "", f.inhaber].filter(Boolean);
-    const spalte2 = [f.ustid && `USt-ID: ${f.ustid}`, f.steuernummer && `Steuernummer: ${f.steuernummer}`].filter((t): t is string => Boolean(t));
-    const spalte3 = [f.bank, f.iban && `IBAN: ${f.iban}`, f.bic && `BIC: ${f.bic}`].filter((t): t is string => Boolean(t));
-    [[spalte1, RAND_L], [spalte2, RAND_L + 140], [spalte3, RAND_L + 290]].forEach(([zeilen, x]) => {
-      (zeilen as string[]).forEach((t, n) => z.text(t, x as number, 76 - n * 9.5, { groesse: 7.5, farbe: GRAU }));
+    const spalte1: [string, boolean][] = f.inhaber ? [["Inhaber", true], [f.inhaber, false]] : [];
+    const spalte2: [string, boolean][] = [f.ustid && `USt-ID: ${f.ustid}`, f.steuernummer && `Steuernummer: ${f.steuernummer}`]
+      .filter((t): t is string => Boolean(t)).map((t) => [t, false]);
+    const spalte3: [string, boolean][] = [
+      ...(f.bank ? [[f.bank, true] as [string, boolean]] : []),
+      ...[f.iban && `IBAN: ${f.iban}`, f.bic && `BIC: ${f.bic}`].filter((t): t is string => Boolean(t)).map((t) => [t, false] as [string, boolean]),
+    ];
+    ([[spalte1, RAND_L], [spalte2, RAND_L + 122], [spalte3, RAND_L + 278]] as const).forEach(([zeilen, x]) => {
+      zeilen.forEach(([t, fett], n) => z.text(t, x, 70 - n * 9, { groesse: 7, farbe: dunkel, font: fett ? z.bold : z.regular }));
     });
-    z.text(`Seite ${i + 1} von ${gesamtSeiten}`, SEITE_B - RAND_R, 76, { groesse: 7.5, farbe: GRAU, rechts: true });
+    z.text(`Seite ${i + 1} von ${gesamtSeiten}`, SEITE_B - RAND_R, 70, { groesse: 7, farbe: dunkel, rechts: true });
   });
 }

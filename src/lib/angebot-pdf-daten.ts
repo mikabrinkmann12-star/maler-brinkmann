@@ -20,6 +20,14 @@ export function pdfDateiname(betreff: string, art = "Angebot"): string {
   return `${art}_${sauber || "ohne_Betreff"}.pdf`;
 }
 
+/** Ansprechperson im Briefkopf: wer das Dokument angelegt hat (Name, Telefon aus dem Profil). */
+export async function ansprechpersonLaden(db: SupabaseClient<Database>, profilId: string | null | undefined): Promise<{ name: string; telefon?: string } | undefined> {
+  if (!profilId) return undefined;
+  const { data } = await db.from("profiles").select("vorname, nachname, telefon").eq("id", profilId).maybeSingle();
+  const name = [data?.vorname, data?.nachname].filter(Boolean).join(" ").trim();
+  return name ? { name, telefon: data?.telefon?.trim() || undefined } : undefined;
+}
+
 /**
  * Angebot als PDF erzeugen (Firmendaten, Logo und Bilder aus den Einstellungen bzw. dem Speicher).
  * Wer das aufruft, hat vorher requireRole(BUERO_ROLLEN) geprüft (oder den Link-Schlüssel der Online-Ansicht, dann mit dem Dienst-Client `db`). null = Angebot gibt es nicht.
@@ -38,6 +46,9 @@ export async function angebotPdfErzeugen(id: string, db?: SupabaseClient<Databas
     const { data } = await supabase.storage.from("angebotsbilder").download(b.bildPfad);
     if (data) bilder[b.id] = new Uint8Array(await data.arrayBuffer());
   }
+
+  const { data: kopf } = await supabase.from("quotes").select("created_by").eq("id", id).maybeSingle();
+  const ansprechperson = await ansprechpersonLaden(supabase, kopf?.created_by);
 
   let logo: Uint8Array | undefined;
   if (firma.logo && vorgaben.logo_anzeigen) {
@@ -64,6 +75,7 @@ export async function angebotPdfErzeugen(id: string, db?: SupabaseClient<Databas
     gueltigBis: a.gueltigBis ?? "",
     dokumentart: a.dokumentart,
     nachtrag: a.nachtrag,
+    ansprechperson,
   });
   return { bytes, dateiname: pdfDateiname(a.betreff, dokumentartInfo(a.dokumentart).name.normalize("NFD").replace(/\p{Diacritic}/gu, "")) };
 }

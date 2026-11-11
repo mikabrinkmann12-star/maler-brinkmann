@@ -1,5 +1,5 @@
 import "server-only";
-import { pdfDateiname } from "@/lib/angebot-pdf-daten";
+import { ansprechpersonLaden, pdfDateiname } from "@/lib/angebot-pdf-daten";
 import { angebotPdf } from "@/lib/angebot-pdf";
 import { angebotEinstellungenLaden, firmaLaden } from "@/lib/firma-daten";
 import { lohnanteilBerechnen, lohnanteilText, lohnanteilZeigen } from "@/lib/lohnanteil";
@@ -26,6 +26,9 @@ export async function rechnungPdfErzeugen(id: string): Promise<{ bytes: Uint8Arr
     const { data } = await supabase.storage.from("firmenlogo").download(firma.logo);
     if (data) logo = new Uint8Array(await data.arrayBuffer());
   }
+
+  const { data: kopf } = await supabase.from("invoices").select("created_by").eq("id", id).maybeSingle();
+  const ansprechperson = await ansprechpersonLaden(supabase, kopf?.created_by);
 
   // Lohnkosten (§ 35a EStG) nach Einstellung; bei der Schlussrechnung den Lohn abziehen, der schon mit den Abschlägen ausgewiesen wurde
   const steuer = { rabattProzent: r.rabattProzent, steuersatz: r.steuersatz, reverseCharge: r.reverseCharge };
@@ -57,6 +60,7 @@ export async function rechnungPdfErzeugen(id: string): Promise<{ bytes: Uint8Arr
     reverseChargeText: vorgaben.reverse_charge_text,
     bilder: {},
     logo,
+    ansprechperson,
     zahlungsbedingung: istGutschriftArt(r.art) ? "" : zahlungsbedingungText(r.zahlungszielTage, r.skontoProzent, r.skontoTage),
     rechnung: {
       nummer: r.rechnungsnummer,
