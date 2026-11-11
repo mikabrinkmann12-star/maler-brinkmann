@@ -82,7 +82,7 @@ export function BueroRahmen({
       <SucheDialog />
       <BenachrichtigungenPanel />
       <NeueZeitDialog />
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-(--seitenleiste) border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-[width] duration-200 md:block">
+      <aside data-glas-flaeche="seitenleiste" className="fixed inset-y-0 left-0 z-30 hidden w-(--seitenleiste) border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-[width] duration-200 md:block">
         <BueroSeitenleiste firmenname={firmenname} name={name} rolle={rolle} eingeklappt={eingeklappt} onUmschalten={umschalten} />
       </aside>
       <div className="flex min-w-0 flex-1 flex-col transition-[padding] duration-200 md:pl-(--seitenleiste)">

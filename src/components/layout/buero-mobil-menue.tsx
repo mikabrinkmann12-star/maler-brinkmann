@@ -14,7 +14,7 @@ export function BueroMobilMenue({ firmenname, name, rolle }: { firmenname: strin
   const schliessen = () => setOffen(false);
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-background px-2 md:hidden">
+    <header data-glas-flaeche="kopf" className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-background px-2 md:hidden">
       <Sheet open={offen} onOpenChange={setOffen}>
         <SheetTrigger render={<Button variant="ghost" size="icon-touch" aria-label="Menü öffnen" />}>
           <MenuIcon />

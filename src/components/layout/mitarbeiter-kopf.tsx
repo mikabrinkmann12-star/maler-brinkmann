@@ -32,7 +32,7 @@ export function TabKopf({ istBuero = false }: { istBuero?: boolean }) {
   const aktion = reiter.nurBuero && !istBuero ? undefined : reiter.aktion;
 
   return (
-    <header className="sticky top-0 z-30 border-b bg-background pt-[env(safe-area-inset-top)]">
+    <header data-glas-flaeche="kopf" className="sticky top-0 z-30 border-b bg-background pt-[env(safe-area-inset-top)]">
       <div className="mx-auto grid h-14 max-w-lg grid-cols-[3rem_1fr_3rem] items-center px-2">
         <Link
           href="/einstellungen"

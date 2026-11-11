@@ -172,3 +172,140 @@
     background-color: var(--card);
   }
 }
+
+/* ============================================================================
+   Glas-Look („Darstellung“ → Glas-Look, Standard aus): <html data-glas="an">.
+   Liquid Glass nur für Leisten, Menüs und Fenster (Seitenleiste, Kopfzeilen, untere Leiste, Dialoge, Menüs);
+   Karten, Tabellen, Formulare und PDFs bleiben klar und weiß. Dazu sparsame Morph-Bewegungen.
+   Alles hängt am Attribut: Ist es aus, gilt das normale Design unverändert.
+   ============================================================================ */
+:root {
+  --glas-blur: 22px;
+  --glas-saettigung: 180%;
+  --glas-hell: rgb(255 255 255 / 0.62);          /* Leisten auf hellem Grund */
+  --glas-hell-stark: rgb(255 255 255 / 0.8);     /* Fenster und Menüs mit viel Text */
+  --glas-rand: rgb(255 255 255 / 0.75);          /* helle Oberkante */
+  --glas-rand-weich: rgb(255 255 255 / 0.35);
+  --glas-schatten: 0 10px 30px -8px rgb(15 23 20 / 0.22), 0 2px 6px rgb(15 23 20 / 0.06);
+  --morph: cubic-bezier(0.22, 1, 0.36, 1);       /* Feder-Kurve „morph“ */
+}
+
+/* Hintergrund mit Farbe, damit das Glas etwas zum Verwischen hat: weiche Flecken in der Akzentfarbe, sehr dezent */
+html[data-glas="an"] body {
+  background:
+    /* kräftig nur links (hinter der Seitenleiste) und ganz oben/unten (hinter Kopfzeile und unterer Leiste), in der Mitte kaum */
+    radial-gradient(40vmax 60vmax at 0% 20%, color-mix(in oklab, var(--primary) 38%, transparent) 0%, transparent 60%),
+    radial-gradient(50vmax 18vmax at 60% 0%, color-mix(in oklab, var(--primary) 12%, transparent) 0%, transparent 70%),
+    radial-gradient(50vmax 18vmax at 50% 100%, color-mix(in oklab, var(--primary) 12%, transparent) 0%, transparent 70%),
+    var(--background);
+  background-attachment: fixed;
+}
+
+/* Seitenleiste im Büro: dunkles Glas mit heller Kante */
+html[data-glas="an"] [data-glas-flaeche="seitenleiste"] {
+  background: color-mix(in oklab, var(--sidebar) 74%, transparent);
+  -webkit-backdrop-filter: blur(var(--glas-blur)) saturate(var(--glas-saettigung));
+          backdrop-filter: blur(var(--glas-blur)) saturate(var(--glas-saettigung));
+  border-right-color: rgb(255 255 255 / 0.1);
+  box-shadow: inset -1px 0 0 rgb(255 255 255 / 0.06), 8px 0 30px -12px rgb(0 0 0 / 0.35);
+}
+
+/* Kopfzeilen (scrollen mit) und untere Leiste der Handy-App: helles Glas, Inhalt scrollt sichtbar darunter durch */
+html[data-glas="an"] [data-glas-flaeche="kopf"],
+html[data-glas="an"] [data-glas-flaeche="leiste"] {
+  background: var(--glas-hell);
+  -webkit-backdrop-filter: blur(var(--glas-blur)) saturate(var(--glas-saettigung));
+          backdrop-filter: blur(var(--glas-blur)) saturate(var(--glas-saettigung));
+  border-color: var(--glas-rand-weich);
+}
+html[data-glas="an"] [data-glas-flaeche="kopf"] { box-shadow: inset 0 -1px 0 var(--glas-rand-weich), 0 6px 20px -14px rgb(15 23 20 / 0.35); }
+html[data-glas="an"] [data-glas-flaeche="leiste"] { box-shadow: inset 0 1px 0 var(--glas-rand), 0 -6px 24px -14px rgb(15 23 20 / 0.35); }
+
+/* Fenster, Menüs und das ausklappbare Handy-Menü: helles Glas mit mehr Deckkraft (viel Text) */
+html[data-glas="an"] [data-slot="dialog-content"],
+html[data-glas="an"] [data-slot="popover-content"],
+html[data-glas="an"] [data-slot="dropdown-menu-content"] {
+  background: var(--glas-hell-stark);
+  -webkit-backdrop-filter: blur(28px) saturate(var(--glas-saettigung));
+          backdrop-filter: blur(28px) saturate(var(--glas-saettigung));
+  box-shadow: inset 0 1px 0 var(--glas-rand), inset 0 0 0 1px var(--glas-rand-weich), var(--glas-schatten);
+}
+html[data-glas="an"] [data-slot="dialog-content"] { border-radius: 22px; }
+html[data-glas="an"] [data-slot="sheet-content"] {
+  background: color-mix(in oklab, var(--sidebar) 78%, transparent);
+  -webkit-backdrop-filter: blur(var(--glas-blur)) saturate(var(--glas-saettigung));
+          backdrop-filter: blur(var(--glas-blur)) saturate(var(--glas-saettigung));
+}
+html[data-glas="an"] [data-slot="dialog-overlay"],
+html[data-glas="an"] [data-slot="sheet-overlay"] {
+  background: rgb(15 23 20 / 0.18);
+  -webkit-backdrop-filter: blur(6px);
+          backdrop-filter: blur(6px);
+}
+
+/* Ohne Unschärfe (alte Browser, Einstellung „Transparenz reduzieren“): deckende Flächen, damit alles lesbar bleibt */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  html[data-glas="an"] [data-glas-flaeche="kopf"],
+  html[data-glas="an"] [data-glas-flaeche="leiste"],
+  html[data-glas="an"] [data-slot="dialog-content"],
+  html[data-glas="an"] [data-slot="popover-content"],
+  html[data-glas="an"] [data-slot="dropdown-menu-content"] { background: var(--popover); }
+  html[data-glas="an"] [data-glas-flaeche="seitenleiste"],
+  html[data-glas="an"] [data-slot="sheet-content"] { background: var(--sidebar); }
+}
+@media (prefers-reduced-transparency: reduce) {
+  html[data-glas="an"] [data-glas-flaeche="kopf"],
+  html[data-glas="an"] [data-glas-flaeche="leiste"],
+  html[data-glas="an"] [data-slot="dialog-content"],
+  html[data-glas="an"] [data-slot="popover-content"],
+  html[data-glas="an"] [data-slot="dropdown-menu-content"] { background: var(--popover); -webkit-backdrop-filter: none; backdrop-filter: none; }
+  html[data-glas="an"] [data-glas-flaeche="seitenleiste"],
+  html[data-glas="an"] [data-slot="sheet-content"] { background: var(--sidebar); -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+
+/* ---------------------------------------------------------------------------
+   Morph Motion (nur mit Glas-Look): Fenster und Menüs wachsen weich aus dem Knopf (Menüs) bzw. der Mitte (Fenster),
+   mit kurzer Unschärfe als Übergang; Knöpfe geben beim Drücken nach; neue Seiten blenden sanft ein.
+   --------------------------------------------------------------------------- */
+@keyframes glas-rein {
+  from { opacity: 0; transform: scale(0.94) translateY(6px); filter: blur(8px); }
+  to   { opacity: 1; transform: none; filter: none; }
+}
+@keyframes glas-raus {
+  from { opacity: 1; transform: none; filter: none; }
+  to   { opacity: 0; transform: scale(0.97); filter: blur(6px); }
+}
+@keyframes glas-seite {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+html[data-glas="an"] [data-slot="dialog-content"][data-open],
+html[data-glas="an"] [data-slot="popover-content"][data-open],
+html[data-glas="an"] [data-slot="dropdown-menu-content"][data-open] {
+  animation: glas-rein 440ms var(--morph) both;
+}
+html[data-glas="an"] [data-slot="dialog-content"][data-closed],
+html[data-glas="an"] [data-slot="popover-content"][data-closed],
+html[data-glas="an"] [data-slot="dropdown-menu-content"][data-closed] {
+  animation: glas-raus 180ms cubic-bezier(0.64, 0, 0.78, 0) both;
+}
+/* Menüs wachsen aus ihrem Knopf heraus (Base UI liefert den Ursprung) */
+html[data-glas="an"] [data-slot="popover-content"],
+html[data-glas="an"] [data-slot="dropdown-menu-content"] { transform-origin: var(--transform-origin, top center); }
+
+html[data-glas="an"] [data-slot="button"] {
+  transition: transform 160ms var(--morph), background-color 200ms ease-out, opacity 200ms ease-out, box-shadow 200ms ease-out;
+}
+html[data-glas="an"] [data-slot="button"]:not(:disabled):active { transform: scale(0.97); }
+
+/* Seitenwechsel: der neue Inhalt kommt weich von unten (nur Deckkraft und Lage, keine Unschärfe, das bleibt flüssig) */
+html[data-glas="an"] main > * { animation: glas-seite 320ms var(--morph) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-glas="an"] [data-slot="dialog-content"],
+  html[data-glas="an"] [data-slot="popover-content"],
+  html[data-glas="an"] [data-slot="dropdown-menu-content"],
+  html[data-glas="an"] main > * { animation-duration: 150ms; animation-name: glas-blenden; }
+  html[data-glas="an"] [data-slot="button"]:not(:disabled):active { transform: none; }
+}
+@keyframes glas-blenden { from { opacity: 0; } to { opacity: 1; } }

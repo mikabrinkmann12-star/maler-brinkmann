@@ -23,7 +23,7 @@ export function UntereNavigation({ rechte }: { rechte: Rechte }) {
   return (
     <nav
       aria-label="Hauptnavigation"
-      className="fixed inset-x-0 bottom-0 z-40 border-t bg-background pb-[env(safe-area-inset-bottom)]"
+      data-glas-flaeche="leiste" className="fixed inset-x-0 bottom-0 z-40 border-t bg-background pb-[env(safe-area-inset-bottom)]"
     >
       <ul className="mx-auto grid max-w-lg" style={{ gridTemplateColumns: `repeat(${eintraege.length}, minmax(0, 1fr))` }}>
         {eintraege.map(({ href, name, icon: Icon, auch }) => {
