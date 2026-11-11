@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { zahlFuerFeld } from "@/lib/angebot";
 import { BEREICHE, BEREICH_NAMEN, type Bereich, type EingangsrechnungEingabe, type Zahlstatus } from "@/lib/eingangsrechnung";
-import { eingangsrechnungArchivieren, eingangsrechnungSpeichern } from "../actions";
+import { eingangsrechnungArchivieren, eingangsrechnungLoeschen, eingangsrechnungSpeichern } from "../actions";
 
 const EINGABE = "h-9 w-full rounded-md border border-border bg-white px-2.5 text-[13px] outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30";
 
@@ -96,6 +96,17 @@ export function RechnungFormular({ start, projekte }: { start: FormularStart; pr
     });
   }
 
+  function loeschen() {
+    if (!window.confirm("Das ist keine Rechnung? Dann wird der Eintrag mit der Datei endgültig gelöscht.")) return;
+    setFehler(null);
+    starte(async () => {
+      const r = await eingangsrechnungLoeschen(start.id);
+      if (r.fehler) return setFehler(r.fehler);
+      toast.success("Gelöscht");
+      router.push("/buero/eingangsrechnungen");
+    });
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <Zeile label="Lieferant">
@@ -163,7 +174,12 @@ export function RechnungFormular({ start, projekte }: { start: FormularStart; pr
         <Button type="button" variant={start.zuPruefen ? "outline" : "default"} className="h-9 px-3 text-[13px]" disabled={laeuft} onClick={() => speichern(false)}>
           Speichern
         </Button>
-        <Button type="button" variant="ghost" className="ml-auto h-9 px-3 text-[13px]" disabled={laeuft} onClick={() => archivieren(!start.archiviert)}>
+        {start.zuPruefen && (
+          <Button type="button" variant="ghost" className="ml-auto h-9 px-3 text-[13px] text-destructive hover:text-destructive" disabled={laeuft} onClick={loeschen}>
+            Keine Rechnung – löschen
+          </Button>
+        )}
+        <Button type="button" variant="ghost" className={start.zuPruefen ? "h-9 px-3 text-[13px]" : "ml-auto h-9 px-3 text-[13px]"} disabled={laeuft} onClick={() => archivieren(!start.archiviert)}>
           {start.archiviert ? "Wiederherstellen" : "Archivieren"}
         </Button>
       </div>

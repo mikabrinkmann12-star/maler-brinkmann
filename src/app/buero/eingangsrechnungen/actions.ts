@@ -133,6 +133,26 @@ export async function eingangsrechnungArchivieren(id: string, archivieren: boole
   return {};
 }
 
+/**
+ * Etwas löschen, das gar keine Rechnung ist (z. B. Werbung aus dem Postfach). Nur solange es noch „zu prüfen“ ist;
+ * bestätigte Rechnungen bleiben (Aufbewahrungspflicht) und lassen sich nur archivieren. RLS setzt das zusätzlich durch.
+ */
+export async function eingangsrechnungLoeschen(id: string): Promise<EingangErgebnis> {
+  await requireBueroRecht("eingangsrechnungen");
+  if (!z.uuid().safeParse(id).success) return { fehler: "Ungültige Eingabe." };
+  const supabase = await createClient();
+  const { data: r } = await supabase.from("incoming_invoices").select("storage_pfad, zu_pruefen").eq("id", id).maybeSingle();
+  if (!r) return { fehler: "Nicht gefunden." };
+  if (!r.zu_pruefen) return { fehler: "Geprüfte Rechnungen werden nicht gelöscht (Aufbewahrungspflicht). Du kannst sie archivieren." };
+  // Erst die Datei (die Regel dafür prüft, dass der Eintrag noch „zu prüfen“ ist), dann den Eintrag
+  const { error: dateiFehler } = await supabase.storage.from("eingangsrechnungen").remove([r.storage_pfad]);
+  if (dateiFehler) return { fehler: "Die Datei konnte nicht gelöscht werden. Bitte nochmal versuchen." };
+  const { data, error } = await supabase.from("incoming_invoices").delete().eq("id", id).select("id");
+  if (error || !data?.length) return { fehler: "Löschen hat nicht geklappt." };
+  revalidatePath("/buero/eingangsrechnungen");
+  return {};
+}
+
 /** Das Rechnungs-Postfach sofort abrufen (sonst läuft der Abruf einmal täglich von selbst). Büro und Admin. */
 export async function postfachJetztAbrufen(): Promise<{ fehler?: string; ergebnis?: AbrufErgebnis }> {
   await requireBueroRecht("eingangsrechnungen");
