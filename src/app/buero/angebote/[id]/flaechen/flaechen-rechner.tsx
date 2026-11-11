@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { CheckIcon, FileUpIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import { CheckIcon, ChevronDownIcon, FileUpIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { cn } from "cn";
 import { FormularMeldung } from "@/components/formular-meldung";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -112,6 +112,8 @@ export function FlaechenRechner({ angebotId, gesperrt, leistungen }: { angebotId
   const [dateien, setDateien] = useState<Datei[]>([]);
   // Stand der Tabelle beim Klick auf „Räume übernehmen“; jede Änderung danach hebt die Übernahme auf
   const [uebernommenStand, setUebernommenStand] = useState<string | null>(null);
+  // Raumtabelle eingeklappt (Standard), aufklappen über den Pfeil bei „2. Räume prüfen“
+  const [tabelleOffen, setTabelleOffen] = useState(false);
   const [stdText, setStdText] = useState<StandardEingabe>(() => ({
     umfangFaktor: zahlText(FLAECHEN_STANDARD.umfangFaktor), raumhoehe: zahlText(FLAECHEN_STANDARD.raumhoehe),
     abzugProzent: zahlText(FLAECHEN_STANDARD.abzugProzent), fliesenhoehe: zahlText(FLAECHEN_STANDARD.fliesenhoehe),
@@ -210,6 +212,7 @@ export function FlaechenRechner({ angebotId, gesperrt, leistungen }: { angebotId
 
   function raeumeUebernehmen() {
     setFehler(null);
+    if (ohneBoden.length) setTabelleOffen(true); // damit man die fehlenden Felder sieht
     if (ohneBoden.length) return setFehler(`Bitte zuerst die Bodenfläche eintragen: ${ohneBoden.map((r) => r.name || "ohne Namen").join(", ")}.`);
     setUebernommenStand(stand);
     setHinweis(`${raeume.length} Räume übernommen. Die Flächen stehen jetzt unten bei „Aus Aufmaß“ zur Verfügung.`);
@@ -305,20 +308,29 @@ export function FlaechenRechner({ angebotId, gesperrt, leistungen }: { angebotId
 
       {/* 2. Räume prüfen */}
       <section className="flex flex-col gap-3 rounded-xl border p-5" aria-labelledby="raeume-titel">
+        {/* Klickmenü: Raumtabelle standardmäßig eingeklappt, damit die Seite kürzer bleibt */}
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 id="raeume-titel" className="text-lg font-semibold">2. Räume prüfen</h2>
+          <h2 id="raeume-titel" className="text-lg font-semibold">
+            <button type="button" aria-expanded={tabelleOffen} aria-controls="raeume-tabelle" onClick={() => setTabelleOffen((o) => !o)}
+              className="flex min-h-9 items-center gap-2 rounded-md text-left hover:underline hover:underline-offset-4">
+              <ChevronDownIcon className={cn("size-5 transition-transform", !tabelleOffen && "-rotate-90")} />
+              2. Räume prüfen{raeume.length > 0 && <span className="font-normal text-muted-foreground"> ({raeume.length})</span>}
+            </button>
+          </h2>
           {raeume.length > 0 && (
             <span className={cn("text-sm", uebernommen ? "text-muted-foreground" : "text-destructive")}>
               {uebernommen ? `${raeume.length} Räume übernommen` : "Noch nicht übernommen"}
             </span>
           )}
         </div>
-        <p className="text-sm text-muted-foreground">
-          Werte prüfen und korrigieren, Zeilen löschen oder ergänzen, dann einmal „Räume übernehmen“. Jede Änderung danach muss neu übernommen werden.
-          Leere Felder für Umfang und Höhe nutzen die Standardwerte. Balkon und Terrasse zählen in keiner Fläche.
-        </p>
-        {raeume.length > 0 && (
-          <div className="overflow-x-auto">
+        {tabelleOffen && (
+          <p className="text-sm text-muted-foreground">
+            Werte prüfen und korrigieren, Zeilen löschen oder ergänzen, dann einmal „Räume übernehmen“. Jede Änderung danach muss neu übernommen werden.
+            Leere Felder für Umfang und Höhe nutzen die Standardwerte. Balkon und Terrasse zählen in keiner Fläche.
+          </p>
+        )}
+        {tabelleOffen && raeume.length > 0 && (
+          <div id="raeume-tabelle" className="overflow-x-auto">
             <table className="w-full min-w-[1150px] text-sm">
               <thead>
                 <tr className="border-b text-left text-xs text-muted-foreground">
@@ -398,7 +410,7 @@ export function FlaechenRechner({ angebotId, gesperrt, leistungen }: { angebotId
           </div>
         )}
         <div className="flex flex-wrap items-center gap-2">
-          <Button type="button" variant="outline" onClick={() => setRaeume((alt) => [...alt, leererRaum(alt.at(-1)?.geschoss ?? "")])}>
+          <Button type="button" variant="outline" onClick={() => { setTabelleOffen(true); setRaeume((alt) => [...alt, leererRaum(alt.at(-1)?.geschoss ?? "")]); }}>
             <PlusIcon /> Raum hinzufügen
           </Button>
           <Button type="button" onClick={raeumeUebernehmen} disabled={raeume.length === 0 || uebernommen}>

@@ -56,6 +56,9 @@ describe("grundrissAnweisung", () => {
     expect(a).toContain("Brutto-F wird ignoriert");
     expect(a).toContain("\"aussen\"");
     expect(a).toContain("flaeche_m2 = null");
+    // Nebenräume außerhalb der Wohnungen und enge Regel für „wohnraum“
+    expect(a).toContain("Fahrräder, Geräte, Abstellraum, Müll, Garage, Carport, Werkstatt");
+    expect(a).toContain("Im Zweifel NICHT \"wohnraum\"");
   });
 });
 
