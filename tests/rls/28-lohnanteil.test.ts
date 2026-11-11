@@ -92,3 +92,11 @@ describe("Lohnanteil der Rechnungspositionen", () => {
     expect((await bueroC.from("invoice_items").update({ lohn_einzel: 4 }).eq("id", data!.id)).error).toBeNull();
   });
 });
+
+describe("USt-IdNr. des Kunden", () => {
+  it("Büro speichert eine gültige USt-IdNr., die Datenbank lehnt ein falsches Format ab", async () => {
+    expect((await bueroC.from("contacts").update({ ust_id: "DE288936236" }).eq("id", kontakt)).error).toBeNull();
+    expect((await bueroC.from("contacts").update({ ust_id: "de 288" }).eq("id", kontakt)).error).not.toBeNull();
+    expect((await bueroC.from("contacts").update({ ust_id: null }).eq("id", kontakt)).error).toBeNull();
+  });
+});

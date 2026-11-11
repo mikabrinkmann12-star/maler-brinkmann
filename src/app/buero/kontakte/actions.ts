@@ -38,6 +38,7 @@ function zeile(k: ReturnType<typeof kontaktSchema.parse> | ReturnType<typeof imp
     skonto_tage: k.skonto_tage,
     steuersatz: k.steuersatz,
     leitweg_id: leerZuNull(k.leitweg_id),
+    ust_id: leerZuNull(k.ust_id),
   };
 }
 

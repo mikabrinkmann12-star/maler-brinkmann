@@ -51,6 +51,7 @@ describe("faelligkeitsDatum / Hinweis", () => {
   it("Hinweis nur bei Reverse-Charge", () => {
     expect(reverseChargeHinweis(false)).toBeNull();
     expect(reverseChargeHinweis(true)).toContain("USt-IdNr.");
+    expect(reverseChargeHinweis(true, "DE288936236")).toBeNull();
   });
 });
 

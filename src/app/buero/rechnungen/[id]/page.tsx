@@ -121,6 +121,13 @@ export default async function RechnungSeite({ params }: PageProps<"/buero/rechnu
           <div className="flex flex-col gap-0.5">
             <h2 className="mb-1 font-semibold">Empfänger</h2>
             {kunde.anschrift.length ? kunde.anschrift.map((z, i) => <p key={i}>{z}</p>) : <p>{kunde.name}</p>}
+            {kunde.ustId && <p className="mt-1">USt-IdNr.: {kunde.ustId}</p>}
+            {r.reverseCharge && !kunde.ustId && r.status !== "uebertragen" && (
+              <p className="mt-1 text-destructive">
+                Reverse-Charge, aber beim Kunden fehlt die USt-IdNr. Bitte vor dem Fertigstellen im{" "}
+                <Link href={`/buero/kontakte/${kunde.id}/bearbeiten`} className="underline underline-offset-4">Kontakt</Link> eintragen.
+              </p>
+            )}
           </div>
           <div className="flex flex-col gap-0.5">
             <h2 className="mb-1 font-semibold">Gesamtbetrag</h2>

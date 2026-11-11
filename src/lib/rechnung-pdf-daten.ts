@@ -70,6 +70,8 @@ export async function rechnungPdfErzeugen(id: string): Promise<{ bytes: Uint8Arr
       lohnHinweis,
       // Pflichthinweis bei Leistungen am Grundstück an Privatpersonen (§ 14 Abs. 4 Nr. 9 UStG)
       aufbewahrungHinweis: kunde.typ === "firma" ? undefined : AUFBEWAHRUNG_PRIVAT_HINWEIS,
+      // USt-IdNr. des Kunden unter der Anschrift, wenn eingetragen (Pflicht für die E-Rechnung bei Reverse-Charge, Plancraft druckt sie auch)
+      kundeUstId: kunde.ustId || undefined,
     },
   });
   return { bytes, dateiname: pdfDateiname(r.rechnungsnummer, RECHNUNGS_ART_NAMEN[r.art]) };

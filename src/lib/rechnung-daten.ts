@@ -64,7 +64,7 @@ export type RechnungDetail = {
   rechnung: RechnungKopf;
   bausteine: (RechnungsBaustein & { id: string })[];
   projekt: { id: string; name: string; projektnummer: string; adresse: string };
-  kunde: { id: string; name: string; kundennummer: string; typ: string; email: string; leitwegId: string; anschrift: string[]; strasse: string; plz: string; ort: string; land: string };
+  kunde: { id: string; name: string; kundennummer: string; typ: string; email: string; leitwegId: string; ustId: string; anschrift: string[]; strasse: string; plz: string; ort: string; land: string };
   mahnungen: { id: string; stufe: number; versendetAn: string | null; versendetAm: string | null; erstelltAm: string }[];
   angebot: { id: string; betreff: string } | null;
   abschlaege: AbschlagZeile[];
@@ -76,7 +76,7 @@ export async function rechnungLaden(id: string): Promise<RechnungDetail | null> 
   const { data: r, error } = await supabase
     .from("invoices")
     .select(
-      "id, project_id, quote_id, contact_id, status, betreff, rechnungsdatum, leistung_von, leistung_bis, zahlungsziel_tage, skonto_prozent, skonto_tage, steuersatz, reverse_charge, rabatt_prozent, einleitung, schlusstext, anbieter, lexware_id, sevdesk_id, versendet_am, versendet_an, bezahlt_am, storniert_am, rechnungsnummer, lexware_status, netto, brutto, uebertragen_am, abgeglichen_am, pdf_pfad, archiviert_am, mahnstufe, angemahnt_am, notiz, art, bezug_id, abzug_netto, abzug_brutto, projects(id, name, projektnummer, baustelle_strasse, baustelle_plz, baustelle_ort), contacts(id, kundennummer, typ, anrede, firmenname, ansprechpartner, vorname, nachname, strasse, plz, ort, land, empfaenger, email, lexware_contact_id, sevdesk_contact_id, leitweg_id), quotes(id, betreff)",
+      "id, project_id, quote_id, contact_id, status, betreff, rechnungsdatum, leistung_von, leistung_bis, zahlungsziel_tage, skonto_prozent, skonto_tage, steuersatz, reverse_charge, rabatt_prozent, einleitung, schlusstext, anbieter, lexware_id, sevdesk_id, versendet_am, versendet_an, bezahlt_am, storniert_am, rechnungsnummer, lexware_status, netto, brutto, uebertragen_am, abgeglichen_am, pdf_pfad, archiviert_am, mahnstufe, angemahnt_am, notiz, art, bezug_id, abzug_netto, abzug_brutto, projects(id, name, projektnummer, baustelle_strasse, baustelle_plz, baustelle_ort), contacts(id, kundennummer, typ, anrede, firmenname, ansprechpartner, vorname, nachname, strasse, plz, ort, land, empfaenger, email, lexware_contact_id, sevdesk_contact_id, leitweg_id, ust_id), quotes(id, betreff)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -201,6 +201,7 @@ export async function rechnungLaden(id: string): Promise<RechnungDetail | null> 
       typ: k?.typ ?? "",
       email: k?.email ?? "",
       leitwegId: k?.leitweg_id ?? "",
+      ustId: k?.ust_id ?? "",
       anschrift: k ? briefanschrift(k) : [],
       strasse: k?.strasse ?? "",
       plz: k?.plz ?? "",

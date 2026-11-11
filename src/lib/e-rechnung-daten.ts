@@ -26,7 +26,7 @@ export async function eRechnungFuer(id: string): Promise<(ERechnung & { dateinam
     betreff: r.betreff,
     zahlungsbedingung: r.art === "gutschrift" || r.art === "storno" ? "" : zahlungsbedingungText(r.zahlungszielTage, r.skontoProzent, r.skontoTage),
     verkaeufer: firma,
-    kaeufer: { name: kunde.name, strasse: kunde.strasse, plz: kunde.plz, ort: kunde.ort, land: kunde.land, email: kunde.email, leitwegId: kunde.leitwegId },
+    kaeufer: { name: kunde.name, strasse: kunde.strasse, plz: kunde.plz, ort: kunde.ort, land: kunde.land, email: kunde.email, leitwegId: kunde.leitwegId, ustId: kunde.ustId },
     berechnung: rechnungBerechnen(bausteine, { rabattProzent: r.rabattProzent, steuersatz: r.steuersatz, reverseCharge: r.reverseCharge }),
     reverseChargeText: vorgaben.reverse_charge_text,
     bezug: r.bezugId && r.bezugNummer && r.bezugDatum ? { nummer: r.bezugNummer, datum: r.bezugDatum } : undefined,

@@ -104,7 +104,17 @@ describe("eRechnungErzeugen", () => {
     expect(r.xml).toContain("<ram:CategoryCode>AE</ram:CategoryCode><ram:ExemptionReasonCode>VATEX-EU-AE</ram:ExemptionReasonCode>");
     expect(r.xml.indexOf("<ram:ExemptionReason>")).toBeLessThan(r.xml.indexOf("<ram:BasisAmount>1301.10"));
     expect(r.xml).toContain('<ram:TaxTotalAmount currencyID="EUR">0.00</ram:TaxTotalAmount>');
-    expect(r.warnungen.join(" ")).toContain("USt-IdNr. des Kunden");
+    expect(r.warnungen.join(" ")).toContain("USt-IdNr.");
+    expect(r.xml).not.toContain("DE288936236");
+  });
+
+  it("Reverse-Charge mit USt-IdNr. des Kunden: steht beim Käufer, keine Warnung dazu", () => {
+    const r = eRechnungErzeugen(
+      daten({ kaeufer: { name: "Wallschlag GmbH", strasse: "Dreschenweg 1", plz: "26683", ort: "Saterland", land: "Deutschland", email: "a@example.com", leitwegId: "", ustId: "DE 288936236" } }, { rabattProzent: 0, steuersatz: 0, reverseCharge: true }),
+    );
+    const kaeufer = r.xml.slice(r.xml.indexOf("<ram:BuyerTradeParty>"), r.xml.indexOf("</ram:BuyerTradeParty>"));
+    expect(kaeufer).toContain('<ram:SpecifiedTaxRegistration><ram:ID schemeID="VA">DE288936236</ram:ID></ram:SpecifiedTaxRegistration>');
+    expect(r.warnungen.join(" ")).not.toContain("Reverse-Charge");
   });
 
   it("warnt bei fehlenden Angaben, erzeugt aber trotzdem", () => {

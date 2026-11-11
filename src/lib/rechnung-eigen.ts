@@ -36,10 +36,13 @@ export function pflichtangabenFehlen(firma: Firma, anschrift: string[], reverseC
   return fehlt;
 }
 
-/** Hinweis (kein Hindernis): Bei Reverse-Charge gehört die USt-IdNr. des Kunden auf die Rechnung, die App speichert sie noch nicht. */
-export function reverseChargeHinweis(reverseCharge: boolean): string | null {
-  return reverseCharge
-    ? "Bei Reverse-Charge (§ 13b UStG) gehört die USt-IdNr. des Kunden auf die Rechnung. Die App speichert sie noch nicht; bitte mit dem Steuerberater klären."
+/**
+ * Hinweis (kein Hindernis): Bei Reverse-Charge soll die USt-IdNr. des Kunden auf die Rechnung (wie bei Plancraft; die E-Rechnung verlangt sie).
+ * Bei Bauleistungen im Inland ist sie keine harte Pflichtangabe, darum stellt die App trotzdem fertig.
+ */
+export function reverseChargeHinweis(reverseCharge: boolean, kundeUstId = ""): string | null {
+  return reverseCharge && !kundeUstId.trim()
+    ? "Reverse-Charge (§ 13b UStG): Beim Kunden ist keine USt-IdNr. eingetragen, sie fehlt darum auf der Rechnung und in der E-Rechnung. Für die nächste Rechnung im Kontakt unter „Steuer“ eintragen."
     : null;
 }
 

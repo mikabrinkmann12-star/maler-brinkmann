@@ -118,8 +118,12 @@ export default async function KontaktSeite({ params }: PageProps<"/buero/kontakt
           <Abschnitt titel="Steuer">
             <dl>
               <Zeile label="Steuersatz">{formatZahl(Number(k.steuersatz))} %</Zeile>
+              {k.ust_id && <Zeile label="USt-IdNr.">{k.ust_id}</Zeile>}
               {k.leitweg_id && <Zeile label="Leitweg-ID">{k.leitweg_id}</Zeile>}
             </dl>
+            {Number(k.steuersatz) === 0 && !k.ust_id && (
+              <p className="text-sm text-muted-foreground">Reverse-Charge ohne USt-IdNr.: Für die Rechnung und die E-Rechnung bitte die USt-IdNr. eintragen.</p>
+            )}
           </Abschnitt>
         </div>
 

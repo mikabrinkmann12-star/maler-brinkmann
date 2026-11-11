@@ -23,11 +23,12 @@ export type KontaktFormWerte = {
   skonto_tage: string;
   steuersatz: string;
   leitweg_id: string;
+  ust_id: string;
   notizen: string;
 };
 
 export const LEERES_FORMULAR: KontaktFormWerte = {
   typ: "privat", kundennummer: "", firmenname: "", anrede: "", vorname: "", nachname: "", ansprechpartner: "",
   email: "", telefon: "", mobil: "", website: "", strasse: "", plz: "", ort: "", land: "Deutschland", farbe: "", empfaenger: "",
-  zahlungsziel_tage: "", skonto_prozent: "", skonto_tage: "", steuersatz: "19", leitweg_id: "", notizen: "",
+  zahlungsziel_tage: "", skonto_prozent: "", skonto_tage: "", steuersatz: "19", leitweg_id: "", ust_id: "", notizen: "",
 };

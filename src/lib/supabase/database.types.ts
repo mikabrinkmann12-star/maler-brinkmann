@@ -570,6 +570,7 @@ export type Database = {
           telefon: string | null
           typ: Database["public"]["Enums"]["kontakt_typ"]
           updated_at: string
+          ust_id: string | null
           vorname: string | null
           website: string | null
           zahlungsziel_tage: number | null
@@ -603,6 +604,7 @@ export type Database = {
           telefon?: string | null
           typ?: Database["public"]["Enums"]["kontakt_typ"]
           updated_at?: string
+          ust_id?: string | null
           vorname?: string | null
           website?: string | null
           zahlungsziel_tage?: number | null
@@ -636,6 +638,7 @@ export type Database = {
           telefon?: string | null
           typ?: Database["public"]["Enums"]["kontakt_typ"]
           updated_at?: string
+          ust_id?: string | null
           vorname?: string | null
           website?: string | null
           zahlungsziel_tage?: number | null

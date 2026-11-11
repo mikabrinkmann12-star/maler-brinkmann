@@ -35,7 +35,7 @@
 1. **E-Rechnung** gegen den amtlichen Prüfer testen (Pflicht zum Ausstellen für alle ab 1.1.2028).
 2. **DATEV-Stapel** ist nicht mit DATEV getestet; Berater-/Mandantennummer und Konten nennt der Steuerberater. Kein Konto je Kunde (Sammeldebitor), keine Zahlungsbuchungen.
 3. **Zahlungseingang** per Bankabgleich (bisher von Hand „als bezahlt buchen“).
-4. USt-IdNr. des Kunden speichern (bei Reverse-Charge gehört sie auf die Rechnung; die App zeigt einen Hinweis).
+4. ~~USt-IdNr. des Kunden speichern~~ (erledigt 11.11.2026: Kontakte → Steuer → „USt-IdNr.“, Spalte `contacts.ust_id`, Migration `…20261111110000_kontakt_ust_id`, nur dev. Steht auf dem Rechnungs-PDF unter der Anschrift wie bei Plancraft und in der E-Rechnung beim Käufer. Fehlt sie bei Reverse-Charge, warnt die Rechnungsseite; fertigstellen geht trotzdem, weil sie bei Bauleistungen im Inland keine harte Pflichtangabe ist. Die Schlussrechnung nennt bei den abgezogenen Abschlägen jetzt auch das Datum.)
 5. **Aufbewahrung 8 Jahre** und Backups: Supabase Pro mit täglichen Backups und ein Export der PDFs; kurze Verfahrensbeschreibung für die GoBD.
 
 ## Fragen an den Steuerberater

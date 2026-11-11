@@ -19,6 +19,8 @@ export type ERechnungKaeufer = {
   land: string;
   email: string;
   leitwegId: string;
+  /** USt-IdNr. des Kunden (bei Reverse-Charge nach der Norm nötig); leer = keine */
+  ustId?: string;
 };
 
 export type ERechnungDaten = {
@@ -100,7 +102,8 @@ export function eRechnungErzeugen(d: ERechnungDaten): ERechnung {
   if (!f.iban.trim()) warnungen.push("Die IBAN der Firma fehlt (Zahlungsangabe).");
   if (!k.email.trim()) warnungen.push("Die E-Mail-Adresse des Kunden fehlt (Pflicht bei der XRechnung).");
   if (!k.strasse.trim() || !k.plz.trim() || !k.ort.trim()) warnungen.push("Die Anschrift des Kunden ist unvollständig (Straße, PLZ, Ort).");
-  if (b.reverseCharge) warnungen.push("Reverse-Charge: Die USt-IdNr. des Kunden fehlt in der App, die Norm verlangt sie (Kategorie AE).");
+  const kundeUstId = (k.ustId ?? "").replace(/\s/g, "");
+  if (b.reverseCharge && !kundeUstId) warnungen.push("Reverse-Charge: Beim Kunden ist keine USt-IdNr. eingetragen, die Norm verlangt sie (Kategorie AE). Bitte unter Kontakte → Steuer eintragen.");
 
   const typ = rechnungsTypCode(d.art);
   const kategorie = b.reverseCharge ? "AE" : b.steuersatz > 0 ? "S" : "Z";
@@ -150,7 +153,8 @@ export function eRechnungErzeugen(d: ERechnungDaten): ERechnung {
     "ram:BuyerTradeParty",
     tag("ram:Name", esc(k.name)) +
       anschrift(k.strasse, k.plz, k.ort, landCode ?? "DE") +
-      (k.email.trim() ? tag("ram:URIUniversalCommunication", tag("ram:URIID", esc(k.email.trim()), ` schemeID="EM"`)) : ""),
+      (k.email.trim() ? tag("ram:URIUniversalCommunication", tag("ram:URIID", esc(k.email.trim()), ` schemeID="EM"`)) : "") +
+      (kundeUstId ? tag("ram:SpecifiedTaxRegistration", tag("ram:ID", esc(kundeUstId), ` schemeID="VA"`)) : ""),
   );
 
   const zeitraum = tag("ram:BillingSpecifiedPeriod", d102("ram:StartDateTime", d.leistungVon) + d102("ram:EndDateTime", d.leistungBis));

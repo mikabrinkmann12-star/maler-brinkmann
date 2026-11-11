@@ -21,6 +21,13 @@ describe("kontaktSchema", () => {
     expect(kontaktSchema.safeParse({ typ: "privat", nachname: "M", zahlungsziel_tage: 400 }).success).toBe(false);
   });
 
+  it("USt-IdNr.: ohne Leerzeichen, groß, mit Ländercode", () => {
+    expect(kontaktSchema.parse({ typ: "firma", firmenname: "F", ust_id: " de 288 936 236 " }).ust_id).toBe("DE288936236");
+    expect(kontaktSchema.parse({ typ: "firma", firmenname: "F" }).ust_id).toBe("");
+    expect(kontaktSchema.safeParse({ typ: "firma", firmenname: "F", ust_id: "288936236" }).success).toBe(false);
+    expect(kontaktSchema.safeParse({ typ: "firma", firmenname: "F", ust_id: "DE-123" }).success).toBe(false);
+  });
+
   it("Import ist bei der E-Mail großzügig", () => {
     expect(importKontaktSchema.safeParse({ typ: "privat", nachname: "M", email: "keine-mail" }).success).toBe(true);
   });

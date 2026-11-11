@@ -415,7 +415,7 @@ async function eigenFertigstellen(id: string): Promise<RechnungErgebnis> {
   const { data: nummer, error } = await supabase.rpc("rechnung_finalisieren", { p_id: id, p_netto: vz * summen.nettoNachRabatt, p_brutto: vz * summen.brutto });
   if (error) return { fehler: dbMeldung(error) };
 
-  let hinweis = reverseChargeHinweis(r.reverseCharge) ?? undefined;
+  let hinweis = reverseChargeHinweis(r.reverseCharge, kunde.ustId) ?? undefined;
   if (!(await eigenesPdfSpeichern(id))) {
     hinweis = `${hinweis ? `${hinweis} ` : ""}Die Rechnung hat die Nummer ${nummer}, das PDF konnte aber noch nicht erzeugt werden. Tippe auf „PDF neu erzeugen“.`;
   }

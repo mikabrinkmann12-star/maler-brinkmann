@@ -56,6 +56,8 @@ export type AngebotPdfDaten = {
     lohnHinweis?: string;
     /** Pflichthinweis zur Aufbewahrung bei Privatpersonen (§ 14 Abs. 4 Nr. 9 UStG) */
     aufbewahrungHinweis?: string;
+    /** USt-IdNr. des Kunden, steht unter der Anschrift (bei Reverse-Charge, wie bei Plancraft) */
+    kundeUstId?: string;
   };
 };
 
@@ -127,6 +129,11 @@ export async function angebotPdf(d: AngebotPdfDaten): Promise<Uint8Array> {
     const a = passend(zeile, z.regular, 10, 7.5);
     z.text(a.text, RAND_L, ey, { groesse: a.groesse });
     ey -= 12.2;
+  }
+  if (d.rechnung?.kundeUstId) {
+    const label = "USt-IdNr.: ";
+    z.text(label, RAND_L, ey - 4, { font: z.bold, groesse: 9 });
+    z.text(d.rechnung.kundeUstId, RAND_L + z.breite(label, z.bold, 9), ey - 4, { groesse: 9 });
   }
 
   // Falz- und Lochmarke am linken Rand (DIN 5008 Form B: 105 mm, 148,5 mm und 210 mm von oben)
@@ -259,7 +266,7 @@ export async function angebotPdf(d: AngebotPdfDaten): Promise<Uint8Array> {
   if (d.rechnung?.abschlaege?.length) {
     for (const a of d.rechnung.abschlaege) {
       const ust = Math.round((a.brutto - a.netto) * 100) / 100;
-      summenZeilen.push({ label: `abzgl. Abschlag ${a.nummer} (netto ${euro(a.netto)}, USt ${euro(ust)})`, wert: euro(-a.brutto) });
+      summenZeilen.push({ label: `abzgl. Abschlag ${a.nummer}${a.datum ? ` vom ${formatDatum(a.datum)}` : ""} (netto ${euro(a.netto)}, USt ${euro(ust)})`, wert: euro(-a.brutto) });
     }
     summenZeilen.push({ label: "Noch zu zahlender Betrag", wert: euro(d.rechnung.zahlbetrag ?? b.brutto), stark: true });
   }

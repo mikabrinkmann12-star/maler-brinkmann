@@ -237,6 +237,13 @@ export function KontaktFormular({
         >
           <input id="leitweg_id" {...f("leitweg_id")} maxLength={46} placeholder="Leitweg-ID" className={EINGABE} />
         </Zeile>
+        <Zeile
+          label="USt-IdNr."
+          htmlFor="ust_id"
+          hinweis={<span className="text-muted-foreground">Für Firmenkunden mit Reverse-Charge (§ 13b), z. B. DE123456789. Steht dann auf der Rechnung unter der Anschrift.</span>}
+        >
+          <input id="ust_id" {...f("ust_id")} maxLength={20} placeholder="USt-IdNr." autoCapitalize="characters" className={EINGABE} />
+        </Zeile>
       </Abschnitt>
     </form>
   );
