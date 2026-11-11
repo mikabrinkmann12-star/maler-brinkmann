@@ -40,6 +40,7 @@ export function BueroRahmen({
   rechte,
   ungelesen: ungelesenStart = 0,
   einheiten,
+  menue = { reihenfolge: [], ausgeblendet: [] },
   children,
 }: {
   firmenname: string;
@@ -51,6 +52,8 @@ export function BueroRahmen({
   ungelesen?: number;
   /** Einheiten aus den Einstellungen (Vorschläge und Vorauswahl in den Eingabefeldern) */
   einheiten?: EinheitenEinstellungen;
+  /** Reihenfolge und ausgeblendete Punkte der Seitenleiste („Darstellung“) */
+  menue?: { reihenfolge: string[]; ausgeblendet: string[] };
   children: React.ReactNode;
 }) {
   const [ungelesen, setUngelesen] = useState(ungelesenStart);
@@ -73,7 +76,7 @@ export function BueroRahmen({
   }
 
   return (
-    <BueroKontext.Provider value={{ ungelesen, setUngelesen, rechte }}>
+    <BueroKontext.Provider value={{ ungelesen, setUngelesen, rechte, menue }}>
     <EinheitenKontext.Provider value={einheiten ?? STANDARD_EINHEITEN}>
     <div className="flex min-h-dvh flex-1" style={{ "--seitenleiste": eingeklappt ? "3.75rem" : "13rem" } as React.CSSProperties}>
       <SucheDialog />

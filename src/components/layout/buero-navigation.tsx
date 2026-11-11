@@ -19,6 +19,7 @@ import {
   UsersIcon,
 } from "lucide-react";
 import { cn } from "cn";
+import { menueOrdnen } from "@/lib/darstellung";
 import { rechtOk } from "@/lib/rechte";
 import { BENACHRICHTIGUNGEN_OEFFNEN, NEUE_ZEIT_OEFFNEN, SUCHE_OEFFNEN, useBuero } from "./buero-kontext";
 
@@ -38,7 +39,7 @@ type Eintrag = {
 };
 
 // Reihenfolge wie in Plancraft: Übersicht, Plantafel („Einteilung“), Projekte, Angebote, Ausgangs- und Eingangsrechnungen, Zeiten, Stammdaten, Kontakte.
-const EINTRAEGE: Eintrag[] = [
+export const BUERO_MENUE: Eintrag[] = [
   { href: "/buero", name: "Übersicht", icon: HouseIcon },
   { href: "/buero/plantafel", name: "Einteilung", icon: CalendarDaysIcon, recht: "einteilung_bearbeiten" },
   { href: "/buero/projekte", name: "Projekte", icon: FolderIcon, recht: "projekte_ansehen", plus: { href: "/buero/projekte/neu", titel: "Neues Projekt", recht: "projekte_bearbeiten" } },
@@ -67,7 +68,11 @@ export function BueroNavigation({
 }) {
   const pfad = usePathname();
 
-  const { ungelesen, rechte } = useBuero();
+  const { ungelesen, rechte, menue } = useBuero();
+  // Erst nach Rechten filtern, dann nach der eigenen „Darstellung“ ordnen und ausblenden
+  const erlaubt = BUERO_MENUE.filter((e) => (!e.nurAdmin || istAdmin) && (!e.recht || rechtOk(rechte, e.recht)));
+  const sichtbar = menueOrdnen(erlaubt.map((e) => e.href), menue.reihenfolge, menue.ausgeblendet)
+    .map((href) => erlaubt.find((e) => e.href === href)!);
 
   /** „Suchen“ und „Benachrichtigungen“ stehen wie in Plancraft ganz oben und öffnen ein Fenster statt einer Seite. */
   const fensterKnopf = (ereignis: string, name: string, Icon: typeof HouseIcon, zusatz?: React.ReactNode) => (
@@ -112,7 +117,7 @@ export function BueroNavigation({
           BellIcon,
         )}
         <li aria-hidden className="my-1 h-px bg-sidebar-border" />
-        {EINTRAEGE.filter((e) => (!e.nurAdmin || istAdmin) && (!e.recht || rechtOk(rechte, e.recht))).map(({ href, name, icon: Icon, plus: plusEintrag, neu, auch = [] }) => {
+        {sichtbar.map(({ href, name, icon: Icon, plus: plusEintrag, neu, auch = [] }) => {
           // Das „+“ gibt es nur, wenn der Nutzer auch anlegen darf
           const plus = plusEintrag && (!plusEintrag.recht || rechtOk(rechte, plusEintrag.recht)) ? plusEintrag : undefined;
           const aktiv =

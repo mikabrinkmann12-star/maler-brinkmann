@@ -85,6 +85,37 @@
   --sidebar-ring: oklch(0.65 0.12 153);
 }
 
+/* Farbsätze („Darstellung“, je Nutzer wählbar, src/lib/darstellung.ts). Grün ist der Standard oben in :root.
+   Alle Sätze: weiße Schrift auf dem Knopf mit ausreichendem Kontrast (Helligkeit ≤ 0,55); im dunklen Menü ein hellerer Ton. */
+[data-akzent="blau"] {
+  --primary: oklch(0.52 0.15 255);
+  --ring: oklch(0.6 0.13 255);
+  --accent: oklch(0.955 0.015 255);
+  --sidebar-primary: oklch(0.72 0.13 255);
+  --sidebar-ring: oklch(0.6 0.13 255);
+}
+[data-akzent="petrol"] {
+  --primary: oklch(0.5 0.085 205);
+  --ring: oklch(0.6 0.08 205);
+  --accent: oklch(0.955 0.012 205);
+  --sidebar-primary: oklch(0.72 0.09 205);
+  --sidebar-ring: oklch(0.6 0.08 205);
+}
+[data-akzent="graphit"] {
+  --primary: oklch(0.36 0.012 150);
+  --ring: oklch(0.5 0.012 150);
+  --accent: oklch(0.95 0.004 150);
+  --sidebar-primary: oklch(0.85 0.01 150);
+  --sidebar-ring: oklch(0.6 0.01 150);
+}
+[data-akzent="bordeaux"] {
+  --primary: oklch(0.46 0.15 18);
+  --ring: oklch(0.56 0.14 18);
+  --accent: oklch(0.955 0.012 18);
+  --sidebar-primary: oklch(0.72 0.12 18);
+  --sidebar-ring: oklch(0.56 0.14 18);
+}
+
 .dark {
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);

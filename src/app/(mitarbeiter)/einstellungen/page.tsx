@@ -6,6 +6,7 @@ import {
   InfoIcon,
   KeyRoundIcon,
   LogOutIcon,
+  PaletteIcon,
   TreePalmIcon,
   UserIcon,
 } from "lucide-react";
@@ -45,6 +46,7 @@ export default async function EinstellungenSeite() {
       <ul className="flex flex-col divide-y overflow-hidden rounded-xl border bg-card">
         <li><EinstellungsZeile href="/einstellungen/profil" icon={<UserIcon />} text="Profil" /></li>
         <li><EinstellungsZeile href="/einstellungen/benachrichtigungen" icon={<BellIcon />} text="Benachrichtigungen" /></li>
+        <li><EinstellungsZeile href="/einstellungen/darstellung" icon={<PaletteIcon />} text="Darstellung" /></li>
         <li><EinstellungsZeile href="/termine" icon={<CalendarClockIcon />} text="Meine Termine" /></li>
         <li><EinstellungsZeile href="/urlaub" icon={<TreePalmIcon />} text="Urlaub beantragen" /></li>
         <li><EinstellungsZeile href="/passwort-aendern" icon={<KeyRoundIcon />} text="Passwort ändern" /></li>

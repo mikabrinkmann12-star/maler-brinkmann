@@ -2,7 +2,9 @@ import Link from "next/link";
 import { ArrowLeftIcon } from "lucide-react";
 import { TabKopf, ZeiterfassungKnopf } from "@/components/layout/mitarbeiter-kopf";
 import { UntereNavigation } from "@/components/layout/untere-navigation";
+import { AkzentAbgleich } from "@/components/akzent-abgleich";
 import { ladeRechte, requireUser } from "@/lib/auth";
+import { darstellungLaden } from "@/lib/darstellung-daten";
 import { rechtOk } from "@/lib/rechte";
 import { istBueroRolle } from "@/lib/rollen";
 
@@ -13,7 +15,7 @@ export default async function MitarbeiterLayout({
   children: React.ReactNode;
 }) {
   const nutzer = await requireUser();
-  const rechte = await ladeRechte();
+  const [rechte, darstellung] = await Promise.all([ladeRechte(), darstellungLaden()]);
 
   return (
     <div className="flex min-h-dvh flex-1 flex-col">
@@ -29,6 +31,7 @@ export default async function MitarbeiterLayout({
           </Link>
         </div>
       )}
+      <AkzentAbgleich akzent={darstellung.wirksam.akzent} />
       <TabKopf istBuero={istBueroRolle(nutzer.rolle)} />
       <main className="mx-auto flex w-full max-w-lg flex-1 flex-col px-4 pt-4 pb-28">
         {children}

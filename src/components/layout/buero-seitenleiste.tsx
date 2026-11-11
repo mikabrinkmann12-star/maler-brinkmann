@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { ChevronDownIcon, HardHatIcon, KeyRoundIcon, LogOutIcon, PanelLeftIcon, SettingsIcon, UserPlusIcon, BuildingIcon } from "lucide-react";
+import { ChevronDownIcon, HardHatIcon, KeyRoundIcon, LogOutIcon, PaletteIcon, PanelLeftIcon, SettingsIcon, UserPlusIcon, BuildingIcon } from "lucide-react";
 import { cn } from "cn";
 import {
   DropdownMenu,
@@ -139,6 +139,7 @@ export function BueroSeitenleiste({
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem render={<Link href="/heute" onClick={onNavigiert} />}><HardHatIcon /> Zur Mitarbeiter-Ansicht</DropdownMenuItem>
+            <DropdownMenuItem render={<Link href="/buero/darstellung" onClick={onNavigiert} />}><PaletteIcon /> Darstellung</DropdownMenuItem>
             <DropdownMenuItem render={<Link href="/passwort-aendern" onClick={onNavigiert} />}><KeyRoundIcon /> Passwort ändern</DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem render={<form action={abmelden} />}>

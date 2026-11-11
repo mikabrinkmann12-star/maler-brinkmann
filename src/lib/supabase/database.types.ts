@@ -1545,6 +1545,38 @@ export type Database = {
           },
         ]
       }
+      nutzer_darstellung: {
+        Row: {
+          akzent: string | null
+          ausgeblendet: string[] | null
+          nutzer_id: string
+          reihenfolge: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          akzent?: string | null
+          ausgeblendet?: string[] | null
+          nutzer_id?: string
+          reihenfolge?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          akzent?: string | null
+          ausgeblendet?: string[] | null
+          nutzer_id?: string
+          reihenfolge?: string[] | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nutzer_darstellung_nutzer_id_fkey"
+            columns: ["nutzer_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           aktiv: boolean
