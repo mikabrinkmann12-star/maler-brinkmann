@@ -85,11 +85,30 @@ describe("raeumeAusText", () => {
     expect(kurz(text)).toEqual([["EG", "Wohnen", 25.3]]);
   });
 
-  it("nimmt doppelte Räume nur einmal", () => {
-    const text = ["EG\nBad 6,12 m²\nBad 6,12 m²\nBad 6,12 m²\nKind 11,0 m²", "EG\nBad 6,12 m²"];
+  it("lässt gleiche Räume mit gleicher Fläche stehen (mehrere Wohnungen sind keine Duplikate)", () => {
+    const text = ["EG\nBad 6,12 m²\nBad 6,12 m²\nKind 11,0 m²", "EG\nBad 6,12 m²"];
     expect(kurz(text)).toEqual([
       ["EG", "Bad", 6.12],
+      ["EG", "Bad", 6.12],
       ["EG", "Kind", 11],
+      ["EG", "Bad", 6.12],
+    ]);
+  });
+
+  it("Plan wie „Am Dobben“: DIN-F zählt, Brutto-F nicht, Geschoss aus dem Plantitel am Seitenende, Adressen sind keine Räume", () => {
+    const seite = [
+      "Gäste WC", "DIN-F = 1.67m²", "Brutto-F = 1.75 m²",
+      "Treppenhaus 1.OG", "DIN-F = 12.26m²", "Brutto-F = 18.50 m²",
+      "Balkon", "DIN-F = 3.00m²", "Brutto-F = 6.00 m²",
+      "Gäste WC", "DIN-F = 1.67m²", "Brutto-F = 1.75 m²",
+      "Am Dobben5.00", "Miles und Dustin Schütte", "Kanalstraße Nord 20", "26169 Friesoythe", "Fläche 12,00 m²",
+      "03_Grundriss OG 1_20261026_V1", "1. Obergeschoss", "MASSTAB",
+    ].join("\n");
+    expect(kurz([seite])).toEqual([
+      ["1. OG", "Gäste WC", 1.67],
+      ["1. OG", "Treppenhaus 1.OG", 12.26],
+      ["1. OG", "Balkon", 3],
+      ["1. OG", "Gäste WC", 1.67],
     ]);
   });
 

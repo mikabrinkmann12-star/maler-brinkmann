@@ -2,13 +2,15 @@
 // Alle Maße in Metern bzw. m². Auch im Browser nutzbar.
 
 /** Raumart: steuert Wand (Bad/WC nur oberhalb der Fliesen), Decke (Treppenhaus von Hand) und den Sockel-Vorschlag. */
-export type RaumArt = "normal" | "nass" | "treppenhaus" | "technik";
+export type RaumArt = "normal" | "nass" | "treppenhaus" | "technik" | "aussen";
 
 export const RAUM_ART_NAMEN: Record<RaumArt, string> = {
   normal: "Wohnraum",
   nass: "Bad / WC",
   treppenhaus: "Treppenhaus",
   technik: "Technik",
+  // Balkon, Terrasse, Dachterrasse: zählen nur beim Boden, nie bei Decke, Wand oder Sockel
+  aussen: "Balkon / Terrasse",
 };
 
 /** Ein Raum, wie er geprüft wird. Leere Maße (null) bedeuten: Standardwert bzw. Schätzung verwenden. */

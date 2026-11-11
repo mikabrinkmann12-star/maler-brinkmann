@@ -17,6 +17,10 @@ export function rund2(x: number): number {
 /** Flächen eines Raums berechnen; `geschaetzt` markiert nicht gemessene Werte. */
 export function raumFlaechen(raum: Raum, std: FlaechenStandard): RaumFlaechen {
   const boden = raum.boden ?? 0;
+  // Balkon, Terrasse, Dachterrasse: nur Boden, nie Decke, Wand oder Sockel
+  if (raum.art === "aussen") {
+    return { umfang: 0, boden: rund2(boden), decke: 0, wand: 0, sockel: 0, geschaetzt: { umfang: false, wand: false, decke: false, sockel: false } };
+  }
   const umfangGemessen = raum.umfang != null && raum.umfang > 0;
   const umfang = umfangGemessen ? (raum.umfang as number) : std.umfangFaktor * Math.sqrt(Math.max(0, boden));
   const hoehe = raum.hoehe ?? std.raumhoehe;
@@ -46,6 +50,8 @@ export function raumArtVorschlag(name: string): RaumArt {
   const n = name.toLowerCase();
   const davor = "(^|[^a-zäöüß])";
   const danach = "($|[^a-zäöüß])";
+  // Zuerst Außenflächen („Dachterrasse“, „Terrasse (teilüberdacht)“, „Balkon“, „Loggia“)
+  if (n.includes("terrasse") || n.includes("balkon") || n.includes("loggia")) return "aussen";
   if (
     new RegExp(davor + "bad").test(n) ||
     new RegExp(davor + "wc" + danach).test(n) ||
@@ -76,17 +82,22 @@ export function bereichRaeume(raeume: Raum[], bereich: Bereich): Raum[] {
   return raeume.filter((r) => bereich.ids.includes(r.id));
 }
 
-/** Menge einer Leistungszeile; bei Lücken kommt ein Fehlertext statt einer Zahl. */
+/**
+ * Menge einer Leistungszeile; bei Lücken kommt ein Fehlertext statt einer Zahl.
+ * Es zählen NUR geprüfte Räume (ungeprüfte werden weggelassen und in `ausgelassen` genannt).
+ * Außenflächen zählen bei Decke, Wand und Sockel nie mit.
+ */
 export function zeilenMenge(
   raeume: Raum[],
   zeile: LeistungsZeile,
   std: FlaechenStandard,
-): { menge: number; fehler?: string } {
-  const liste = bereichRaeume(raeume, zeile.bereich);
-  const namen = (rs: Raum[]) => rs.map((r) => r.name).join(", ");
-  if (liste.length === 0) return { menge: 0, fehler: "Im Bereich gibt es keine Räume." };
-  const ungeprueft = liste.filter((r) => !r.geprueft);
-  if (ungeprueft.length) return { menge: 0, fehler: `Im Bereich sind noch ungeprüfte Räume: ${namen(ungeprueft)}.` };
+): { menge: number; fehler?: string; ausgelassen?: string[] } {
+  const imBereich = bereichRaeume(raeume, zeile.bereich).filter((r) => zeile.flaeche === "boden" || r.art !== "aussen");
+  const namen = (rs: Raum[]) => rs.map((r) => r.name || "ohne Namen").join(", ");
+  if (imBereich.length === 0) return { menge: 0, fehler: "Im Bereich gibt es keine Räume." };
+  const ausgelassen = imBereich.filter((r) => !r.geprueft).map((r) => r.name || "ohne Namen");
+  const liste = imBereich.filter((r) => r.geprueft);
+  if (liste.length === 0) return { menge: 0, fehler: "Im Bereich ist noch kein Raum geprüft.", ausgelassen };
   const ohneBoden = liste.filter((r) => r.boden == null || r.boden <= 0);
   if (ohneBoden.length) return { menge: 0, fehler: `Bodenfläche fehlt: ${namen(ohneBoden)}.` };
   const fl = liste.map((r) => ({ r, f: raumFlaechen(r, std) }));
@@ -95,7 +106,26 @@ export function zeilenMenge(
     if (ohneDecke.length) return { menge: 0, fehler: `Deckenfläche im Treppenhaus fehlt: ${namen(ohneDecke)}.` };
   }
   const summe = fl.reduce((s, x) => s + ((x.f[zeile.flaeche] as number | null) ?? 0), 0);
-  return { menge: rund2(summe) };
+  return { menge: rund2(summe), ausgelassen: ausgelassen.length ? ausgelassen : undefined };
+}
+
+/** Summen je Geschoss (nur geprüfte Räume) für Decke, Wand und Sockel; `deckeFehlt` = geprüfter Raum ohne Decke (Treppenhaus). */
+export function geschossSummen(raeume: Raum[], std: FlaechenStandard): { geschoss: string; decke: number; wand: number; sockel: number; deckeFehlt: boolean; geprueft: number; gesamt: number }[] {
+  const namen = [...geschosse(raeume), ...(raeume.some((r) => !r.geschoss) ? [""] : [])];
+  return namen.map((g) => {
+    const alle = raeume.filter((r) => r.geschoss === g);
+    const liste = alle.filter((r) => r.geprueft);
+    const fl = liste.map((r) => raumFlaechen(r, std));
+    return {
+      geschoss: g,
+      decke: rund2(fl.reduce((s, f) => s + (f.decke ?? 0), 0)),
+      wand: rund2(fl.reduce((s, f) => s + f.wand, 0)),
+      sockel: rund2(fl.reduce((s, f) => s + f.sockel, 0)),
+      deckeFehlt: fl.some((f) => f.decke == null),
+      geprueft: liste.length,
+      gesamt: alle.length,
+    };
+  });
 }
 
 /** Geschosse in Reihenfolge des ersten Auftretens, ohne leere und Doppelte. */

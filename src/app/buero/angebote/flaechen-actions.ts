@@ -21,7 +21,7 @@ const raumSchema = z.object({
   umfang: zahl,
   hoehe: zahl,
   decke: zahl,
-  art: z.enum(["normal", "nass", "treppenhaus", "technik"]),
+  art: z.enum(["normal", "nass", "treppenhaus", "technik", "aussen"]),
   belag: z.boolean(),
   sockel: z.boolean(),
   geprueft: z.boolean(),

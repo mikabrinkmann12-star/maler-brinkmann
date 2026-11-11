@@ -64,9 +64,22 @@ describe("raumFlaechen", () => {
 });
 
 describe("zeilenMenge", () => {
-  it("Fehler bei ungeprüftem Raum", () => {
-    const r = zeilenMenge([raum({ geprueft: false, name: "Flur" })], zeile(), S);
-    expect(r.fehler).toBe("Im Bereich sind noch ungeprüfte Räume: Flur.");
+  it("zählt nur geprüfte Räume, ungeprüfte werden weggelassen und genannt", () => {
+    expect(zeilenMenge([raum({ geprueft: false, name: "Flur" })], zeile(), S).fehler).toBe("Im Bereich ist noch kein Raum geprüft.");
+    const r = zeilenMenge([raum({ geprueft: false, name: "Flur", boden: 10 }), raum({ id: "b", name: "Bad", boden: 5, geprueft: true })], zeile({ flaeche: "boden" }), S);
+    expect(r).toEqual({ menge: 5, ausgelassen: ["Flur"] });
+  });
+  it("Balkon/Terrasse: nur Boden, nie Decke, Wand oder Sockel", () => {
+    const b = raum({ id: "b", name: "Dachterrasse (teilüberdacht)", art: "aussen", boden: 18.83, geprueft: true, belag: true, sockel: true });
+    const w = raum({ id: "w", name: "Wohnen", boden: 20, geprueft: true });
+    expect(raumArtVorschlag("Dachterrasse (teilüberdacht)")).toBe("aussen");
+    expect(raumArtVorschlag("Terrasse (teilüberdacht)")).toBe("aussen");
+    expect(raumArtVorschlag("Balkon")).toBe("aussen");
+    expect(raumArtVorschlag("Treppenhaus 2.OG")).toBe("treppenhaus");
+    expect(raumFlaechen(b, S)).toMatchObject({ decke: 0, wand: 0, sockel: 0, boden: 18.83 });
+    expect(zeilenMenge([b, w], zeile({ flaeche: "decke" }), S).menge).toBe(20);
+    expect(zeilenMenge([b, w], zeile({ flaeche: "boden" }), S).menge).toBe(38.83);
+    expect(zeilenMenge([b], zeile({ flaeche: "wand" }), S).fehler).toBe("Im Bereich gibt es keine Räume.");
   });
   it("Fehler ohne Räume und ohne Boden", () => {
     expect(zeilenMenge([], zeile(), S).fehler).toBe("Im Bereich gibt es keine Räume.");

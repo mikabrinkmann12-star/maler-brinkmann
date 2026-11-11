@@ -19,7 +19,13 @@ const FLAECHE = /(\d{1,3}(?:\.\d{3})+(?:,\d+)?|\d+(?:[.,]\d+)?)\s*(?:m\s?²|m2|q
 const LAENGE = /(?:\b[a-zäöü]{1,3}\s*[:=]\s*)?\d+(?:[.,]\d+)?\s*m(?![²2³a-zäöüß])/gi;
 
 // Beschriftung vor der Fläche: „F:“, „NGF“, „NF“, „WF“, „Fläche:“ …
-const BESCHRIFTUNG_ENDE = /(?:^|\s)(?:f|a|ngf|nrf|nf|wf|fl\.?|fläche|bodenfläche|grundfläche)\s*[:=]?\s*$/i;
+const BESCHRIFTUNG_ENDE = /(?:^|\s)(?:din-?f|din-?fläche|f|a|ngf|nrf|nf|wf|fl\.?|fläche|bodenfläche|grundfläche)\s*[:=]?\s*$/i;
+
+// Brutto-Fläche (z. B. „Brutto-F = 1.75 m²“ unter „DIN-F = 1.67 m²“) ist nie die Bodenfläche des Raums: wird ignoriert
+const BRUTTO = /brutto/i;
+
+// Orts- und Adressangaben im Plankopf (PLZ, „Kanalstraße Nord 20“, „Am Dobben 2“) sind keine Räume
+const ADRESSE = /\b\d{5}\b|(?:straße|strasse|str\.|weg|allee|platz|ring|damm|chaussee)\s+(?:[a-zäöüß]+\s+)?\d/i;
 
 // Summen- und Gesamtzeilen sind keine Räume
 const SUMME = /summe|gesamt|σ|wohnfl(?:ä|ae)che|nutzfl(?:ä|ae)che|nettogrundfl(?:ä|ae)che|bruttogrundfl(?:ä|ae)che|\bbgf\b|grundst(?:ü|ue)ck|bebaute fl(?:ä|ae)che/i;
@@ -105,18 +111,23 @@ function raum(geschoss: string, name: string, boden: number, quelle: "pdf" | "ki
   };
 }
 
-/** Entfernt Unplausibles und doppelte Räume (gleiches Geschoss, gleicher Name, gleiche Fläche). */
+/**
+ * Entfernt Unplausibles, Summenzeilen und Adressen. Gleiche Räume mit gleicher Fläche bleiben stehen: Das sind mehrere Wohnungen
+ * (z. B. zwei gleiche Bäder im EG), keine Duplikate. Eine doppelt hochgeladene Datei erkennt die Oberfläche.
+ */
 export function raeumeBereinigen(liste: GelesenerRaum[]): GelesenerRaum[] {
-  const gesehen = new Set<string>();
-  const ergebnis: GelesenerRaum[] = [];
-  for (const r of liste) {
-    if (r.boden === null || !plausibel(r.boden) || !r.name.trim() || SUMME.test(r.name)) continue;
-    const schluessel = `${r.geschoss.trim().toLowerCase()}|${r.name.trim().toLowerCase()}|${r.boden.toFixed(2)}`;
-    if (gesehen.has(schluessel)) continue;
-    gesehen.add(schluessel);
-    ergebnis.push(r);
+  return liste.filter((r) => r.boden !== null && plausibel(r.boden) && r.name.trim() && !SUMME.test(r.name) && !ADRESSE.test(r.name) && !BRUTTO.test(r.name));
+}
+
+/** Geschoss aus dem Plantitel: steht auf der Seite genau eine Geschoss-Überschrift (z. B. „1. Obergeschoss“ im Plankopf), gilt sie für alle Räume. */
+function titelGeschoss(zeilen: string[]): string {
+  const gefunden = new Set<string>();
+  for (const z of zeilen) {
+    if (/^keller$/i.test(z.trim())) continue; // kann auch ein Raum sein
+    const g = geschossAus(z);
+    if (g) gefunden.add(g);
   }
-  return ergebnis;
+  return gefunden.size === 1 ? [...gefunden][0] : "";
 }
 
 type Treffer = { boden: number; davor: string };
@@ -141,13 +152,14 @@ export function raeumeAusText(seiten: string[]): GelesenerRaum[] {
   const gefunden: GelesenerRaum[] = [];
 
   for (const seite of seiten) {
-    let geschoss = "";
     let wartenderName = "";
     const zeilen = seite
       .split(/\r?\n/)
       .map((z) => z.replace(/\s+/g, " ").trim())
       .filter(Boolean)
       .flatMap(ueberschriftAbtrennen);
+    // Der Plantitel steht oft erst am Ende der Seite (Plankopf), gilt aber für alle Räume davor
+    let geschoss = titelGeschoss(zeilen);
 
     // Ein einzelnes „Keller“ kann Raumname oder Überschrift sein: Folgt die Fläche direkt darunter, ist es ein Raum, sonst die Überschrift.
     let kellerOffen = false;
@@ -171,13 +183,13 @@ export function raeumeAusText(seiten: string[]): GelesenerRaum[] {
           wartenderName = "";
           continue;
         }
-        wartenderName = SUMME.test(zeile) || zeile.length > 60 ? "" : name;
+        wartenderName = SUMME.test(zeile) || ADRESSE.test(zeile) || zeile.length > 60 ? "" : name;
         continue;
       }
 
       for (let i = 0; i < treffer.length; i++) {
         const t = treffer[i];
-        if (SUMME.test(t.davor)) continue;
+        if (SUMME.test(t.davor) || BRUTTO.test(t.davor)) continue;
         let name = nameBereinigen(t.davor);
         if (!name && i === 0) name = wartenderName; // Fläche in der Zeile unter dem Namen
         else if (i === 0 && kellerOffen) geschoss = "KG";
