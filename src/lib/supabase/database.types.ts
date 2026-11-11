@@ -1549,7 +1549,6 @@ export type Database = {
         Row: {
           akzent: string | null
           ausgeblendet: string[] | null
-          glas: boolean | null
           nutzer_id: string
           reihenfolge: string[] | null
           updated_at: string
@@ -1557,7 +1556,6 @@ export type Database = {
         Insert: {
           akzent?: string | null
           ausgeblendet?: string[] | null
-          glas?: boolean | null
           nutzer_id?: string
           reihenfolge?: string[] | null
           updated_at?: string
@@ -1565,7 +1563,6 @@ export type Database = {
         Update: {
           akzent?: string | null
           ausgeblendet?: string[] | null
-          glas?: boolean | null
           nutzer_id?: string
           reihenfolge?: string[] | null
           updated_at?: string

@@ -1,24 +1,19 @@
 "use client";
 
 import { useEffect } from "react";
-import { AKZENT_COOKIE, GLAS_COOKIE, STANDARD_AKZENT, type Akzent } from "@/lib/darstellung";
-
-const keks = (name: string) => document.cookie.split("; ").find((c) => c.startsWith(`${name}=`))?.split("=")[1];
-const merken = (name: string, wert: string) => { document.cookie = `${name}=${wert}; path=/; max-age=31536000; samesite=lax`; };
+import { AKZENT_COOKIE, STANDARD_AKZENT, type Akzent } from "@/lib/darstellung";
 
 /**
- * Gleicht Farbsatz und Glas-Look der Seite mit dem gespeicherten Wert ab (z. B. auf einem neuen Gerät, wo die Cookies noch fehlen):
- * setzt `data-akzent` bzw. `data-glas` am <html> und merkt beides im Cookie, damit es beim nächsten Laden sofort stimmt.
+ * Gleicht den Farbsatz der Seite mit dem gespeicherten Wert ab (z. B. auf einem neuen Gerät, wo das Cookie noch fehlt):
+ * setzt `data-akzent` am <html> und merkt ihn im Cookie, damit er beim nächsten Laden sofort stimmt.
  */
-export function AkzentAbgleich({ akzent, glas = false }: { akzent: Akzent; glas?: boolean }) {
+export function AkzentAbgleich({ akzent }: { akzent: Akzent }) {
   useEffect(() => {
     const html = document.documentElement;
     if (akzent === STANDARD_AKZENT) delete html.dataset.akzent;
     else html.dataset.akzent = akzent;
-    if (glas) html.dataset.glas = "an";
-    else delete html.dataset.glas;
-    if (keks(AKZENT_COOKIE) !== akzent) merken(AKZENT_COOKIE, akzent);
-    if (keks(GLAS_COOKIE) !== (glas ? "1" : "0")) merken(GLAS_COOKIE, glas ? "1" : "0");
-  }, [akzent, glas]);
+    const gesetzt = document.cookie.split("; ").find((c) => c.startsWith(`${AKZENT_COOKIE}=`))?.split("=")[1];
+    if (gesetzt !== akzent) document.cookie = `${AKZENT_COOKIE}=${akzent}; path=/; max-age=31536000; samesite=lax`;
+  }, [akzent]);
   return null;
 }

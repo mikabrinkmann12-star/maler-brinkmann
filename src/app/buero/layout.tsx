@@ -12,11 +12,11 @@ export default async function BueroLayout({ children }: LayoutProps<"/buero">) {
   const nutzer = await requireRole(BUERO_ROLLEN);
   const name = `${nutzer.vorname} ${nutzer.nachname}`.trim();
   const [firma, ungelesen, einheiten, rechte, darstellung] = await Promise.all([firmaLaden(), ungelesenZaehler(), einheitenLaden(), ladeRechte(), darstellungLaden()]);
-  const { akzent, reihenfolge, ausgeblendet, glas } = darstellung.wirksam;
+  const { akzent, reihenfolge, ausgeblendet } = darstellung.wirksam;
 
   return (
     <BueroRahmen firmenname={firma.name || "Meine Firma"} name={name} rolle={nutzer.rolle} rechte={rechte} ungelesen={ungelesen} einheiten={einheiten} menue={{ reihenfolge, ausgeblendet }}>
-      <AkzentAbgleich akzent={akzent} glas={glas} />
+      <AkzentAbgleich akzent={akzent} />
       {children}
     </BueroRahmen>
   );

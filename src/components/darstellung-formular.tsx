@@ -20,11 +20,6 @@ const MUSTER: Record<Akzent, string> = {
   bordeaux: "oklch(0.46 0.15 18)",
 };
 
-function glasZeigen(an: boolean) {
-  if (an) document.documentElement.dataset.glas = "an";
-  else delete document.documentElement.dataset.glas;
-}
-
 function farbeZeigen(akzent: Akzent) {
   const html = document.documentElement;
   if (akzent === STANDARD_AKZENT) delete html.dataset.akzent;
@@ -56,8 +51,6 @@ export function DarstellungFormular({
 
   const [akzent, setAkzent] = useState<Akzent>(wirksam.akzent);
   const [akzentGeaendert, setAkzentGeaendert] = useState(false);
-  const [glas, setGlas] = useState<boolean>(wirksam.glas);
-  const [glasGeaendert, setGlasGeaendert] = useState(false);
   const [reihenfolge, setReihenfolge] = useState<string[]>(() => menueOrdnen(erlaubt.map((e) => e.href), wirksam.reihenfolge, []));
   const [ausgeblendet, setAusgeblendet] = useState<string[]>(wirksam.ausgeblendet);
   const [menueGeaendert, setMenueGeaendert] = useState(false);
@@ -65,11 +58,9 @@ export function DarstellungFormular({
   const [hinweis, setHinweis] = useState<string | null>(null);
   const [laeuft, starte] = useTransition();
 
-  // Vorschau: Farbe und Glas-Look sofort zeigen; beim Verlassen ohne Speichern wieder das Gespeicherte
+  // Vorschau: Farbe sofort zeigen; beim Verlassen ohne Speichern wieder die gespeicherte
   useEffect(() => farbeZeigen(akzent), [akzent]);
   useEffect(() => () => farbeZeigen(wirksam.akzent), [wirksam.akzent]);
-  useEffect(() => glasZeigen(glas), [glas]);
-  useEffect(() => () => glasZeigen(wirksam.glas), [wirksam.glas]);
 
   const eintrag = (href: string) => erlaubt.find((e) => e.href === href);
 
@@ -89,7 +80,6 @@ export function DarstellungFormular({
   }
 
   const daten = (): Darstellung => ({
-    glas: glasGeaendert ? glas : eigene.glas,
     akzent: akzentGeaendert ? akzent : eigene.akzent,
     reihenfolge: menueGeaendert ? reihenfolge : eigene.reihenfolge,
     ausgeblendet: menueGeaendert ? ausgeblendet : eigene.ausgeblendet,
@@ -103,7 +93,6 @@ export function DarstellungFormular({
       if (r.fehler) return setFehler(r.fehler);
       setAkzentGeaendert(false);
       setMenueGeaendert(false);
-      setGlasGeaendert(false);
       setHinweis(text);
       router.refresh();
     });
@@ -145,26 +134,6 @@ export function DarstellungFormular({
         </div>
       </section>
 
-      <section className="flex items-center gap-3 rounded-xl border p-4" aria-labelledby="glas-titel">
-        <div className="min-w-0 flex-1">
-          <h2 id="glas-titel" className="text-base font-semibold">Glas-Look</h2>
-          <p className="text-sm text-muted-foreground">
-            Durchscheinende Leisten, Menüs und Fenster wie bei Apple, dazu weiche Übergänge. Tabellen, Formulare und PDFs bleiben klar.
-            Auf älteren Handys kann es etwas langsamer laufen.
-          </p>
-        </div>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={glas}
-          aria-labelledby="glas-titel"
-          onClick={() => { setGlas((g) => !g); setGlasGeaendert(true); setHinweis(null); }}
-          className={cn("relative h-8 w-14 shrink-0 rounded-full transition-colors duration-200", glas ? "bg-primary" : "bg-muted-foreground/30")}
-        >
-          <span className={cn("absolute top-1 left-1 size-6 rounded-full bg-white shadow transition-transform duration-300 ease-[cubic-bezier(.22,1,.36,1)]", glas && "translate-x-6")} />
-        </button>
-      </section>
-
       {istBuero && (
         <section className="flex flex-col gap-3 rounded-xl border p-4" aria-labelledby="menue-titel">
           <div>
@@ -197,7 +166,7 @@ export function DarstellungFormular({
       )}
 
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-        <Button type="button" size="touch" disabled={laeuft || (!akzentGeaendert && !menueGeaendert && !glasGeaendert)} onClick={() => ausfuehren(() => darstellungSpeichern(daten()), "Gespeichert.")}>
+        <Button type="button" size="touch" disabled={laeuft || (!akzentGeaendert && !menueGeaendert)} onClick={() => ausfuehren(() => darstellungSpeichern(daten()), "Gespeichert.")}>
           <CheckIcon /> Speichern
         </Button>
         <Button type="button" size="touch" variant="outline" disabled={laeuft} onClick={() => ausfuehren(darstellungZuruecksetzen, "Zurückgesetzt, es gilt wieder die Vorgabe der Firma.")}>
@@ -205,7 +174,7 @@ export function DarstellungFormular({
         </Button>
         {darfVorgabe && (
           <Button type="button" size="touch" variant="outline" disabled={laeuft}
-            onClick={() => ausfuehren(() => vorgabeSpeichern({ akzent, glas, reihenfolge: istBuero ? reihenfolge : firma.reihenfolge, ausgeblendet: istBuero ? ausgeblendet : firma.ausgeblendet }), "Als Vorgabe für alle gespeichert. Sie gilt für jeden, der nichts Eigenes eingestellt hat.")}>
+            onClick={() => ausfuehren(() => vorgabeSpeichern({ akzent, reihenfolge: istBuero ? reihenfolge : firma.reihenfolge, ausgeblendet: istBuero ? ausgeblendet : firma.ausgeblendet }), "Als Vorgabe für alle gespeichert. Sie gilt für jeden, der nichts Eigenes eingestellt hat.")}>
             Als Vorgabe für alle speichern
           </Button>
         )}

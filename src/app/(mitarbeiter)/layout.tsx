@@ -31,7 +31,7 @@ export default async function MitarbeiterLayout({
           </Link>
         </div>
       )}
-      <AkzentAbgleich akzent={darstellung.wirksam.akzent} glas={darstellung.wirksam.glas} />
+      <AkzentAbgleich akzent={darstellung.wirksam.akzent} />
       <TabKopf istBuero={istBueroRolle(nutzer.rolle)} />
       <main className="mx-auto flex w-full max-w-lg flex-1 flex-col px-4 pt-4 pb-28">
         {children}

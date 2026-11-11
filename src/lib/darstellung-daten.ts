@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 export async function darstellungLaden(): Promise<{ eigene: Darstellung; firma: Darstellung; wirksam: ReturnType<typeof wirksameDarstellung> }> {
   const supabase = await createClient();
   const [{ data: zeile }, { data: vorgabe }] = await Promise.all([
-    supabase.from("nutzer_darstellung").select("akzent, reihenfolge, ausgeblendet, glas").maybeSingle(),
+    supabase.from("nutzer_darstellung").select("akzent, reihenfolge, ausgeblendet").maybeSingle(),
     supabase.from("app_settings").select("wert").eq("schluessel", "darstellung").maybeSingle(),
   ]);
   const eigene = zeile ? darstellungPruefen(zeile) : LEERE_DARSTELLUNG;

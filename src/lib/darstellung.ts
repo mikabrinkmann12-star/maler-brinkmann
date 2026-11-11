@@ -16,8 +16,6 @@ export const AKZENT_NAMEN: Record<Akzent, string> = {
 
 /** Name des Cookies, über den das Root-Layout den Farbsatz ohne Datenbank-Abfrage und ohne Aufblitzen setzt. */
 export const AKZENT_COOKIE = "darstellung_akzent";
-/** Cookie für den Glas-Look („1“ = an), ebenfalls fürs Root-Layout (`data-glas="an"` am <html>). */
-export const GLAS_COOKIE = "darstellung_glas";
 
 export function istAkzent(wert: unknown): wert is Akzent {
   return typeof wert === "string" && (AKZENTE as readonly string[]).includes(wert);
@@ -30,11 +28,9 @@ export type Darstellung = {
   reihenfolge: string[] | null;
   /** Schlüssel der ausgeblendeten Menüpunkte */
   ausgeblendet: string[] | null;
-  /** Glas-Look mit weichen Übergängen (Liquid Glass, Morph Motion); null = Vorgabe */
-  glas: boolean | null;
 };
 
-export const LEERE_DARSTELLUNG: Darstellung = { akzent: null, reihenfolge: null, ausgeblendet: null, glas: null };
+export const LEERE_DARSTELLUNG: Darstellung = { akzent: null, reihenfolge: null, ausgeblendet: null };
 
 const schluesselListe = (wert: unknown): string[] | null =>
   Array.isArray(wert) ? [...new Set(wert.filter((s): s is string => typeof s === "string" && /^\/[a-z0-9/_-]{0,80}$/.test(s)))].slice(0, 50) : null;
@@ -46,17 +42,15 @@ export function darstellungPruefen(wert: unknown): Darstellung {
     akzent: istAkzent(o.akzent) ? o.akzent : null,
     reihenfolge: schluesselListe(o.reihenfolge),
     ausgeblendet: schluesselListe(o.ausgeblendet),
-    glas: typeof o.glas === "boolean" ? o.glas : null,
   };
 }
 
 /** Was gilt: eigene Werte vor der Firmen-Vorgabe, sonst Standard der App. */
-export function wirksameDarstellung(eigene: Darstellung, firma: Darstellung): { akzent: Akzent; reihenfolge: string[]; ausgeblendet: string[]; glas: boolean } {
+export function wirksameDarstellung(eigene: Darstellung, firma: Darstellung): { akzent: Akzent; reihenfolge: string[]; ausgeblendet: string[] } {
   return {
     akzent: eigene.akzent ?? firma.akzent ?? STANDARD_AKZENT,
     reihenfolge: eigene.reihenfolge ?? firma.reihenfolge ?? [],
     ausgeblendet: eigene.ausgeblendet ?? firma.ausgeblendet ?? [],
-    glas: eigene.glas ?? firma.glas ?? false,
   };
 }
 
