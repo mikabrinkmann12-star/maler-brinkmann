@@ -57,7 +57,7 @@ export const GRUNDRISS_SCHEMA = {
 /** System-Anweisung für das Lesen eines Grundrisses. */
 export function grundrissAnweisung(): string {
   return [
-    "Du liest Grundrisse (Architektenpläne, PDF, eine oder mehrere Seiten) für einen Malerbetrieb und schreibst JEDEN Raum ab.",
+    "Du liest Grundrisse (Architektenpläne als PDF mit einer oder mehreren Seiten, oder als Foto/Bild) für einen Malerbetrieb und schreibst JEDEN Raum ab.",
     "Antworte nur im vorgegebenen JSON-Format. Jede Regel gilt für JEDEN Raum:",
     "",
     "- geschoss: aus dem Plantitel der Seite, so wie dort geschrieben (z. B. „Erdgeschoss“, „1. Obergeschoss“, „2. Obergeschoss“, „Dachgeschoss“, „Kellergeschoss“).",
@@ -76,7 +76,7 @@ export function grundrissAnweisung(): string {
     "  - \"wohnraum\" NUR für Räume, die klar zur Wohnnutzung gehören: Wohnen, Essen, Küche, Schlafen, Kind, Büro, Diele, Flur, HWR, Ankleide (und Mischformen davon wie „Wohnen/Essen/Küche“).",
     "  - Im Zweifel NICHT \"wohnraum\": Sieh im Plan nach, ob der Raum innerhalb einer Wohnung liegt (von den Wohnungswänden umschlossen, nur über die Wohnungsdiele erreichbar). Liegt er außerhalb, z. B. am Treppenhaus oder mit eigenem Außenzugang, ist er \"nebengebaeude\".",
     "- Keine Räume sind: Adressen, Ortsnamen, Bauherr, Planverfasser, Plankopf, Maßketten und Summen (z. B. „Wohnfläche gesamt“).",
-    "- seite: Seitennummer im PDF, beginnend bei 1.",
+    "- seite: Seitennummer im PDF, beginnend bei 1 (bei einem Foto immer 1).",
   ].join("\n");
 }
 
@@ -118,6 +118,23 @@ export function raeumeAusAntwort(roh: unknown): GrundrissErgebnis["raeume"] | nu
 
 // ---- Ablauf mit hineingereichtem Aufruf ----
 
+/** Dateiarten, die die KI lesen kann: PDF und Fotos (z. B. aus der Galerie). */
+export type GrundrissMedium = "application/pdf" | "image/jpeg" | "image/png" | "image/webp";
+
+/** Dateiart an den ersten Bytes erkennen (nicht am Namen); unbekannt → null. */
+export function grundrissMedium(bytes: Uint8Array): GrundrissMedium | null {
+  const b = (i: number) => bytes[i];
+  if (b(0) === 0x25 && b(1) === 0x50 && b(2) === 0x44 && b(3) === 0x46) return "application/pdf"; // %PDF
+  if (b(0) === 0xff && b(1) === 0xd8 && b(2) === 0xff) return "image/jpeg";
+  if (b(0) === 0x89 && b(1) === 0x50 && b(2) === 0x4e && b(3) === 0x47) return "image/png";
+  if (b(0) === 0x52 && b(1) === 0x49 && b(2) === 0x46 && b(3) === 0x46 && b(8) === 0x57 && b(9) === 0x45 && b(10) === 0x42 && b(11) === 0x50) return "image/webp"; // RIFF…WEBP
+  return null;
+}
+
+type GrundrissDatei =
+  | { type: "document"; source: { type: "base64"; media_type: "application/pdf"; data: string } }
+  | { type: "image"; source: { type: "base64"; media_type: "image/jpeg" | "image/png" | "image/webp"; data: string } };
+
 /** Die Anfrage an die Messages-Schnittstelle (ohne Beta-Felder). */
 export type GrundrissAnfrage = {
   model: string;
@@ -130,10 +147,7 @@ export type GrundrissAnfrage = {
   messages: [
     {
       role: "user";
-      content: [
-        { type: "document"; source: { type: "base64"; media_type: "application/pdf"; data: string } },
-        { type: "text"; text: string },
-      ];
+      content: [GrundrissDatei, { type: "text"; text: string }];
     },
   ];
 };
@@ -148,8 +162,12 @@ export type GrundrissAntwort = {
 
 export type GrundrissAufruf = (anfrage: GrundrissAnfrage) => Promise<GrundrissAntwort>;
 
-/** Baut die Anfrage: PDF als document-Block vor dem kurzen Auftrag. */
-export function grundrissAnfrage(pdfBase64: string): GrundrissAnfrage {
+/** Baut die Anfrage: PDF als document-Block bzw. Foto als image-Block vor dem kurzen Auftrag. */
+export function grundrissAnfrage(daten: string, medium: GrundrissMedium = "application/pdf"): GrundrissAnfrage {
+  const datei: GrundrissDatei =
+    medium === "application/pdf"
+      ? { type: "document", source: { type: "base64", media_type: medium, data: daten } }
+      : { type: "image", source: { type: "base64", media_type: medium, data: daten } };
   return {
     model: GRUNDRISS_KI_MODELL,
     max_tokens: GRUNDRISS_MAX_TOKENS,
@@ -162,7 +180,7 @@ export function grundrissAnfrage(pdfBase64: string): GrundrissAnfrage {
       {
         role: "user",
         content: [
-          { type: "document", source: { type: "base64", media_type: "application/pdf", data: pdfBase64 } },
+          datei,
           { type: "text", text: "Lies alle Räume aus diesem Grundriss." },
         ],
       },
@@ -190,12 +208,13 @@ export async function grundrissLesenMit(
   bytes: Uint8Array,
   schluessel: string | undefined,
   aufruf: GrundrissAufruf,
+  medium: GrundrissMedium = "application/pdf",
 ): Promise<GrundrissErgebnis> {
   if (!schluessel || schluessel.trim() === "") return { raeume: [], fehler: FEHLER_OHNE_SCHLUESSEL };
   if (bytes.byteLength === 0) return { raeume: [], fehler: FEHLER_LEER };
   if (bytes.byteLength > GRUNDRISS_MAX_BYTES) return { raeume: [], fehler: FEHLER_ZU_GROSS };
 
-  const anfrage = grundrissAnfrage(base64(bytes));
+  const anfrage = grundrissAnfrage(base64(bytes), medium);
   const tokens = { eingabe: 0, ausgabe: 0 };
 
   for (let versuch = 1; versuch <= 2; versuch++) {

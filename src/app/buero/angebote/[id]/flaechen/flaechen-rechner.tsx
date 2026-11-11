@@ -74,6 +74,25 @@ function raumAusSpeicher(r: Omit<Partial<RaumEingabe>, "art" | "quelle"> & { art
   };
 }
 
+/**
+ * Foto für die KI vorbereiten: auf höchstens 2400 px Kantenlänge verkleinern und als JPG speichern.
+ * So passt auch ein großes Handyfoto unter 4 MB, und Formate wie HEIC vom iPhone (Safari kann sie öffnen) werden zu JPG.
+ */
+async function fotoVerkleinern(datei: File): Promise<Blob> {
+  const bild = await createImageBitmap(datei);
+  const faktor = Math.min(1, 2400 / Math.max(bild.width, bild.height));
+  const leinwand = document.createElement("canvas");
+  leinwand.width = Math.round(bild.width * faktor);
+  leinwand.height = Math.round(bild.height * faktor);
+  const ctx = leinwand.getContext("2d");
+  if (!ctx) throw new Error("kein Canvas");
+  ctx.fillStyle = "#fff"; // durchsichtige PNGs auf Weiß
+  ctx.fillRect(0, 0, leinwand.width, leinwand.height);
+  ctx.drawImage(bild, 0, 0, leinwand.width, leinwand.height);
+  bild.close();
+  return new Promise((ok, fehler) => leinwand.toBlob((b) => (b ? ok(b) : fehler(new Error("kein Bild"))), "image/jpeg", 0.88));
+}
+
 /** Fingerabdruck einer Datei (SHA-256), um eine doppelt hochgeladene Datei zu erkennen. */
 async function fingerabdruck(datei: File): Promise<string> {
   const h = await crypto.subtle.digest("SHA-256", await datei.arrayBuffer());
@@ -123,6 +142,7 @@ export function FlaechenRechner({ angebotId, gesperrt, leistungen }: { angebotId
   const [hinweis, setHinweis] = useState<string | null>(null);
   const [ziehen, setZiehen] = useState(false);
   const [liest, setLiest] = useState(false);
+  const [fortschritt, setFortschritt] = useState("");
   const [speichert, starte] = useTransition();
   const dateiFeld = useRef<HTMLInputElement>(null);
 
@@ -180,34 +200,76 @@ export function FlaechenRechner({ angebotId, gesperrt, leistungen }: { angebotId
     setZeilen((alt) => alt.map((z) => (z.id === id ? { ...z, ...teil } : z)));
   }
 
-  async function grundrissLesen(datei: File) {
+  /** Eine Datei an die KI schicken. Ergebnis: Meldung (gut oder Fehler) für die Sammelmeldung. */
+  async function eineDateiLesen(datei: File, bekannt: Datei[]): Promise<{ ok: boolean; text: string; datei?: Datei; raeume?: Raum[]; tokens?: { eingabe: number; ausgabe: number } }> {
+    const name = datei.name || "Foto";
+    const istPdf = datei.type === "application/pdf" || /\.pdf$/i.test(datei.name);
+    const istBild = datei.type.startsWith("image/") || /\.(jpe?g|png|webp|heic|heif)$/i.test(datei.name);
+    if (!istPdf && !istBild) return { ok: false, text: `„${name}“: nur PDF oder Fotos.` };
+    const hash = await fingerabdruck(datei);
+    const schon = bekannt.find((d) => d.hash === hash);
+    if (schon) return { ok: false, text: `„${name}“ wurde schon eingelesen${schon.name !== name ? ` (als „${schon.name}“)` : ""}.` };
+
+    let senden: Blob = datei;
+    if (istBild) {
+      try {
+        senden = await fotoVerkleinern(datei);
+      } catch {
+        return { ok: false, text: `„${name}“: Das Foto ließ sich nicht öffnen. Bitte als JPG oder PNG versuchen.` };
+      }
+    }
+    if (senden.size > 4_000_000) return { ok: false, text: `„${name}“ ist zu groß (höchstens 4 MB).` };
+
+    const daten = new FormData();
+    daten.set("datei", senden, istBild ? "foto.jpg" : name);
+    const antwort = await fetch(`/buero/angebote/${angebotId}/flaechen/grundriss`, { method: "POST", body: daten });
+    const a = (await antwort.json()) as GrundrissAntwort;
+    if (a.fehler) return { ok: false, text: `„${name}“: ${a.fehler}` };
+    const neu = a.raeume ?? [];
+    if (!neu.length) return { ok: false, text: `„${name}“: keine Räume gefunden, bitte von Hand eintragen.`, tokens: a.tokens };
+    const leer = neu.filter((r) => r.art !== "aussen" && r.boden == null).length;
+    return {
+      ok: true,
+      text: `„${name}“: ${neu.length} ${neu.length === 1 ? "Raum" : "Räume"}${leer ? `, bei ${leer} Fläche nicht lesbar` : ""}`,
+      datei: { hash, name },
+      raeume: neu,
+      tokens: a.tokens,
+    };
+  }
+
+  /** Mehrere Pläne oder Fotos nacheinander lesen (je Datei ein Aufruf der KI). */
+  async function grundrisseLesen(liste: File[]) {
+    if (!liste.length) return;
     setFehler(null);
     setHinweis(null);
-    if (datei.type && datei.type !== "application/pdf") return setFehler("Bitte eine PDF-Datei verwenden.");
-    if (datei.size > 4_000_000) return setFehler("Die Datei ist zu groß (höchstens 4 MB).");
     setLiest(true);
+    const gut: string[] = [];
+    const schlecht: string[] = [];
+    const tokens = { eingabe: 0, ausgabe: 0 };
+    const bekannt = [...dateien];
     try {
-      const hash = await fingerabdruck(datei);
-      const schon = dateien.find((d) => d.hash === hash);
-      if (schon) return setFehler(`Diese Datei wurde schon eingelesen${schon.name !== datei.name ? ` (als „${schon.name}“)` : ""}. Die Räume stehen bereits in der Tabelle.`);
-      const daten = new FormData();
-      daten.set("datei", datei);
-      const antwort = await fetch(`/buero/angebote/${angebotId}/flaechen/grundriss`, { method: "POST", body: daten });
-      const a = (await antwort.json()) as GrundrissAntwort;
-      if (a.fehler) return setFehler(a.fehler);
-      const neu = a.raeume ?? [];
-      if (!neu.length) return setFehler("Die KI hat in diesem Plan keine Räume gefunden. Bitte von Hand eintragen.");
-      setRaeume((alt) => [...alt, ...neu.map(alsEingabe)]);
-      setDateien((alt) => [...alt, { hash, name: datei.name }]);
-      const verbrauch = a.tokens ? ` Verbrauch: ${formatZahl(a.tokens.eingabe)} Token ein, ${formatZahl(a.tokens.ausgabe)} Token aus.` : "";
-      const leer = neu.filter((r) => r.art !== "aussen" && r.boden == null).length;
-      setHinweis(`${neu.length} ${neu.length === 1 ? "Raum" : "Räume"} aus „${datei.name}“ gelesen.${leer ? ` Bei ${leer} war die Fläche nicht lesbar, bitte eintragen.` : ""} Bitte die Tabelle prüfen und dann „Räume übernehmen“.${verbrauch}`);
-    } catch {
-      setFehler("Der Grundriss konnte nicht gelesen werden. Bitte nochmal versuchen.");
+      for (const [i, datei] of liste.entries()) {
+        setFortschritt(liste.length > 1 ? `${i + 1} von ${liste.length}: „${datei.name || "Foto"}“` : "");
+        try {
+          const r = await eineDateiLesen(datei, bekannt);
+          if (r.tokens) { tokens.eingabe += r.tokens.eingabe; tokens.ausgabe += r.tokens.ausgabe; }
+          if (!r.ok) { schlecht.push(r.text); continue; }
+          bekannt.push(r.datei!);
+          setRaeume((alt) => [...alt, ...r.raeume!.map(alsEingabe)]);
+          setDateien((alt) => [...alt, r.datei!]);
+          gut.push(r.text);
+        } catch {
+          schlecht.push(`„${datei.name || "Foto"}“ konnte nicht gelesen werden. Bitte nochmal versuchen.`);
+        }
+      }
     } finally {
       setLiest(false);
+      setFortschritt("");
       if (dateiFeld.current) dateiFeld.current.value = "";
     }
+    const verbrauch = tokens.eingabe ? ` Verbrauch: ${formatZahl(tokens.eingabe)} Token ein, ${formatZahl(tokens.ausgabe)} Token aus.` : "";
+    if (gut.length) setHinweis(`Gelesen: ${gut.join("; ")}. Bitte die Tabelle prüfen und dann „Räume übernehmen“.${verbrauch}`);
+    if (schlecht.length) setFehler(schlecht.join(" "));
   }
 
   function raeumeUebernehmen() {
@@ -265,8 +327,7 @@ export function FlaechenRechner({ angebotId, gesperrt, leistungen }: { angebotId
           onDrop={(e) => {
             e.preventDefault();
             setZiehen(false);
-            const f = e.dataTransfer.files?.[0];
-            if (f) void grundrissLesen(f);
+            void grundrisseLesen(Array.from(e.dataTransfer.files ?? []));
           }}
           className={cn(
             "flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed px-4 py-8 text-center text-sm text-muted-foreground",
@@ -275,9 +336,12 @@ export function FlaechenRechner({ angebotId, gesperrt, leistungen }: { angebotId
           )}
         >
           <FileUpIcon className="size-6" />
-          {liest ? "Die KI liest den Grundriss … (kann bis zu einer Minute dauern)" : "Grundriss (PDF) hierher ziehen oder klicken"}
-          <span className="text-xs">Höchstens 4 MB. Der Plan wird zum Auslesen an die Claude-KI (Anthropic) geschickt, das kostet pro Plan ein paar Cent. Gespeichert wird nichts.</span>
-          <input ref={dateiFeld} type="file" accept="application/pdf,.pdf" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; if (f) void grundrissLesen(f); }} />
+          {liest
+            ? `Die KI liest ${fortschritt ? `Datei ${fortschritt}` : "den Grundriss"} … (je Datei bis zu einer Minute)`
+            : "Grundrisse (PDF oder Fotos) hierher ziehen oder klicken, auch mehrere auf einmal"}
+          <span className="text-xs">PDF höchstens 4 MB, Fotos werden automatisch verkleinert. Jede Datei geht zum Auslesen an die Claude-KI (Anthropic), das kostet pro Datei ein paar Cent. Gespeichert wird nichts.</span>
+          {/* image/* öffnet am iPhone/Android auch Galerie und Kamera */}
+          <input ref={dateiFeld} type="file" multiple accept="application/pdf,.pdf,image/*" className="sr-only" onChange={(e) => void grundrisseLesen(Array.from(e.target.files ?? []))} />
         </label>
         {dateien.length > 0 && <p className="text-xs text-muted-foreground">Eingelesen: {dateien.map((d) => d.name).join(", ")}</p>}
       </section>

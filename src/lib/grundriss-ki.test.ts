@@ -7,8 +7,10 @@ import {
   FEHLER_ZWEIMAL_UNGUELTIG,
   GRUNDRISS_MAX_BYTES,
   GRUNDRISS_SCHEMA,
+  grundrissAnfrage,
   grundrissAnweisung,
   grundrissLesenMit,
+  grundrissMedium,
   raeumeAusAntwort,
   type GrundrissAnfrage,
   type GrundrissAntwort,
@@ -173,5 +175,19 @@ describe("grundrissLesenMit", () => {
     const r = await grundrissLesenMit(PDF, "sk-test", aufruf);
     expect(r.raeume).toEqual([]);
     expect(r.fehler).toBeTruthy();
+  });
+});
+
+describe("Fotos statt PDF", () => {
+  it("erkennt die Dateiart an den ersten Bytes", () => {
+    expect(grundrissMedium(PDF)).toBe("application/pdf");
+    expect(grundrissMedium(new Uint8Array([0xff, 0xd8, 0xff, 0xe0]))).toBe("image/jpeg");
+    expect(grundrissMedium(new Uint8Array([0x89, 0x50, 0x4e, 0x47]))).toBe("image/png");
+    expect(grundrissMedium(new Uint8Array([0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50]))).toBe("image/webp");
+    expect(grundrissMedium(new Uint8Array([0x50, 0x4b, 0x03, 0x04]))).toBeNull(); // ZIP o. Ä.
+  });
+  it("schickt ein Foto als image-Block, ein PDF als document-Block", () => {
+    expect(grundrissAnfrage("AAAA", "image/jpeg").messages[0].content[0]).toEqual({ type: "image", source: { type: "base64", media_type: "image/jpeg", data: "AAAA" } });
+    expect(grundrissAnfrage("AAAA").messages[0].content[0].type).toBe("document");
   });
 });
