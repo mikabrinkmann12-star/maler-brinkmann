@@ -52,6 +52,10 @@ export type AngebotPdfDaten = {
     abschlaege?: { nummer: string; datum: string; netto: number; brutto: number }[];
     /** Schlussrechnung: noch zu zahlender Betrag brutto nach Abzug der Abschläge */
     zahlbetrag?: number;
+    /** Satz zu den enthaltenen Lohnkosten (§ 35a EStG), steht unter den Zahlungsbedingungen */
+    lohnHinweis?: string;
+    /** Pflichthinweis zur Aufbewahrung bei Privatpersonen (§ 14 Abs. 4 Nr. 9 UStG) */
+    aufbewahrungHinweis?: string;
   };
 };
 
@@ -284,6 +288,8 @@ export async function angebotPdf(d: AngebotPdfDaten): Promise<Uint8Array> {
   if (mitSummen && d.zahlungsbedingung?.trim()) bedingungen.push(`Zahlungsbedingungen: ${d.zahlungsbedingung.trim()}.`);
   if (d.rechnung && istGutschrift) bedingungen.push(`Wir erstatten Ihnen den Betrag bzw. verrechnen ihn mit offenen Forderungen (${RECHNUNGS_ART_NAMEN[rechnungsArt]} ${d.rechnung.nummer}).`);
   else if (d.rechnung) bedingungen.push(`Bitte überweisen Sie ${d.rechnung.abschlaege?.length ? "den noch zu zahlenden Betrag" : "den Betrag"} bis zum ${formatDatum(d.rechnung.faelligAm)} unter Angabe der Rechnungsnummer ${d.rechnung.nummer}.`);
+  if (mitSummen && d.rechnung?.lohnHinweis) bedingungen.push(d.rechnung.lohnHinweis);
+  if (d.rechnung?.aufbewahrungHinweis) bedingungen.push(d.rechnung.aufbewahrungHinweis);
   if (art.gueltig && d.gueltigBis?.trim()) bedingungen.push(art.gueltig.replace("{datum}", formatDatum(d.gueltigBis)));
   if (bedingungen.length) {
     z.y -= 10;

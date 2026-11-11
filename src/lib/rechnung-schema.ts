@@ -73,6 +73,8 @@ export type RechnungBausteinEingabe = {
   menge?: string;
   einheit?: string;
   einzelpreis?: string;
+  /** Lohnanteil am Einzelpreis (€ je Einheit, netto); leer = unbekannt */
+  lohn?: string;
 };
 
 /** Baustein einer Rechnung prüfen: Position (wie im Angebot) oder Textzeile (Kurz- oder Langtext). */
@@ -89,5 +91,9 @@ export function rechnungBausteinPruefen(e: RechnungBausteinEingabe): { daten: Re
   const r = bausteinPruefen(e);
   if ("fehler" in r) return { fehler: r.fehler };
   const d = r.daten;
-  return { daten: { typ: "position", kurztext: d.kurztext ?? "", langtext: d.langtext ?? "", menge: d.menge, einheit: d.einheit ?? "", einzelpreis: d.einzelpreis } };
+  const lohnText = (e.lohn ?? "").trim();
+  const lohn = lohnText === "" ? null : zahlLesen(lohnText, 4);
+  if (lohnText !== "" && (lohn === null || lohn < 0)) return { fehler: "Lohnanteil: bitte einen Betrag in Euro eingeben (z. B. 12,50) oder leer lassen." };
+  if (lohn !== null && d.einzelpreis !== null && lohn > d.einzelpreis) return { fehler: "Der Lohnanteil darf nicht größer als der Preis sein." };
+  return { daten: { typ: "position", kurztext: d.kurztext ?? "", langtext: d.langtext ?? "", menge: d.menge, einheit: d.einheit ?? "", einzelpreis: d.einzelpreis, lohnEinzel: lohn } };
 }

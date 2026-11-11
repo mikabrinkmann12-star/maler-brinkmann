@@ -3,13 +3,15 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { angebotBerechnen } from "@/lib/angebot";
 import { angebotLaden } from "@/lib/angebot-daten";
 import { heuteIso } from "@/lib/datum";
-import { bausteineAusAngebot, type RechnungsArt } from "@/lib/rechnung";
+import { STANDARD_EINSTELLUNGEN, einstellungenAusJson, kalkulationAusJson } from "@/lib/kalkulation";
+import { istStundenEinheit, lohnEinzelAusQuote, lohnQuoteAusKalkulation } from "@/lib/lohnanteil";
+import { bausteineAusAngebot, type RechnungsArt, type RechnungsBaustein } from "@/lib/rechnung";
 import { abschlagBausteine, abschlagNetto, gutschriftBetreff, type AbschlagWahl } from "@/lib/rechnung-eigen";
 import { rechnungsEinstellungenLaden } from "@/lib/rechnung-einstellungen-daten";
 import type { Database } from "@/lib/supabase/database.types";
 
 // Rechnungsentwurf aus einem Angebot (Büro-Aktion und API). Der Aufrufer hat die Berechtigung vorher geprüft.
-// HARTE REGEL: Hier entsteht nur ein ENTWURF in der App. Rechnungsnummer und Rechnungsdatei kommen ausschließlich vom Buchhaltungsprogramm.
+// Hier entsteht nur ein ENTWURF. Nummer und PDF vergibt erst das Fertigstellen (rechnung_finalisieren).
 
 export type RechnungEntwurfErgebnis = { fehler?: string; id?: string; hinweis?: string; projektId?: string };
 
@@ -17,6 +19,23 @@ function dbMeldung(fehler: { code?: string; message: string }): string {
   if (fehler.code === "P0001") return fehler.message;
   if (fehler.code === "23514") return "Ein Wert ist ungültig (zu lang oder außerhalb des erlaubten Bereichs).";
   return "Speichern hat nicht geklappt. Bitte nochmal versuchen.";
+}
+
+/**
+ * Lohnanteil je Angebotsbaustein: aus der Kalkulation der Katalog-Leistung, 0 bei Katalog-Material, null bei freien Positionen.
+ */
+async function lohnQuotenLaden(db: SupabaseClient<Database>, angebotId: string, bausteinIds: string[]): Promise<Map<string, number | null>> {
+  const [{ data: items }, { data: k }] = await Promise.all([
+    db.from("quote_items").select("id, typ, material_id, service_id, services(kalkulation)").eq("quote_id", angebotId).limit(2000),
+    db.from("kalkulation_einstellungen").select("zuschlaege, lohngruppen").maybeSingle(),
+  ]);
+  const einst = k ? einstellungenAusJson(k.zuschlaege, k.lohngruppen) : STANDARD_EINSTELLUNGEN;
+  const quoten = new Map<string, number | null>();
+  for (const i of items ?? []) {
+    if (!bausteinIds.includes(i.id) || i.typ !== "position") continue;
+    quoten.set(i.id, i.material_id ? 0 : i.service_id ? lohnQuoteAusKalkulation(kalkulationAusJson(i.services?.kalkulation), einst) : null);
+  }
+  return quoten;
 }
 
 /**
@@ -37,8 +56,17 @@ export async function rechnungEntwurfAusAngebot(
   if (a.status === "entwurf") return { fehler: "Das Angebot ist noch ein Entwurf. Markiere es zuerst als „Versendet“ oder „Angenommen“." };
   if (a.status === "abgelehnt") return { fehler: "Das Angebot wurde abgelehnt." };
 
-  let positionen = bausteineAusAngebot(bausteine);
+  let positionen: RechnungsBaustein[] = bausteineAusAngebot(bausteine);
   if (!positionen.some((p) => p.typ === "position")) return { fehler: "Das Angebot hat keine Position." };
+  // Lohnanteil (§ 35a) je Position: bausteineAusAngebot behält Positionen, Titel und Texte in derselben Reihenfolge
+  const uebernommen = bausteine.filter((b) => b.typ === "position" || b.typ === "titel" || b.typ === "text");
+  const quoten = await lohnQuotenLaden(db, angebotId, uebernommen.map((b) => b.id));
+  positionen = positionen.map((p, i) => {
+    if (p.typ !== "position") return p;
+    // Freie Position in Stunden (z. B. „Arbeitslohn … 16,50 Std.“) ist reiner Lohn; im Entwurf änderbar
+    const quote = quoten.get(uebernommen[i]?.id) ?? (istStundenEinheit(p.einheit) ? 1 : null);
+    return { ...p, lohnEinzel: lohnEinzelAusQuote(p.einzelpreis, quote) };
+  });
 
   if (art === "abschlag") {
     // Mehrere Abschläge sind erlaubt; sie dürfen zusammen die Auftragssumme nicht übersteigen
@@ -49,7 +77,11 @@ export async function rechnungEntwurfAusAngebot(
     const nr = (bisher ?? []).length + 1;
     const ergebnis = abschlagNetto(summe, optionen.abschlag, bereits);
     if ("fehler" in ergebnis) return { fehler: ergebnis.fehler };
-    positionen = abschlagBausteine(a.betreff, optionen.abschlag, ergebnis.netto, nr);
+    // Lohnanteil des Abschlags = Lohnanteil des ganzen Auftrags (vor Rabatt) im selben Verhältnis
+    const auftragNetto = positionen.reduce((s, p) => s + (p.typ === "position" ? (p.menge ?? 0) * (p.einzelpreis ?? 0) : 0), 0);
+    const auftragLohn = positionen.reduce((s, p) => s + (p.typ === "position" ? (p.menge ?? 0) * (p.lohnEinzel ?? 0) : 0), 0);
+    const quote = auftragNetto > 0 ? auftragLohn / auftragNetto : null;
+    positionen = abschlagBausteine(a.betreff, optionen.abschlag, ergebnis.netto, nr).map((p) => ({ ...p, lohnEinzel: lohnEinzelAusQuote(p.einzelpreis, quote) }));
   } else {
     // Normale Rechnung bzw. Schlussrechnung: gibt es zur Art schon eine offene Rechnung zum Angebot, wird sie geöffnet
     const { data: vorhanden } = await db.from("invoices").select("id").eq("quote_id", angebotId).eq("art", art).is("archiviert_am", null).limit(1);
@@ -77,7 +109,7 @@ export async function rechnungEntwurfAusAngebot(
       quote_id: angebotId,
       contact_id: p.contact_id,
       betreff: a.betreff,
-      // Anfangs- und Schlusstext der Rechnung (Einstellungen → Rechnungen – Vorgaben); leer = die Buchhaltung nimmt ihren eigenen
+      // Anfangs- und Schlusstext der Rechnung (Einstellungen → Rechnungen – Vorgaben); leer = kein Text
       einleitung: firmenZiel.einleitung || null,
       schlusstext: firmenZiel.schlusstext || null,
       rechnungsdatum: heute,
@@ -109,6 +141,7 @@ export async function rechnungEntwurfAusAngebot(
       menge: b.menge,
       einheit: b.typ === "position" ? b.einheit : null,
       einzelpreis: b.einzelpreis,
+      lohn_einzel: b.typ === "position" ? (b.lohnEinzel ?? null) : null,
     })),
   );
   if (itemsFehler) {
@@ -134,7 +167,7 @@ export async function folgedokumentEntwurf(db: SupabaseClient<Database>, origina
   if (o.art === "gutschrift" || o.art === "storno") return { fehler: "Zu einer Gutschrift gibt es keine weitere Gutschrift." };
   if (o.lexware_status === "voided") return { fehler: `Die Rechnung ${o.rechnungsnummer} ist schon storniert.` };
 
-  const { data: items } = await db.from("invoice_items").select("typ, kurztext, langtext, menge, einheit, einzelpreis, sortierung").eq("invoice_id", originalId).order("sortierung");
+  const { data: items } = await db.from("invoice_items").select("typ, kurztext, langtext, menge, einheit, einzelpreis, lohn_einzel, sortierung").eq("invoice_id", originalId).order("sortierung");
   const heute = heuteIso();
   const { data: neu, error } = await db
     .from("invoices")
@@ -158,7 +191,7 @@ export async function folgedokumentEntwurf(db: SupabaseClient<Database>, origina
     .single();
   if (error) return { fehler: dbMeldung(error) };
   const { error: itemsFehler } = await db.from("invoice_items").insert(
-    (items ?? []).map((b, i) => ({ invoice_id: neu.id, sortierung: i, typ: b.typ, kurztext: b.kurztext, langtext: b.langtext, menge: b.menge, einheit: b.einheit, einzelpreis: b.einzelpreis })),
+    (items ?? []).map((b, i) => ({ invoice_id: neu.id, sortierung: i, typ: b.typ, kurztext: b.kurztext, langtext: b.langtext, menge: b.menge, einheit: b.einheit, einzelpreis: b.einzelpreis, lohn_einzel: b.lohn_einzel })),
   );
   if (itemsFehler) {
     await db.from("invoices").update({ archiviert_am: new Date().toISOString() }).eq("id", neu.id);

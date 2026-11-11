@@ -7,6 +7,9 @@ import type { RechnungsArt, RechnungsBaustein } from "@/lib/rechnung";
 
 /** Nummernkreis aus den Einstellungen: Kürzel und Startnummer (gilt nur für die erste Rechnung eines Jahres). */
 export const RECHNUNG_PRAEFIX_STANDARD = "R-";
+
+/** Pflichthinweis auf Rechnungen über Leistungen an einem Grundstück an Privatpersonen (§ 14 Abs. 4 Nr. 9 UStG). */
+export const AUFBEWAHRUNG_PRIVAT_HINWEIS = "Als Privatperson sind Sie gesetzlich verpflichtet, diese Rechnung zwei Jahre lang aufzubewahren (§ 14b Abs. 1 Satz 5 UStG).";
 export const GUTSCHRIFT_PRAEFIX_STANDARD = "G-";
 
 /** So sieht die nächste Nummer aus: „R-2026-0001“. Spiegelt die Datenbank-Funktion `rechnung_finalisieren`. */

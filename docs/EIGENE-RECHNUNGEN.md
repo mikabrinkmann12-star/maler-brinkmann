@@ -24,6 +24,13 @@
 - **Export für den Steuerberater** (Ausgangsrechnungen → „Export für den Steuerberater“, `/buero/rechnungen/steuerberater`): Zeitraum wählen, dann Rechnungsjournal (CSV für Excel), DATEV-Buchungsstapel (EXTF 510, Windows-1252, Sammeldebitor, Erlöskonten je Steuersatz, Konten unter derselben Seite einstellbar, Einstellung `datev`) und ZIP mit allen Rechnungs-PDFs (bei eigenen Rechnungen mit dem XML), in Teilen zu 15 Rechnungen (Serverlimit). In Lexware/sevdesk stornierte Rechnungen stehen im Journal, werden aber **nicht** in den DATEV-Stapel gebucht (kein Storno-Beleg bei uns).
 - **Tests:** `src/lib/steuerberater-export.test.ts`, `e-rechnung.test.ts`, `rechnung-eigen.test.ts`; `tests/rls/26-rechnungsarten.test.ts`, `27-e-rechnung.test.ts`. Im Browser geprüft (dev): Abschlag 30 % anlegen und fertigstellen, Storno, Export-Seite mit Journal, DATEV und ZIP.
 
+## Lohnkosten (§ 35a EStG) und Aufbewahrungshinweis (11.11.2026)
+- Je Rechnungsposition gibt es den **Lohnanteil am Einzelpreis** (`invoice_items.lohn_einzel`, Migration `…20261111100000_rechnung_lohnanteil`, nur dev). Beim Erstellen aus dem Angebot: Katalog-Leistung → Anteil des Lohns an der Kalkulation, Katalog-Material → 0, freie Position in Stunden („Std.“) → voller Preis, sonst unbekannt. Im Entwurf je Position unter „davon Lohn (€)“ änderbar. Abschlag: Lohnanteil im Verhältnis des ganzen Auftrags. Gezählt wird nur Lohn, keine Geräte oder Fahrtkosten (mit dem Steuerberater klären).
+- Unter den Summen steht der Satz „In diesem Rechnungsbetrag sind Lohnkosten (Arbeitskosten nach § 35a EStG) von … enthalten.“, wenn es unter Einstellungen → Rechnungen – Vorgaben für den Kundentyp eingeschaltet ist (Standard wie Plancraft: Privatpersonen ja, Firmen nein). Schlussrechnung: abzüglich des Lohns aus den Abschlägen. Gutschrift/Storno: kein Satz.
+- Rechnungen an Privatpersonen bekommen den Pflichthinweis zur 2-jährigen Aufbewahrung (§ 14 Abs. 4 Nr. 9 UStG). Plancraft druckt dazu „Unternehmen 10 Jahre“; seit 2025 sind es für Buchungsbelege 8 Jahre, darum steht der Satz bei uns nur für Privatpersonen.
+- Vergleich mit Plancraft (Rechnung R-(24)22747, Privatkunde): Plancraft hat dort trotz Einstellung **keinen** Lohnkosten-Satz gedruckt (die Positionen waren frei, ohne Kalkulation). Arbeitslohn steht als eigene Position in „Std.“, darum die Stunden-Regel.
+- Tests: `src/lib/lohnanteil.test.ts`, `rechnung-schema.test.ts`, `tests/rls/28-lohnanteil.test.ts`.
+
 ## Was noch fehlt
 1. **E-Rechnung** gegen den amtlichen Prüfer testen (Pflicht zum Ausstellen für alle ab 1.1.2028).
 2. **DATEV-Stapel** ist nicht mit DATEV getestet; Berater-/Mandantennummer und Konten nennt der Steuerberater. Kein Konto je Kunde (Sammeldebitor), keine Zahlungsbuchungen.

@@ -15,7 +15,7 @@ import { AufmassWahl } from "../../aufmass-wahl";
 import { rechnungBausteinLoeschen, rechnungBausteinSpeichern, rechnungBausteinVerschieben } from "../actions";
 
 
-type Werte = { kurztext: string; langtext: string; menge: string; einheit: string; einzelpreis: string };
+type Werte = { kurztext: string; langtext: string; menge: string; einheit: string; einzelpreis: string; lohn: string };
 type Baustein = RechnungsBaustein & { id: string };
 
 function startWerte(b: RechnungsBaustein | null, typ: "position" | "text", einheitStandard: string): Werte {
@@ -25,6 +25,7 @@ function startWerte(b: RechnungsBaustein | null, typ: "position" | "text", einhe
     menge: b?.menge == null ? (typ === "position" ? "1" : "") : zahlFuerFeld(b.menge),
     einheit: b?.einheit ?? (typ === "position" ? einheitStandard : ""),
     einzelpreis: b?.einzelpreis == null ? "" : zahlFuerFeld(b.einzelpreis, 2),
+    lohn: b?.lohnEinzel == null ? "" : zahlFuerFeld(b.lohnEinzel, 2),
   };
 }
 
@@ -100,6 +101,7 @@ function Zeile({
           <label className="flex flex-col gap-1 text-sm text-muted-foreground">Menge<Input inputMode="decimal" className="h-11 w-28 text-right text-base" {...feld("menge")} /></label>
           <label className="flex flex-col gap-1 text-sm text-muted-foreground">Einheit<Input list="rechnung-einheiten" maxLength={20} className="h-11 w-28 text-base" {...feld("einheit")} /></label>
           <label className="flex flex-col gap-1 text-sm text-muted-foreground">Preis netto (€)<Input inputMode="decimal" className="h-11 w-32 text-right text-base" {...feld("einzelpreis")} /></label>
+          <label className="flex flex-col gap-1 text-sm text-muted-foreground" title="Lohnanteil am Preis je Einheit (netto). Steht als Lohnkosten (§ 35a EStG) auf der Rechnung. Leer = unbekannt.">davon Lohn (€)<Input inputMode="decimal" placeholder="unbekannt" className="h-11 w-28 text-right text-base" {...feld("lohn")} /></label>
           <div className="ml-auto flex flex-col items-end text-sm text-muted-foreground">Gesamt<span className="text-lg font-semibold text-foreground tabular-nums">{gesamt === null ? "–" : formatBetrag(gesamt)}</span></div>
         </div>
       )}
@@ -131,7 +133,7 @@ export function PositionenEditor({ rechnungId, projektId, bausteine, gesperrt }:
       <datalist id="rechnung-einheiten">{einheiten.liste.map((e) => <option key={e} value={e} />)}</datalist>
       {bausteine.length === 0 && <p className="rounded-xl border border-dashed p-6 text-muted-foreground">Noch keine Positionen.</p>}
       {bausteine.map((b, i) => (
-        <Zeile key={`${b.id}:${b.kurztext}|${b.langtext}|${b.menge}|${b.einheit}|${b.einzelpreis}`} rechnungId={rechnungId} projektId={projektId} baustein={b}
+        <Zeile key={`${b.id}:${b.kurztext}|${b.langtext}|${b.menge}|${b.einheit}|${b.einzelpreis}|${b.lohnEinzel}`} rechnungId={rechnungId} projektId={projektId} baustein={b}
           nummer={nummern[i]} gesperrt={gesperrt} erste={i === 0} letzte={i === bausteine.length - 1} />
       ))}
       {!gesperrt && (neu ? (

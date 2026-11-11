@@ -17,6 +17,9 @@ export type RechnungsEinstellungen = {
   /** Anfangs- und Schlusstext, mit denen neue Rechnungen vorbelegt werden (im Rechnungsentwurf änderbar) und die an die Buchhaltung gehen */
   einleitung: string;
   schlusstext: string;
+  /** Lohnkosten (§ 35a EStG) auf Rechnungen ausweisen: an Privatpersonen (Standard wie in Plancraft) bzw. an Firmen */
+  lohnPrivat: boolean;
+  lohnFirma: boolean;
 };
 
 /** Texte für neue Rechnungen, wenn der Admin nichts eingetragen hat (die Zahlungsbedingungen hängt die App selbst an). */
@@ -33,6 +36,8 @@ export const STANDARD_RECHNUNGSEINSTELLUNGEN: RechnungsEinstellungen = {
   mahnung2: { tage: 7, zinsenProzent: 0, gebuehr: 3 },
   einleitung: STANDARD_RECHNUNGS_EINLEITUNG,
   schlusstext: STANDARD_RECHNUNGS_SCHLUSSTEXT,
+  lohnPrivat: true,
+  lohnFirma: false,
 };
 
 export const MAHN_STUFEN_NAMEN = { erinnerung: "Zahlungserinnerung", mahnung1: "1. Mahnung", mahnung2: "2. Mahnung" } as const;
@@ -71,9 +76,11 @@ export function rechnungsEinstellungenAusJson(wert: unknown): RechnungsEinstellu
     erinnerung: stufeAusJson(o.erinnerung, s.erinnerung),
     mahnung1: stufeAusJson(o.mahnung1, s.mahnung1),
     mahnung2: stufeAusJson(o.mahnung2, s.mahnung2),
-    // Ein ausdrücklich geleerter Text bleibt leer (dann nimmt die Buchhaltung ihren eigenen), nur „nie eingestellt“ nimmt den Standard
+    // Ein ausdrücklich geleerter Text bleibt leer (dann steht kein Text da), nur „nie eingestellt“ nimmt den Standard
     einleitung: typeof o.einleitung === "string" ? o.einleitung.slice(0, 3000) : s.einleitung,
     schlusstext: typeof o.schlusstext === "string" ? o.schlusstext.slice(0, 3000) : s.schlusstext,
+    lohnPrivat: typeof o.lohn_privat === "boolean" ? o.lohn_privat : s.lohnPrivat,
+    lohnFirma: typeof o.lohn_firma === "boolean" ? o.lohn_firma : s.lohnFirma,
   };
 }
 
@@ -88,6 +95,8 @@ export function rechnungsEinstellungenAlsJson(e: RechnungsEinstellungen) {
     mahnung2: stufe(e.mahnung2),
     einleitung: e.einleitung,
     schlusstext: e.schlusstext,
+    lohn_privat: e.lohnPrivat,
+    lohn_firma: e.lohnFirma,
   };
 }
 
@@ -99,6 +108,8 @@ export type RechnungsEinstellungenEingabe = {
   skontoTage: string;
   einleitung: string;
   schlusstext: string;
+  lohnPrivat: boolean;
+  lohnFirma: boolean;
 } & Record<MahnStufenSchluessel, { tage: string; zinsenProzent: string; gebuehr: string }>;
 
 export function eingabeAusEinstellungen(e: RechnungsEinstellungen): RechnungsEinstellungenEingabe {
@@ -112,6 +123,8 @@ export function eingabeAusEinstellungen(e: RechnungsEinstellungen): RechnungsEin
     mahnung2: stufe(e.mahnung2),
     einleitung: e.einleitung,
     schlusstext: e.schlusstext,
+    lohnPrivat: e.lohnPrivat,
+    lohnFirma: e.lohnFirma,
   };
 }
 
@@ -161,6 +174,8 @@ export const rechnungsEinstellungenSchema = z
     mahnung2: stufenSchema("2. Mahnung"),
     einleitung: z.string().max(3000, "Anfangstext: höchstens 3.000 Zeichen.").transform((t) => t.replace(/\r\n/g, "\n").trim()),
     schlusstext: z.string().max(3000, "Schlusstext: höchstens 3.000 Zeichen.").transform((t) => t.replace(/\r\n/g, "\n").trim()),
+    lohnPrivat: z.boolean(),
+    lohnFirma: z.boolean(),
   })
   .refine((d) => (d.skontoProzent === null) === (d.skontoTage === null), { message: "Skonto: Bitte Prozent und Frist (Tage) zusammen angeben oder beides leer lassen.", path: ["skontoTage"] })
   .refine((d) => d.skontoProzent === null || d.zahlungszielTage !== null, { message: "Skonto gibt es nur zusammen mit einem Zahlungsziel.", path: ["skontoProzent"] })
@@ -182,6 +197,8 @@ export function einstellungenAusEingabe(d: RechnungsEinstellungenGeprueft): Rech
     mahnung2: d.mahnung2,
     einleitung: d.einleitung,
     schlusstext: d.schlusstext,
+    lohnPrivat: d.lohnPrivat,
+    lohnFirma: d.lohnFirma,
   };
 }
 

@@ -95,6 +95,24 @@ export function RechnungenFormular({ start }: { start: RechnungsEinstellungenEin
 
       <section className="flex flex-col gap-3 rounded-lg border bg-white p-4">
         <div>
+          <h2 className="text-[15px] font-semibold">Lohnkostenanteil ausweisen</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Unter den Summen steht dann, wie viel der Rechnung Lohnkosten sind (§ 35a EStG). Privatkunden können diesen Teil von der Steuer absetzen.
+            Der Lohnanteil kommt aus der Kalkulation der Leistungen im Katalog und lässt sich je Position im Rechnungsentwurf ändern.
+          </p>
+        </div>
+        <label className="flex items-center gap-2 text-[13px]">
+          <input type="checkbox" checked={w.lohnPrivat} onChange={(e) => setzen({ lohnPrivat: e.target.checked })} className="size-4" />
+          Auf Rechnungen an Privatpersonen
+        </label>
+        <label className="flex items-center gap-2 text-[13px]">
+          <input type="checkbox" checked={w.lohnFirma} onChange={(e) => setzen({ lohnFirma: e.target.checked })} className="size-4" />
+          Auf Rechnungen an Firmen
+        </label>
+      </section>
+
+      <section className="flex flex-col gap-3 rounded-lg border bg-white p-4">
+        <div>
           <h2 className="text-[15px] font-semibold">Mahnungen</h2>
           <p className="mt-0.5 text-xs text-muted-foreground">
             Frist, Verzugszinsen und Gebühr je Stufe. Diese Werte nutzt die App für das Mahnschreiben (PDF), das sie per E-Mail an den Kunden schickt.

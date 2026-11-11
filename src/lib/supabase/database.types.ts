@@ -906,6 +906,7 @@ export type Database = {
           invoice_id: string
           kurztext: string | null
           langtext: string | null
+          lohn_einzel: number | null
           menge: number | null
           sortierung: number
           typ: Database["public"]["Enums"]["rechnung_baustein"]
@@ -919,6 +920,7 @@ export type Database = {
           invoice_id: string
           kurztext?: string | null
           langtext?: string | null
+          lohn_einzel?: number | null
           menge?: number | null
           sortierung: number
           typ: Database["public"]["Enums"]["rechnung_baustein"]
@@ -932,6 +934,7 @@ export type Database = {
           invoice_id?: string
           kurztext?: string | null
           langtext?: string | null
+          lohn_einzel?: number | null
           menge?: number | null
           sortierung?: number
           typ?: Database["public"]["Enums"]["rechnung_baustein"]

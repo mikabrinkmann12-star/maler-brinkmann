@@ -64,7 +64,7 @@ export type RechnungDetail = {
   rechnung: RechnungKopf;
   bausteine: (RechnungsBaustein & { id: string })[];
   projekt: { id: string; name: string; projektnummer: string; adresse: string };
-  kunde: { id: string; name: string; kundennummer: string; email: string; leitwegId: string; anschrift: string[]; strasse: string; plz: string; ort: string; land: string };
+  kunde: { id: string; name: string; kundennummer: string; typ: string; email: string; leitwegId: string; anschrift: string[]; strasse: string; plz: string; ort: string; land: string };
   mahnungen: { id: string; stufe: number; versendetAn: string | null; versendetAm: string | null; erstelltAm: string }[];
   angebot: { id: string; betreff: string } | null;
   abschlaege: AbschlagZeile[];
@@ -85,7 +85,7 @@ export async function rechnungLaden(id: string): Promise<RechnungDetail | null> 
 
   const { data: items, error: itemsFehler } = await supabase
     .from("invoice_items")
-    .select("id, typ, kurztext, langtext, menge, einheit, einzelpreis")
+    .select("id, typ, kurztext, langtext, menge, einheit, einzelpreis, lohn_einzel")
     .eq("invoice_id", id)
     .order("sortierung")
     .order("created_at")
@@ -186,6 +186,7 @@ export async function rechnungLaden(id: string): Promise<RechnungDetail | null> 
       menge: i.menge == null ? null : Number(i.menge),
       einheit: i.einheit ?? "",
       einzelpreis: i.einzelpreis == null ? null : Number(i.einzelpreis),
+      lohnEinzel: i.lohn_einzel == null ? null : Number(i.lohn_einzel),
     })),
     projekt: {
       id: r.project_id,
@@ -197,6 +198,7 @@ export async function rechnungLaden(id: string): Promise<RechnungDetail | null> 
       id: r.contact_id,
       name: kontaktName(k),
       kundennummer: k?.kundennummer ?? "",
+      typ: k?.typ ?? "",
       email: k?.email ?? "",
       leitwegId: k?.leitweg_id ?? "",
       anschrift: k ? briefanschrift(k) : [],

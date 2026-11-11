@@ -123,6 +123,7 @@ export async function rechnungBausteinSpeichern(rechnungId: string, id: string |
     menge: d.menge,
     einheit: d.typ === "position" ? d.einheit : null,
     einzelpreis: d.einzelpreis,
+    lohn_einzel: d.typ === "position" ? (d.lohnEinzel ?? null) : null,
   };
 
   const supabase = await createClient();

@@ -16,6 +16,7 @@ import { formatBetrag, formatDatum, formatDatumZeit, formatZahl } from "@/lib/fo
 import { firmaLaden } from "@/lib/firma-daten";
 import { smtpKonfiguration } from "@/lib/env";
 import { eRechnungFuer } from "@/lib/e-rechnung-daten";
+import { lohnanteilBerechnen, lohnanteilZeigen } from "@/lib/lohnanteil";
 import { mahnungMailVorschlag, rechnungMailVorschlag } from "@/lib/rechnung-mail";
 import { RECHNUNGS_ART_NAMEN, istGutschriftArt, rechnungBerechnen } from "@/lib/rechnung";
 import { rechnungLaden } from "@/lib/rechnung-daten";
@@ -51,6 +52,7 @@ export default async function RechnungSeite({ params }: PageProps<"/buero/rechnu
   // Entwürfe und fertige Rechnungen der App (anbieter „eigen“). Alles andere sind ältere Rechnungen aus früheren Systemen: fertig, gesperrt, nur lesbar, bezahlbar und mahnbar.
   const istEigen = r.anbieter === "eigen" || r.status === "entwurf";
   const vorgaben = await rechnungsEinstellungenLaden();
+  const lohn = lohnanteilBerechnen(bausteine, { rabattProzent: r.rabattProzent, steuersatz: r.steuersatz, reverseCharge: r.reverseCharge });
   const mahnHinweise = Object.fromEntries([1, 2, 3].map((n) => [n, mahnungsHinweis(vorgaben, n) ?? ""]).filter(([, t]) => t));
 
   const heute = heuteIso();
@@ -190,6 +192,21 @@ export default async function RechnungSeite({ params }: PageProps<"/buero/rechnu
             <p className="px-3 text-[13px] text-muted-foreground">Keine Abzüge. Einen Rabatt stellst du im Rechnungsentwurf unten ein.</p>
           )}
         </div>
+
+        {!istGutschriftArt(r.art) && (
+          <div className={abschnitt}>
+            <h2 className={ueberschrift}>Lohnkosten (§ 35a EStG)</h2>
+            <p className="px-3 text-[13px]">
+              {lohn.brutto > 0 ? <>Lohnanteil: {formatBetrag(lohn.netto)} netto{lohn.ust > 0 && <>, {formatBetrag(lohn.brutto)} brutto</>}.</> : "Noch kein Lohnanteil eingetragen."}{" "}
+              <span className="text-muted-foreground">
+                {lohnanteilZeigen(vorgaben, kunde.typ)
+                  ? `Steht auf der Rechnung (für ${kunde.typ === "firma" ? "Firmen" : "Privatpersonen"} eingeschaltet unter Einstellungen → Rechnungen – Vorgaben).`
+                  : `Steht nicht auf der Rechnung (für ${kunde.typ === "firma" ? "Firmen" : "Privatpersonen"} ausgeschaltet unter Einstellungen → Rechnungen – Vorgaben).`}
+                {lohn.unvollstaendig && " Bei mindestens einer Position fehlt der Lohnanteil; trag ihn im Entwurf unter „davon Lohn“ ein."}
+              </span>
+            </p>
+          </div>
+        )}
 
         <div className={abschnitt}>
           <h2 className={ueberschrift}>Notiz</h2>

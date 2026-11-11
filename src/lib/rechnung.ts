@@ -40,6 +40,8 @@ export type RechnungsBaustein = {
   menge: number | null;
   einheit: string;
   einzelpreis: number | null;
+  /** Lohnanteil am Einzelpreis (netto, € je Einheit) für den Ausweis nach § 35a EStG; null/leer = unbekannt */
+  lohnEinzel?: number | null;
 };
 
 /** Aus den Bausteinen eines Angebots werden Rechnungsbausteine: Positionen bleiben, Titel und Text werden Textzeilen, Zwischensummen und Bilder entfallen. */

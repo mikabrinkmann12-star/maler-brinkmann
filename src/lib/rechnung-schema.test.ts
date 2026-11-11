@@ -28,8 +28,12 @@ describe("rechnungKopfSchema", () => {
 describe("rechnungBausteinPruefen", () => {
   it("Position wie im Angebot, Textzeile mit Kurz- oder Langtext", () => {
     expect(rechnungBausteinPruefen({ typ: "position", kurztext: "Wände", menge: "313,63", einheit: "m²", einzelpreis: "11,80" })).toEqual({
-      daten: { typ: "position", kurztext: "Wände", langtext: "", menge: 313.63, einheit: "m²", einzelpreis: 11.8 },
+      daten: { typ: "position", kurztext: "Wände", langtext: "", menge: 313.63, einheit: "m²", einzelpreis: 11.8, lohnEinzel: null },
     });
+    // Lohnanteil (§ 35a): deutsches Komma, nie größer als der Preis
+    expect(rechnungBausteinPruefen({ typ: "position", kurztext: "Wände", menge: "1", einheit: "m²", einzelpreis: "11,80", lohn: "8,50" })).toMatchObject({ daten: { lohnEinzel: 8.5 } });
+    expect("fehler" in rechnungBausteinPruefen({ typ: "position", kurztext: "Wände", menge: "1", einheit: "m²", einzelpreis: "11,80", lohn: "12" })).toBe(true);
+    expect("fehler" in rechnungBausteinPruefen({ typ: "position", kurztext: "Wände", menge: "1", einheit: "m²", einzelpreis: "11,80", lohn: "abc" })).toBe(true);
     expect(rechnungBausteinPruefen({ typ: "text", kurztext: "Wohnzimmer" })).toMatchObject({ daten: { typ: "text", kurztext: "Wohnzimmer" } });
     expect("fehler" in rechnungBausteinPruefen({ typ: "text" })).toBe(true);
     expect("fehler" in rechnungBausteinPruefen({ typ: "zwischensumme" })).toBe(true);
