@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ArchiveIcon, ArchiveRestoreIcon, ClipboardListIcon, CopyIcon, PackageCheckIcon, DownloadIcon, EyeIcon, ReceiptTextIcon, SendIcon } from "lucide-react";
+import { ArchiveIcon, ArchiveRestoreIcon, ClipboardListIcon, CopyIcon, PackageCheckIcon, DownloadIcon, EyeIcon, ReceiptTextIcon, RulerIcon, SendIcon } from "lucide-react";
 import { toast } from "sonner";
 import { FormularMeldung } from "@/components/formular-meldung";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -93,6 +93,7 @@ export function AktionenLeiste({ angebotId, status, archiviert, dokumentart }: {
     <div className="flex flex-col gap-3">
       {fehler && <FormularMeldung>{fehler}</FormularMeldung>}
       <div className="flex flex-wrap gap-2">
+        <a href={`/buero/angebote/${angebotId}/flaechen`} className={buttonVariants({ variant: "outline" })}><RulerIcon /> Flächen aus Grundriss</a>
         <a href={`/buero/angebote/${angebotId}/pdf`} target="_blank" rel="noreferrer" className={buttonVariants({ variant: "outline" })}>
           <EyeIcon /> PDF ansehen
         </a>
