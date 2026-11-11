@@ -19,6 +19,7 @@ import {
   type FlaechenStandard,
   type Raum,
   type RaumArt,
+  type RaumFlaechen,
 } from "@/lib/flaechen-typen";
 import { flaechenUebernehmen } from "../../flaechen-actions";
 import type { GrundrissAntwort } from "./grundriss/route";
@@ -51,7 +52,8 @@ function alsBereich(wert: string): Bereich {
   if (wert.startsWith("g:")) return { art: "wohnungen", geschoss: wert.slice(2) };
   if (wert.startsWith("wo:")) return { art: "wohnung", wohnung: wert.slice(3) };
   if (wert.startsWith("a:")) return { art: "raumart", raumArt: wert.slice(2) as (typeof SONDER_ARTEN)[number] };
-  if (wert.startsWith("r:")) return { art: "raeume", ids: [wert.slice(2)] };
+  // „r:id1,id2,…“ = mehrere ausgewählte Räume
+  if (wert.startsWith("r:")) return { art: "raeume", ids: wert.slice(2).split(",").filter(Boolean) };
   return { art: "wohnungen" };
 }
 /** Passt die Einheit der Leistung zur Fläche? (nur Hinweis) */
@@ -113,6 +115,67 @@ function schreiben(schluessel: string, wert: unknown) {
   } catch {
     // Speicher voll oder gesperrt: dann nur ohne Zwischenspeicher
   }
+}
+
+/**
+ * Mehrere Räume für eine Leistung anhaken (z. B. „Boden spachteln“ nur in Büro und Wohnküche im 1. OG).
+ * Nach Geschoss gruppiert, je Geschoss ein Knopf „alle“; Balkon/Terrasse sind nicht wählbar, weil sie nie zählen.
+ */
+function RaeumeWahl({ raeume, flaechen, flaeche, gewaehlt, onChange }: {
+  raeume: RaumEingabe[];
+  flaechen: RaumFlaechen[];
+  flaeche: FlaechenArt;
+  gewaehlt: string[];
+  onChange: (ids: string[]) => void;
+}) {
+  const [offen, setOffen] = useState(gewaehlt.length === 0);
+  const waehlbar = raeume.map((r, i) => ({ r, f: flaechen[i] })).filter((x) => x.r.art !== "aussen");
+  const gruppen = [...new Set(waehlbar.map((x) => x.r.geschoss))];
+  const an = new Set(gewaehlt);
+  const umschalten = (ids: string[], setzen: boolean) => {
+    const neu = new Set(an);
+    for (const id of ids) {
+      if (setzen) neu.add(id);
+      else neu.delete(id);
+    }
+    // Reihenfolge wie in der Tabelle
+    onChange(raeume.map((r) => r.id).filter((id) => neu.has(id)));
+  };
+  const wert = (f: RaumFlaechen) => f[flaeche];
+
+  return (
+    <div className="mt-1.5 rounded-md border bg-muted/30">
+      <button type="button" aria-expanded={offen} onClick={() => setOffen((o) => !o)} className="flex min-h-9 w-full items-center gap-1.5 px-2 text-left text-xs font-medium">
+        <ChevronDownIcon className={cn("size-4 transition-transform", !offen && "-rotate-90")} />
+        {gewaehlt.length ? `${gewaehlt.length} ${gewaehlt.length === 1 ? "Raum" : "Räume"} gewählt` : "Noch kein Raum gewählt"}
+      </button>
+      {offen && (
+        <div className="flex max-h-72 flex-col gap-2 overflow-y-auto border-t px-2 py-2">
+          {gruppen.map((g) => {
+            const inGruppe = waehlbar.filter((x) => x.r.geschoss === g);
+            const alleAn = inGruppe.every((x) => an.has(x.r.id));
+            return (
+              <div key={g || "ohne"} className="flex flex-col">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-semibold">{g || "ohne Geschoss"}</span>
+                  <button type="button" className="text-xs underline underline-offset-4" onClick={() => umschalten(inGruppe.map((x) => x.r.id), !alleAn)}>
+                    {alleAn ? "keine" : "alle"}
+                  </button>
+                </div>
+                {inGruppe.map(({ r, f }) => (
+                  <label key={r.id} className="flex min-h-9 cursor-pointer items-center gap-2 text-sm">
+                    <input type="checkbox" className="size-4" checked={an.has(r.id)} onChange={(e) => umschalten([r.id], e.target.checked)} />
+                    <span className="min-w-0 flex-1 truncate">{[r.wohnung, r.name || "ohne Namen"].filter(Boolean).join(" · ")}</span>
+                    <span className="shrink-0 tabular-nums text-muted-foreground">{wert(f) == null ? "–" : `${z2(wert(f) as number)} ${FLAECHEN_EINHEIT[flaeche]}`}</span>
+                  </label>
+                ))}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function Geschaetzt() {
@@ -183,6 +246,7 @@ export function FlaechenRechner({ angebotId, gesperrt, leistungen }: { angebotId
   const berechnet = zeilen.map((z) => {
     const l = leistungen.find((x) => x.id === z.serviceId);
     if (!l) return { l: null, menge: 0, fehler: "Bitte eine Leistung wählen." };
+    if (z.bereich === "r:") return { l, menge: 0, fehler: "Bitte Räume auswählen." };
     const m = zeilenMenge(raumListe, { id: z.id, serviceId: z.serviceId, flaeche: z.flaeche, bereich: alsBereich(z.bereich) }, std);
     return { l, menge: m.menge, fehler: m.fehler };
   });
@@ -557,7 +621,8 @@ export function FlaechenRechner({ angebotId, gesperrt, leistungen }: { angebotId
                         </select>
                       </td>
                       <td className="w-56 px-1 py-1.5">
-                        <select className={EIN} value={z.bereich} aria-label="Bereich" onChange={(e) => zeileAendern(z.id, { bereich: e.target.value })}>
+                        <select className={EIN} value={z.bereich.startsWith("r:") ? "r:" : z.bereich} aria-label="Bereich"
+                          onChange={(e) => zeileAendern(z.id, { bereich: e.target.value === "r:" && z.bereich.startsWith("r:") ? z.bereich : e.target.value })}>
                           <option value="w">Alle Wohnungen</option>
                           <option value="wn">Alle Wohnungen ohne Bad/WC</option>
                           {geschossListe.length > 0 && <optgroup label="Wohnungen im Geschoss">{geschossListe.map((g) => <option key={g} value={`g:${g}`}>{g}</option>)}</optgroup>}
@@ -565,12 +630,17 @@ export function FlaechenRechner({ angebotId, gesperrt, leistungen }: { angebotId
                           <optgroup label="Nur ausdrücklich">
                             {SONDER_ARTEN.map((a) => <option key={a} value={`a:${a}`}>{RAUM_ART_NAMEN[a]}</option>)}
                           </optgroup>
-                          {raeume.some((r) => r.art !== "aussen") && (
-                            <optgroup label="Einzelner Raum">
-                              {raeume.filter((r) => r.art !== "aussen").map((r) => <option key={r.id} value={`r:${r.id}`}>{[r.geschoss, r.wohnung, r.name || "ohne Namen"].filter(Boolean).join(" · ")}</option>)}
-                            </optgroup>
-                          )}
+                          <option value="r:">Räume auswählen …</option>
                         </select>
+                        {z.bereich.startsWith("r:") && (
+                          <RaeumeWahl
+                            raeume={raeume}
+                            flaechen={flaechen}
+                            flaeche={z.flaeche}
+                            gewaehlt={z.bereich.slice(2).split(",").filter(Boolean)}
+                            onChange={(ids) => zeileAendern(z.id, { bereich: `r:${ids.join(",")}` })}
+                          />
+                        )}
                       </td>
                       <td className="px-1 py-1.5 text-right tabular-nums">{b.fehler ? "–" : `${z2(b.menge)} ${FLAECHEN_EINHEIT[z.flaeche]}`}</td>
                       <td className="px-1 py-1.5 text-right tabular-nums">{b.l ? formatBetrag(b.l.vk) : "–"}</td>
