@@ -4,7 +4,7 @@
 // Summenblock rechts, Zahlungsaufstellung bei Schlussrechnungen, Schlusstext, Unterschrift, Übersicht der Titel und Fußzeile.
 // Läuft auf dem Server (pdf-lib ist reines JavaScript, die Schriften sind eingebaut).
 
-import { PDFDocument, rgb, type PDFFont, type PDFImage } from "pdf-lib";
+import { PDFDocument, degrees, rgb, type PDFFont, type PDFImage } from "pdf-lib";
 import type { AngebotStatus, Berechnung, BerechneteZeile } from "@/lib/angebot";
 import { RECHNUNGS_ART_NAMEN, type RechnungsArt } from "@/lib/rechnung";
 import { RECHNUNG_ART, dokumentTitel, dokumentartInfo } from "@/lib/dokumentart";
@@ -61,6 +61,8 @@ export type AngebotPdfDaten = {
     aufbewahrungHinweis?: string;
     /** USt-IdNr. des Kunden, steht unter der Anschrift (bei Reverse-Charge, wie bei Plancraft) */
     kundeUstId?: string;
+    /** Vorschau eines Entwurfs: Titel „… - Entwurf“, kein Zahlungssatz mit Rechnungsnummer, Wasserzeichen „ENTWURF“ */
+    entwurf?: boolean;
   };
 };
 
@@ -335,7 +337,7 @@ export async function angebotPdf(d: AngebotPdfDaten): Promise<Uint8Array> {
   if (mitSummen && b.reverseCharge && d.reverseChargeText.trim()) absaetze.push({ text: d.reverseChargeText.trim() });
   if (mitSummen && d.zahlungsbedingung?.trim()) absaetze.push({ text: d.zahlungsbedingung.trim().replace(/\.*$/, ".") });
   if (r0 && istGutschrift) absaetze.push({ text: `Wir erstatten Ihnen den Betrag bzw. verrechnen ihn mit offenen Forderungen (${RECHNUNGS_ART_NAMEN[rechnungsArt]} ${r0.nummer}).` });
-  else if (r0) absaetze.push({ text: `Bitte überweisen Sie ${abschlaege.length ? "die offene Forderung" : "den Betrag"} bis zum ${formatDatum(r0.faelligAm)} unter Angabe der Rechnungsnummer ${r0.nummer}.` });
+  else if (r0 && !r0.entwurf) absaetze.push({ text: `Bitte überweisen Sie ${abschlaege.length ? "die offene Forderung" : "den Betrag"} bis zum ${formatDatum(r0.faelligAm)} unter Angabe der Rechnungsnummer ${r0.nummer}.` });
   if (mitSummen && r0?.lohnHinweis) absaetze.push({ text: r0.lohnHinweis });
   if (r0?.aufbewahrungHinweis) absaetze.push({ text: r0.aufbewahrungHinweis });
   if (art.gueltig && d.gueltigBis?.trim()) absaetze.push({ text: art.gueltig.replace("{datum}", formatDatum(d.gueltigBis)) });
@@ -416,6 +418,12 @@ export async function angebotPdf(d: AngebotPdfDaten): Promise<Uint8Array> {
   }
 
   fussZeilenZeichnen(z, f);
+  // Entwurf: großes, helles „ENTWURF“ quer über jede Seite, damit die Vorschau nie als echte Rechnung durchgeht
+  if (r0?.entwurf) {
+    for (const seite of z.seiten) {
+      seite.drawText("ENTWURF", { x: 120, y: 300, size: 96, font: z.bold, color: rgb(0.85, 0.85, 0.85), opacity: 0.45, rotate: degrees(35) });
+    }
+  }
   return doc.save();
 }
 

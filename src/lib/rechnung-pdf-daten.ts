@@ -11,12 +11,15 @@ import { rechnungsEinstellungenLaden } from "@/lib/rechnung-einstellungen-daten"
 import { createClient } from "@/lib/supabase/server";
 
 /**
- * PDF einer eigenen Rechnung (Firmendaten, Logo und Texte aus den Einstellungen). Nur für Rechnungen mit Nummer.
- * Wer das aufruft, hat vorher requireBueroRecht("rechnungen") geprüft. null = Rechnung gibt es nicht oder sie hat noch keine Nummer.
+ * PDF einer eigenen Rechnung (Firmendaten, Logo und Texte aus den Einstellungen). Nur für Rechnungen mit Nummer –
+ * außer mit `vorschau`: dann für einen Entwurf, mit „Entwurf“ statt Nummer und dem Wasserzeichen „ENTWURF“ (wird nie gespeichert).
+ * Wer das aufruft, hat vorher requireBueroRecht("rechnungen") geprüft. null = Rechnung gibt es nicht oder sie hat (noch) keine Nummer.
  */
-export async function rechnungPdfErzeugen(id: string): Promise<{ bytes: Uint8Array; dateiname: string } | null> {
+export async function rechnungPdfErzeugen(id: string, optionen: { vorschau?: boolean } = {}): Promise<{ bytes: Uint8Array; dateiname: string } | null> {
   const detail = await rechnungLaden(id);
-  if (!detail || !detail.rechnung.rechnungsnummer) return null;
+  if (!detail) return null;
+  const vorschau = Boolean(optionen.vorschau);
+  if (vorschau ? detail.rechnung.status === "uebertragen" : !detail.rechnung.rechnungsnummer) return null;
   const { rechnung: r, bausteine, projekt, kunde } = detail;
 
   const [firma, vorgaben, einst] = await Promise.all([firmaLaden(), angebotEinstellungenLaden(), rechnungsEinstellungenLaden()]);
@@ -63,7 +66,8 @@ export async function rechnungPdfErzeugen(id: string): Promise<{ bytes: Uint8Arr
     ansprechperson,
     zahlungsbedingung: istGutschriftArt(r.art) ? "" : zahlungsbedingungText(r.zahlungszielTage, r.skontoProzent, r.skontoTage),
     rechnung: {
-      nummer: r.rechnungsnummer,
+      nummer: vorschau ? "Entwurf" : r.rechnungsnummer,
+      entwurf: vorschau,
       leistungVon: r.leistungVon,
       leistungBis: r.leistungBis,
       faelligAm: faelligkeitsDatum(r.rechnungsdatum, r.zahlungszielTage),
@@ -78,5 +82,5 @@ export async function rechnungPdfErzeugen(id: string): Promise<{ bytes: Uint8Arr
       kundeUstId: kunde.ustId || undefined,
     },
   });
-  return { bytes, dateiname: pdfDateiname(r.rechnungsnummer, RECHNUNGS_ART_NAMEN[r.art]) };
+  return { bytes, dateiname: pdfDateiname(vorschau ? `Entwurf ${r.betreff}` : r.rechnungsnummer, RECHNUNGS_ART_NAMEN[r.art]) };
 }

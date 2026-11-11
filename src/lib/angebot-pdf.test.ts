@@ -111,3 +111,15 @@ describe("angebotPdf", () => {
     expect((await PDFDocument.load(nachtrag)).getPageCount()).toBeLessThanOrEqual(2);
   });
 });
+
+describe("Rechnungsentwurf als Vorschau", () => {
+  it("erzeugt ein gültiges PDF mit „Entwurf“ statt Nummer", async () => {
+    const bytes = await angebotPdf(daten([pos("A", 1, "Stk", 100)], { status: "versendet" }, { rabattProzent: 0, steuersatz: 19, reverseCharge: false }));
+    const mitEntwurf = await angebotPdf({
+      ...daten([pos("A", 1, "Stk", 100)], { status: "versendet" }, { rabattProzent: 0, steuersatz: 19, reverseCharge: false }),
+      rechnung: { nummer: "Entwurf", leistungVon: "2026-11-01", leistungBis: "2026-11-10", faelligAm: "2026-11-25", entwurf: true },
+    });
+    expect((await PDFDocument.load(mitEntwurf)).getPageCount()).toBeGreaterThanOrEqual(1);
+    expect(mitEntwurf.length).not.toBe(bytes.length);
+  });
+});

@@ -66,12 +66,14 @@ export function RechnungLeiste({
                 <Button type="button" onClick={() => ausfuehren(() => rechnungFertigstellen(rechnungId), "Rechnung fertiggestellt")} disabled={laeuft}>
                   <SendIcon /> {laeuft ? "Wird erstellt …" : `Ja, ${artName} jetzt fertigstellen`}
                 </Button>
+                <a href={`/buero/rechnungen/${rechnungId}/vorschau`} target="_blank" rel="noreferrer" className={buttonVariants({ variant: "outline" })}><EyeIcon /> Vorher als PDF ansehen</a>
                 <Button type="button" variant="ghost" onClick={() => setFrage(false)} disabled={laeuft}>Abbrechen</Button>
               </div>
             </>
           ) : (
             <div className="flex flex-wrap gap-2">
               <Button type="button" onClick={() => setFrage(true)}><SendIcon /> {artName} fertigstellen</Button>
+              <a href={`/buero/rechnungen/${rechnungId}/vorschau`} target="_blank" rel="noreferrer" className={buttonVariants({ variant: "outline" })}><EyeIcon /> PDF-Vorschau</a>
               {frageArchiv ? (
                 <>
                   <Button type="button" variant="destructive" disabled={laeuft} onClick={() => ausfuehren(() => rechnungArchivieren(rechnungId), "Entwurf archiviert")}>Wirklich archivieren</Button>
