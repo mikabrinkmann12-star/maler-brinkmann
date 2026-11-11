@@ -20,6 +20,7 @@ import { lohnanteilBerechnen, lohnanteilZeigen } from "@/lib/lohnanteil";
 import { mahnungMailVorschlag, rechnungMailVorschlag } from "@/lib/rechnung-mail";
 import { RECHNUNGS_ART_NAMEN, istGutschriftArt, rechnungBerechnen } from "@/lib/rechnung";
 import { rechnungLaden } from "@/lib/rechnung-daten";
+import { kleinbetrag13bHinweis } from "@/lib/rechnung-eigen";
 import { kopfStart } from "@/lib/rechnung-formular";
 import { RechnungLeiste } from "./rechnung-leiste";
 import { MahnungKarte } from "./mahnung-karte";
@@ -133,7 +134,12 @@ export default async function RechnungSeite({ params }: PageProps<"/buero/rechnu
             <h2 className="mb-1 font-semibold">Gesamtbetrag</h2>
             <p className="flex max-w-56 justify-between gap-6"><span>Netto</span><span className="tabular-nums">{formatBetrag(netto)}</span></p>
             {rechnung.reverseCharge ? (
-              <p className="max-w-56 text-muted-foreground">Reverse-Charge (§ 13b UStG)</p>
+              <>
+                <p className="max-w-56 text-muted-foreground">Reverse-Charge (§ 13b UStG)</p>
+                {r.status !== "uebertragen" && !istGutschriftArt(r.art) && kleinbetrag13bHinweis(true, Math.abs(netto)) && (
+                  <p className="mt-1 max-w-72 text-amber-800">{kleinbetrag13bHinweis(true, Math.abs(netto))}</p>
+                )}
+              </>
             ) : (
               <p className="flex max-w-56 justify-between gap-6"><span>{rechnung.steuersatz} % USt</span><span className="tabular-nums">{formatBetrag(r.brutto !== null && r.netto !== null ? r.brutto - r.netto : vz * rechnung.ust)}</span></p>
             )}

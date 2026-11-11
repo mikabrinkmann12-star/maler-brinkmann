@@ -46,6 +46,19 @@ export function reverseChargeHinweis(reverseCharge: boolean, kundeUstId = ""): s
     : null;
 }
 
+/** Grenze für Reparatur- und Wartungsarbeiten, unter der § 13b nicht greift (UStAE 13b.2 Abs. 7 Nr. 15). */
+export const KLEINBETRAG_13B = 500;
+
+/**
+ * Hinweis (kein Hindernis, Wunsch von Ralf, 11.11.2026): Reverse-Charge bei höchstens 500 € netto. Bei Reparatur und Wartung gilt
+ * § 13b dann nicht (normale Umsatzsteuer). Bei anderen Bauleistungen (z. B. Neubau) gilt 13b auch darunter – darum nur ein Hinweis.
+ */
+export function kleinbetrag13bHinweis(reverseCharge: boolean, netto: number): string | null {
+  return reverseCharge && netto > 0 && netto <= KLEINBETRAG_13B
+    ? "Unter 500 € netto: Bei Reparatur- und Wartungsarbeiten gilt § 13b nicht, dann bitte mit 19 % Umsatzsteuer abrechnen (Steuer oben umstellen). Bei Neubau und anderen Bauleistungen bleibt es bei 13b."
+    : null;
+}
+
 /** Fälligkeitsdatum (JJJJ-MM-TT): Rechnungsdatum plus Zahlungsziel in Tagen. */
 export function faelligkeitsDatum(rechnungsdatum: string, zahlungszielTage: number): string {
   const d = new Date(`${rechnungsdatum}T12:00:00Z`);

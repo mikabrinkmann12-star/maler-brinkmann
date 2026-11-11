@@ -101,3 +101,14 @@ describe("Mahnung", () => {
     expect(mahnBetraege(1548.31, 0, { zinsenProzent: 9, gebuehr: 0 }).zinsen).toBe(0);
   });
 });
+
+describe("13b unter 500 € netto", () => {
+  it("Hinweis nur bei Reverse-Charge und höchstens 500 € netto", async () => {
+    const { kleinbetrag13bHinweis } = await import("./rechnung-eigen");
+    expect(kleinbetrag13bHinweis(true, 499.99)).toContain("Reparatur");
+    expect(kleinbetrag13bHinweis(true, 500)).not.toBeNull();
+    expect(kleinbetrag13bHinweis(true, 500.01)).toBeNull();
+    expect(kleinbetrag13bHinweis(false, 300)).toBeNull();
+    expect(kleinbetrag13bHinweis(true, 0)).toBeNull();
+  });
+});
