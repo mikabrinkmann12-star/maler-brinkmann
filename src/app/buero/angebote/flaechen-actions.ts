@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireBueroRecht } from "@/lib/auth";
 import { standardPruefen, zeilenMenge } from "@/lib/flaechen";
+import { RAUM_ARTEN } from "@/lib/flaechen-typen";
 import { createClient } from "@/lib/supabase/server";
 
 // Flächenberechnung aus dem Grundriss (Angebot → „Flächen aus Grundriss“). Neue Funktion, dockt nur über `quote_items` an:
@@ -16,23 +17,26 @@ const zahl = z.number().finite().min(0).max(100_000).nullable();
 const raumSchema = z.object({
   id: z.string().min(1).max(64),
   geschoss: z.string().trim().max(40),
+  wohnung: z.string().trim().max(60),
   name: z.string().trim().max(120),
   boden: zahl,
   umfang: zahl,
   hoehe: zahl,
   decke: zahl,
-  art: z.enum(["normal", "nass", "treppenhaus", "technik", "aussen"]),
-  belag: z.boolean(),
+  art: z.enum(RAUM_ARTEN),
   sockel: z.boolean(),
-  geprueft: z.boolean(),
-  quelle: z.enum(["pdf", "ki", "hand"]),
+  seite: z.number().int().min(0).max(1000),
+  quelle: z.enum(["ki", "hand"]),
 });
 const bereichSchema = z.discriminatedUnion("art", [
-  z.object({ art: z.literal("alle") }),
-  z.object({ art: z.literal("geschoss"), geschoss: z.string().max(40) }),
+  z.object({ art: z.literal("wohnungen"), geschoss: z.string().max(40).optional(), ohneNass: z.boolean().optional() }),
+  z.object({ art: z.literal("wohnung"), wohnung: z.string().max(60) }),
+  z.object({ art: z.literal("raumart"), raumArt: z.enum(["treppenhaus", "technik", "nebengebaeude"]) }),
   z.object({ art: z.literal("raeume"), ids: z.array(z.string().max(64)).min(1).max(500) }),
 ]);
 const uebernehmenSchema = z.object({
+  // Die ganze Raumtabelle muss vorher mit „Räume übernehmen“ bestätigt sein
+  uebernommen: z.literal(true, { error: "Bitte zuerst „Räume übernehmen“ klicken." }),
   raeume: z.array(raumSchema).min(1, "Es gibt noch keine Räume.").max(500),
   zeilen: z
     .array(z.object({ id: z.string().max(64), serviceId: z.uuid("Bitte bei jeder Zeile eine Leistung wählen."), flaeche: z.enum(["boden", "decke", "wand", "sockel"]), bereich: bereichSchema }))
@@ -42,7 +46,8 @@ const uebernehmenSchema = z.object({
 });
 
 /**
- * Gewählte Leistungen als Positionen ans Ende des Angebots anhängen. Menge = Fläche des Bereichs (nur geprüfte Räume, sonst Abbruch),
+ * Gewählte Leistungen als Positionen ans Ende des Angebots anhängen. Menge = Fläche des Bereichs (Standard: Räume der Wohnungen;
+ * Treppenhaus, Technik, Nebengebäude nur ausdrücklich; Außenflächen nie),
  * Preis, Name, Text und Einheit kommen aus den Stammdaten (Leistungen). Die Datenbank sperrt versendete Angebote zusätzlich.
  */
 export async function flaechenUebernehmen(angebotId: string, eingabe: unknown): Promise<{ fehler?: string; hinweis?: string }> {
@@ -53,7 +58,7 @@ export async function flaechenUebernehmen(angebotId: string, eingabe: unknown): 
   const { raeume, zeilen } = p.data;
   const std = standardPruefen(p.data.standard);
 
-  // Mengen nur aus geprüften Räumen; jede Zeile mit Fehler stoppt alles (nichts halb übernehmen)
+  // Jede Zeile mit Fehler stoppt alles (nichts halb übernehmen)
   const mengen: number[] = [];
   for (const [i, zeile] of zeilen.entries()) {
     const m = zeilenMenge(raeume, zeile, std);

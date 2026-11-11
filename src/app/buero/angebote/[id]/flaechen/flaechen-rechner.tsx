@@ -7,11 +7,12 @@ import { cn } from "cn";
 import { FormularMeldung } from "@/components/formular-meldung";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { formatBetrag, formatZahl } from "@/lib/format";
-import { geschossSummen, geschosse, mengeLesen, raumFlaechen, standardPruefen, zeilenMenge } from "@/lib/flaechen";
+import { flaechenSummen, geschosse, mengeLesen, raumFlaechen, sockelVorschlag, standardPruefen, wohnungen, zeilenMenge } from "@/lib/flaechen";
 import {
   FLAECHEN_ART_NAMEN,
   FLAECHEN_EINHEIT,
   FLAECHEN_STANDARD,
+  RAUM_ARTEN,
   RAUM_ART_NAMEN,
   type Bereich,
   type FlaechenArt,
@@ -28,10 +29,12 @@ export type LeistungAuswahl = { id: string; name: string; nummer: string; einhei
 type RaumEingabe = Omit<Raum, "boden" | "umfang" | "hoehe" | "decke"> & { boden: string; umfang: string; hoehe: string; decke: string };
 type ZeileEingabe = { id: string; serviceId: string; flaeche: FlaechenArt; bereich: string };
 type StandardEingabe = Record<keyof FlaechenStandard, string>;
+type Datei = { hash: string; name: string };
 
 const EIN = "h-9 w-full min-w-0 rounded-md border bg-white px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring";
 const zahlText = (n: number | null) => (n == null ? "" : String(n).replace(".", ","));
 const z2 = (n: number) => formatZahl(n, { min: 2, max: 2 });
+const SONDER_ARTEN = ["treppenhaus", "technik", "nebengebaeude"] as const;
 
 function alsRaum(e: RaumEingabe): Raum {
   return { ...e, boden: mengeLesen(e.boden), umfang: mengeLesen(e.umfang), hoehe: mengeLesen(e.hoehe), decke: mengeLesen(e.decke) };
@@ -42,10 +45,14 @@ function alsEingabe(r: Raum): RaumEingabe {
 function alsStandard(s: StandardEingabe): FlaechenStandard {
   return standardPruefen(Object.fromEntries(Object.entries(s).map(([k, v]) => [k, mengeLesen(v)])));
 }
+/** Bereich aus dem Wert der Auswahlliste („w“ = Wohnungen, „wn“ = ohne Bad/WC, „g:…“, „wo:…“, „a:…“, „r:…“). */
 function alsBereich(wert: string): Bereich {
-  if (wert.startsWith("g:")) return { art: "geschoss", geschoss: wert.slice(2) };
+  if (wert === "wn") return { art: "wohnungen", ohneNass: true };
+  if (wert.startsWith("g:")) return { art: "wohnungen", geschoss: wert.slice(2) };
+  if (wert.startsWith("wo:")) return { art: "wohnung", wohnung: wert.slice(3) };
+  if (wert.startsWith("a:")) return { art: "raumart", raumArt: wert.slice(2) as (typeof SONDER_ARTEN)[number] };
   if (wert.startsWith("r:")) return { art: "raeume", ids: [wert.slice(2)] };
-  return { art: "alle" };
+  return { art: "wohnungen" };
 }
 /** Passt die Einheit der Leistung zur Fläche? (nur Hinweis) */
 function einheitPasst(einheit: string, flaeche: FlaechenArt): boolean {
@@ -54,7 +61,17 @@ function einheitPasst(einheit: string, flaeche: FlaechenArt): boolean {
 }
 
 function leererRaum(geschoss: string): RaumEingabe {
-  return { id: crypto.randomUUID(), geschoss, name: "", boden: "", umfang: "", hoehe: "", decke: "", art: "normal", belag: true, sockel: true, geprueft: false, quelle: "hand" };
+  return { id: crypto.randomUUID(), geschoss, wohnung: "", name: "", boden: "", umfang: "", hoehe: "", decke: "", art: "wohnraum", sockel: true, seite: 0, quelle: "hand" };
+}
+
+/** Ältere Zwischenstände (vor der KI) in die heutige Form bringen. */
+function raumAusSpeicher(r: Omit<Partial<RaumEingabe>, "art" | "quelle"> & { art?: string; quelle?: string }): RaumEingabe {
+  const art: RaumArt = (RAUM_ARTEN as readonly string[]).includes(r.art ?? "") ? (r.art as RaumArt) : r.art === "nass" ? "bad" : "wohnraum";
+  return {
+    id: r.id ?? crypto.randomUUID(), geschoss: r.geschoss ?? "", wohnung: r.wohnung ?? "", name: r.name ?? "",
+    boden: r.boden ?? "", umfang: r.umfang ?? "", hoehe: r.hoehe ?? "", decke: r.decke ?? "",
+    art, sockel: art === "aussen" ? false : r.sockel ?? sockelVorschlag(art), seite: r.seite ?? 0, quelle: r.quelle === "ki" ? "ki" : "hand",
+  };
 }
 
 /** Fingerabdruck einer Datei (SHA-256), um eine doppelt hochgeladene Datei zu erkennen. */
@@ -84,15 +101,17 @@ function Geschaetzt() {
 }
 
 /**
- * Flächenberechnung: Grundriss reinziehen → Räume prüfen → Leistungen je Bereich wählen → Positionen ins Angebot.
- * Räume und Leistungen bleiben im Browser zwischengespeichert (je Angebot), damit nichts verloren geht. Nur geprüfte Räume zählen.
+ * Flächenberechnung: Grundriss reinziehen (Claude API liest die Räume) → Tabelle prüfen und korrigieren → „Räume übernehmen“
+ * → Leistungen je Bereich wählen („Aus Aufmaß“) → Positionen ins Angebot.
+ * Räume und Leistungen bleiben im Browser zwischengespeichert (je Angebot), damit nichts verloren geht.
  */
 export function FlaechenRechner({ angebotId, gesperrt, leistungen }: { angebotId: string; gesperrt: boolean; leistungen: LeistungAuswahl[] }) {
   const entwurfSchluessel = `flaechen-entwurf:${angebotId}`;
   const [raeume, setRaeume] = useState<RaumEingabe[]>([]);
   const [zeilen, setZeilen] = useState<ZeileEingabe[]>([]);
-  // Bereits eingelesene Dateien (Fingerabdruck und Name), damit dieselbe Datei nicht zweimal reinkommt
-  const [dateien, setDateien] = useState<{ hash: string; name: string }[]>([]);
+  const [dateien, setDateien] = useState<Datei[]>([]);
+  // Stand der Tabelle beim Klick auf „Räume übernehmen“; jede Änderung danach hebt die Übernahme auf
+  const [uebernommenStand, setUebernommenStand] = useState<string | null>(null);
   const [stdText, setStdText] = useState<StandardEingabe>(() => ({
     umfangFaktor: zahlText(FLAECHEN_STANDARD.umfangFaktor), raumhoehe: zahlText(FLAECHEN_STANDARD.raumhoehe),
     abzugProzent: zahlText(FLAECHEN_STANDARD.abzugProzent), fliesenhoehe: zahlText(FLAECHEN_STANDARD.fliesenhoehe),
@@ -107,12 +126,13 @@ export function FlaechenRechner({ angebotId, gesperrt, leistungen }: { angebotId
 
   // Zwischenspeicher laden (nach dem ersten Zeichnen, weil localStorage nur im Browser da ist)
   useEffect(() => {
-    const e = lesen<{ raeume?: RaumEingabe[]; zeilen?: ZeileEingabe[]; dateien?: { hash: string; name: string }[] }>(entwurfSchluessel);
+    const e = lesen<{ raeume?: Partial<RaumEingabe>[]; zeilen?: ZeileEingabe[]; dateien?: Datei[]; uebernommenStand?: string | null }>(entwurfSchluessel);
     const s = lesen<Partial<FlaechenStandard>>("flaechen-standard");
     /* eslint-disable react-hooks/set-state-in-effect -- einmaliges Laden aus dem Browser-Speicher */
-    if (e?.raeume?.length) setRaeume(e.raeume);
-    if (e?.zeilen?.length) setZeilen(e.zeilen);
+    if (e?.raeume?.length) setRaeume(e.raeume.map(raumAusSpeicher));
+    if (e?.zeilen?.length) setZeilen(e.zeilen.map((z) => ({ ...z, bereich: z.bereich === "alle" ? "w" : z.bereich })));
     if (e?.dateien?.length) setDateien(e.dateien);
+    if (e?.uebernommenStand) setUebernommenStand(e.uebernommenStand);
     if (s) {
       const g = standardPruefen(s);
       setStdText({ umfangFaktor: zahlText(g.umfangFaktor), raumhoehe: zahlText(g.raumhoehe), abzugProzent: zahlText(g.abzugProzent), fliesenhoehe: zahlText(g.fliesenhoehe) });
@@ -121,8 +141,8 @@ export function FlaechenRechner({ angebotId, gesperrt, leistungen }: { angebotId
     /* eslint-enable react-hooks/set-state-in-effect */
   }, [entwurfSchluessel]);
   useEffect(() => {
-    if (geladen) schreiben(entwurfSchluessel, { raeume, zeilen, dateien });
-  }, [geladen, entwurfSchluessel, raeume, zeilen, dateien]);
+    if (geladen) schreiben(entwurfSchluessel, { raeume, zeilen, dateien, uebernommenStand });
+  }, [geladen, entwurfSchluessel, raeume, zeilen, dateien, uebernommenStand]);
 
   const std = useMemo(() => alsStandard(stdText), [stdText]);
   useEffect(() => {
@@ -131,24 +151,26 @@ export function FlaechenRechner({ angebotId, gesperrt, leistungen }: { angebotId
 
   const raumListe = useMemo(() => raeume.map(alsRaum), [raeume]);
   const flaechen = useMemo(() => raumListe.map((r) => raumFlaechen(r, std)), [raumListe, std]);
+  const summen = useMemo(() => flaechenSummen(raumListe, std), [raumListe, std]);
   const geschossListe = useMemo(() => geschosse(raumListe), [raumListe]);
-  const ungeprueft = raumListe.filter((r) => !r.geprueft).length;
-  const summenJeGeschoss = useMemo(() => geschossSummen(raumListe, std), [raumListe, std]);
+  const wohnungsListe = useMemo(() => wohnungen(raumListe), [raumListe]);
+  const stand = useMemo(() => JSON.stringify(raeume), [raeume]);
+  const uebernommen = raeume.length > 0 && uebernommenStand === stand;
+  const ohneBoden = raumListe.filter((r) => r.art !== "aussen" && !(r.boden && r.boden > 0));
 
   const berechnet = zeilen.map((z) => {
     const l = leistungen.find((x) => x.id === z.serviceId);
-    if (!l) return { l: null, menge: 0, fehler: "Bitte eine Leistung wählen.", ausgelassen: undefined };
+    if (!l) return { l: null, menge: 0, fehler: "Bitte eine Leistung wählen." };
     const m = zeilenMenge(raumListe, { id: z.id, serviceId: z.serviceId, flaeche: z.flaeche, bereich: alsBereich(z.bereich) }, std);
-    return { l, menge: m.menge, fehler: m.fehler, ausgelassen: m.ausgelassen };
+    return { l, menge: m.menge, fehler: m.fehler };
   });
   const summe = berechnet.reduce((s, b) => s + (b.l && !b.fehler ? b.menge * b.l.vk : 0), 0);
-  const allesOk = zeilen.length > 0 && berechnet.every((b) => !b.fehler);
+  const allesOk = uebernommen && zeilen.length > 0 && berechnet.every((b) => !b.fehler);
 
   function raumAendern(id: string, teil: Partial<RaumEingabe>) {
     setHinweis(null);
     setFehler(null);
-    // Jede Änderung an einem Raum hebt „geprüft“ auf, außer man hakt gerade ab
-    setRaeume((alt) => alt.map((r) => (r.id === id ? { ...r, ...teil, geprueft: "geprueft" in teil ? Boolean(teil.geprueft) : false } : r)));
+    setRaeume((alt) => alt.map((r) => (r.id === id ? { ...r, ...teil } : r)));
   }
   function zeileAendern(id: string, teil: Partial<ZeileEingabe>) {
     setHinweis(null);
@@ -172,13 +194,12 @@ export function FlaechenRechner({ angebotId, gesperrt, leistungen }: { angebotId
       const a = (await antwort.json()) as GrundrissAntwort;
       if (a.fehler) return setFehler(a.fehler);
       const neu = a.raeume ?? [];
-      if (neu.length) {
-        setRaeume((alt) => [...alt, ...neu.map(alsEingabe)]);
-        setDateien((alt) => [...alt, { hash, name: datei.name }]);
-      }
-      const wie = a.verfahren === "ki" ? "mit der KI" : "aus dem Text des PDFs";
-      if (neu.length) setHinweis(`${neu.length} ${neu.length === 1 ? "Raum" : "Räume"} ${wie} gelesen. Bitte jeden Raum prüfen und abhaken.${a.hinweis ? ` ${a.hinweis}` : ""}`);
-      else setFehler(a.hinweis ?? "Im Grundriss wurden keine Räume gefunden. Bitte von Hand eintragen.");
+      if (!neu.length) return setFehler("Die KI hat in diesem Plan keine Räume gefunden. Bitte von Hand eintragen.");
+      setRaeume((alt) => [...alt, ...neu.map(alsEingabe)]);
+      setDateien((alt) => [...alt, { hash, name: datei.name }]);
+      const verbrauch = a.tokens ? ` Verbrauch: ${formatZahl(a.tokens.eingabe)} Token ein, ${formatZahl(a.tokens.ausgabe)} Token aus.` : "";
+      const leer = neu.filter((r) => r.art !== "aussen" && r.boden == null).length;
+      setHinweis(`${neu.length} ${neu.length === 1 ? "Raum" : "Räume"} aus „${datei.name}“ gelesen.${leer ? ` Bei ${leer} war die Fläche nicht lesbar, bitte eintragen.` : ""} Bitte die Tabelle prüfen und dann „Räume übernehmen“.${verbrauch}`);
     } catch {
       setFehler("Der Grundriss konnte nicht gelesen werden. Bitte nochmal versuchen.");
     } finally {
@@ -187,11 +208,19 @@ export function FlaechenRechner({ angebotId, gesperrt, leistungen }: { angebotId
     }
   }
 
-  function uebernehmen() {
+  function raeumeUebernehmen() {
+    setFehler(null);
+    if (ohneBoden.length) return setFehler(`Bitte zuerst die Bodenfläche eintragen: ${ohneBoden.map((r) => r.name || "ohne Namen").join(", ")}.`);
+    setUebernommenStand(stand);
+    setHinweis(`${raeume.length} Räume übernommen. Die Flächen stehen jetzt unten bei „Aus Aufmaß“ zur Verfügung.`);
+  }
+
+  function inAngebot() {
     setFehler(null);
     setHinweis(null);
     starte(async () => {
       const r = await flaechenUebernehmen(angebotId, {
+        uebernommen,
         raeume: raumListe,
         zeilen: zeilen.map((z) => ({ id: z.id, serviceId: z.serviceId, flaeche: z.flaeche, bereich: alsBereich(z.bereich) })),
         standard: std,
@@ -208,6 +237,16 @@ export function FlaechenRechner({ angebotId, gesperrt, leistungen }: { angebotId
     { k: "fliesenhoehe", label: "Fliesenhöhe Bad/WC", einheit: "m" },
     { k: "umfangFaktor", label: "Faktor Umfang (× √Boden)", einheit: "" },
   ];
+  const summenZeile = (titel: string, s: { boden: number; bodenOhneNass: number; decke: number; wand: number; sockel: number; deckeFehlt: boolean }, stark = false) => (
+    <tr key={titel} className={cn("border-b", stark && "font-semibold")}>
+      <td className="px-1 py-1.5">{titel}</td>
+      <td className="px-1 py-1.5 text-right tabular-nums">{z2(s.boden)}</td>
+      <td className="px-1 py-1.5 text-right tabular-nums">{z2(s.bodenOhneNass)}</td>
+      <td className="px-1 py-1.5 text-right tabular-nums">{z2(s.decke)}{s.deckeFehlt && <span className="ml-1 text-[10px] text-destructive">fehlt</span>}</td>
+      <td className="px-1 py-1.5 text-right tabular-nums">{z2(s.wand)}<Geschaetzt /></td>
+      <td className="px-1 py-1.5 text-right tabular-nums">{z2(s.sockel)}</td>
+    </tr>
+  );
 
   return (
     <div className="flex flex-col gap-5">
@@ -233,17 +272,18 @@ export function FlaechenRechner({ angebotId, gesperrt, leistungen }: { angebotId
           )}
         >
           <FileUpIcon className="size-6" />
-          {liest ? "Grundriss wird gelesen …" : "Grundriss (PDF) hierher ziehen oder klicken"}
-          <span className="text-xs">Höchstens 4 MB. Es wird nichts gespeichert. Die Räume kommen ungeprüft in die Tabelle.</span>
+          {liest ? "Die KI liest den Grundriss … (kann bis zu einer Minute dauern)" : "Grundriss (PDF) hierher ziehen oder klicken"}
+          <span className="text-xs">Höchstens 4 MB. Der Plan wird zum Auslesen an die Claude-KI (Anthropic) geschickt, das kostet pro Plan ein paar Cent. Gespeichert wird nichts.</span>
           <input ref={dateiFeld} type="file" accept="application/pdf,.pdf" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; if (f) void grundrissLesen(f); }} />
         </label>
+        {dateien.length > 0 && <p className="text-xs text-muted-foreground">Eingelesen: {dateien.map((d) => d.name).join(", ")}</p>}
       </section>
 
       {/* Standardwerte */}
       <section className="flex flex-col gap-3 rounded-xl border p-5" aria-labelledby="standard-titel">
         <h2 id="standard-titel" className="text-lg font-semibold">Standardwerte</h2>
         <p className="text-sm text-muted-foreground">
-          Gelten für alle Räume ohne eigene Angabe. Umfang geschätzt = Faktor × √Bodenfläche, Wand = Umfang × Raumhöhe minus Abzug, in Bad/WC nur oberhalb der Fliesen.
+          Gelten für alle Räume ohne eigene Angabe. Umfang geschätzt = Faktor × √Bodenfläche, Wand = Umfang × Raumhöhe minus Abzug, in Bad und WC nur oberhalb der Fliesen.
           Die Werte merkt sich dieser Browser.
         </p>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -268,29 +308,28 @@ export function FlaechenRechner({ angebotId, gesperrt, leistungen }: { angebotId
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 id="raeume-titel" className="text-lg font-semibold">2. Räume prüfen</h2>
           {raeume.length > 0 && (
-            <span className={cn("text-sm", ungeprueft ? "text-destructive" : "text-muted-foreground")}>
-              {ungeprueft ? `${ungeprueft} von ${raeume.length} noch nicht geprüft` : `Alle ${raeume.length} Räume geprüft`}
+            <span className={cn("text-sm", uebernommen ? "text-muted-foreground" : "text-destructive")}>
+              {uebernommen ? `${raeume.length} Räume übernommen` : "Noch nicht übernommen"}
             </span>
           )}
         </div>
         <p className="text-sm text-muted-foreground">
-          Werte prüfen und in der ersten Spalte abhaken. Nur geprüfte Räume kommen ins Angebot. Jede Änderung hebt das Häkchen wieder auf.
-          Leere Felder für Umfang und Höhe nutzen die Standardwerte.
+          Werte prüfen und korrigieren, Zeilen löschen oder ergänzen, dann einmal „Räume übernehmen“. Jede Änderung danach muss neu übernommen werden.
+          Leere Felder für Umfang und Höhe nutzen die Standardwerte. Balkon und Terrasse zählen in keiner Fläche.
         </p>
         {raeume.length > 0 && (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1100px] text-sm">
+            <table className="w-full min-w-[1150px] text-sm">
               <thead>
                 <tr className="border-b text-left text-xs text-muted-foreground">
-                  <th className="px-1 py-2 font-medium">Geprüft</th>
                   <th className="px-1 py-2 font-medium">Geschoss</th>
+                  <th className="px-1 py-2 font-medium">Wohnung</th>
                   <th className="px-1 py-2 font-medium">Raum</th>
                   <th className="px-1 py-2 font-medium">Art</th>
                   <th className="px-1 py-2 font-medium">Boden m²</th>
                   <th className="px-1 py-2 font-medium">Umfang m</th>
                   <th className="px-1 py-2 font-medium">Höhe m</th>
                   <th className="px-1 py-2 font-medium">Decke m²</th>
-                  <th className="px-1 py-2 font-medium">Belag</th>
                   <th className="px-1 py-2 font-medium">Sockel</th>
                   <th className="px-1 py-2 text-right font-medium">Wand m²</th>
                   <th className="px-1 py-2 text-right font-medium">Sockel lfm</th>
@@ -301,53 +340,45 @@ export function FlaechenRechner({ angebotId, gesperrt, leistungen }: { angebotId
                 {raeume.map((r, i) => {
                   const f = flaechen[i];
                   const raum = raumListe[i];
-                  const ohneBoden = !(raum.boden && raum.boden > 0);
-                  const deckeFehlt = f.decke === null;
                   const aussen = r.art === "aussen";
+                  const bodenFehlt = !aussen && !(raum.boden && raum.boden > 0);
+                  const deckeFehlt = f.decke === null;
                   return (
-                    <tr key={r.id} className={cn("border-b align-middle", !r.geprueft && "bg-amber-50/60")}>
-                      <td className="px-1 py-1.5">
-                        <label className="flex size-9 items-center justify-center" title={ohneBoden ? "Erst die Bodenfläche eintragen" : "Raum geprüft"}>
-                          <input type="checkbox" className="size-5" checked={r.geprueft} disabled={ohneBoden}
-                            aria-label={`${r.name || "Raum"} geprüft`} onChange={(e) => raumAendern(r.id, { geprueft: e.target.checked })} />
-                        </label>
-                      </td>
-                      <td className="w-20 px-1 py-1.5"><input className={EIN} value={r.geschoss} maxLength={40} aria-label="Geschoss" onChange={(e) => raumAendern(r.id, { geschoss: e.target.value })} /></td>
+                    <tr key={r.id} className={cn("border-b align-middle", aussen && "bg-muted/50 text-muted-foreground")}>
+                      <td className="w-36 px-1 py-1.5"><input className={EIN} value={r.geschoss} maxLength={40} aria-label="Geschoss" onChange={(e) => raumAendern(r.id, { geschoss: e.target.value })} /></td>
+                      <td className="w-28 px-1 py-1.5"><input className={EIN} value={r.wohnung} maxLength={60} aria-label="Wohnung" placeholder="–" onChange={(e) => raumAendern(r.id, { wohnung: e.target.value })} /></td>
                       <td className="px-1 py-1.5">
                         <input className={EIN} value={r.name} maxLength={120} aria-label="Raumname" onChange={(e) => raumAendern(r.id, { name: e.target.value })} />
-                        {r.quelle !== "hand" && <span className="text-[10px] text-muted-foreground">aus {r.quelle === "ki" ? "KI" : "PDF"}</span>}
+                        {r.quelle === "ki" && <span className="text-[10px] text-muted-foreground">KI{r.seite ? `, Seite ${r.seite}` : ""}</span>}
                       </td>
-                      <td className="w-32 px-1 py-1.5">
+                      <td className="w-36 px-1 py-1.5">
                         <select className={EIN} value={r.art} aria-label="Raumart" onChange={(e) => {
                           const art = e.target.value as RaumArt;
-                          raumAendern(r.id, { art, sockel: r.belag && art === "normal" });
+                          raumAendern(r.id, { art, sockel: sockelVorschlag(art) });
                         }}>
-                          {(Object.keys(RAUM_ART_NAMEN) as RaumArt[]).map((a) => <option key={a} value={a}>{RAUM_ART_NAMEN[a]}</option>)}
+                          {RAUM_ARTEN.map((a) => <option key={a} value={a}>{RAUM_ART_NAMEN[a]}</option>)}
                         </select>
+                        {aussen && <span className="text-[10px]">zählt nicht</span>}
                       </td>
-                      <td className="w-24 px-1 py-1.5"><input inputMode="decimal" className={cn(EIN, ohneBoden && "border-destructive")} value={r.boden} aria-label="Bodenfläche" onChange={(e) => raumAendern(r.id, { boden: e.target.value })} /></td>
+                      <td className="w-24 px-1 py-1.5">
+                        <input inputMode="decimal" className={cn(EIN, bodenFehlt && "border-destructive")} value={r.boden} placeholder={bodenFehlt ? "eintragen" : ""} aria-label="Bodenfläche" onChange={(e) => raumAendern(r.id, { boden: e.target.value })} />
+                      </td>
                       <td className="w-28 px-1 py-1.5">
-                        <input inputMode="decimal" className={EIN} value={r.umfang} placeholder={z2(f.umfang)} aria-label="Umfang gemessen" onChange={(e) => raumAendern(r.id, { umfang: e.target.value })} />
+                        <input inputMode="decimal" className={EIN} value={r.umfang} disabled={aussen} placeholder={aussen ? "–" : z2(f.umfang)} aria-label="Umfang gemessen" onChange={(e) => raumAendern(r.id, { umfang: e.target.value })} />
                         {f.geschaetzt.umfang && <Geschaetzt />}
                       </td>
-                      <td className="w-20 px-1 py-1.5"><input inputMode="decimal" className={EIN} value={r.hoehe} placeholder={z2(std.raumhoehe)} aria-label="Raumhöhe" onChange={(e) => raumAendern(r.id, { hoehe: e.target.value })} /></td>
+                      <td className="w-20 px-1 py-1.5"><input inputMode="decimal" className={EIN} value={r.hoehe} disabled={aussen} placeholder={aussen ? "–" : z2(std.raumhoehe)} aria-label="Raumhöhe" onChange={(e) => raumAendern(r.id, { hoehe: e.target.value })} /></td>
                       <td className="w-24 px-1 py-1.5">
-                        <input inputMode="decimal" className={cn(EIN, deckeFehlt && "border-destructive", aussen && "bg-muted")} value={aussen ? "" : r.decke} disabled={aussen}
+                        <input inputMode="decimal" className={cn(EIN, deckeFehlt && "border-destructive")} value={aussen ? "" : r.decke} disabled={aussen}
                           placeholder={aussen ? "–" : deckeFehlt ? "von Hand" : z2(f.decke ?? 0)} aria-label="Deckenfläche" onChange={(e) => raumAendern(r.id, { decke: e.target.value })} />
-                        {aussen && <span className="text-[10px] text-muted-foreground">Außenfläche: nur Boden</span>}
                         {deckeFehlt && <span className="text-[10px] text-destructive">Treppenhaus: bitte eintragen</span>}
                       </td>
                       <td className="px-1 py-1.5">
                         <label className="flex size-9 items-center justify-center">
-                          <input type="checkbox" className="size-5" checked={r.belag} aria-label="Bodenbelag" onChange={(e) => raumAendern(r.id, { belag: e.target.checked, sockel: e.target.checked && r.sockel })} />
+                          <input type="checkbox" className="size-5" checked={r.sockel && !aussen} disabled={aussen} aria-label="Sockelleiste" onChange={(e) => raumAendern(r.id, { sockel: e.target.checked })} />
                         </label>
                       </td>
-                      <td className="px-1 py-1.5">
-                        <label className="flex size-9 items-center justify-center" title={r.belag ? "" : "Sockel nur bei Räumen mit Belag"}>
-                          <input type="checkbox" className="size-5" checked={r.sockel && r.belag && !aussen} disabled={!r.belag || aussen} aria-label="Sockelleiste" onChange={(e) => raumAendern(r.id, { sockel: e.target.checked })} />
-                        </label>
-                      </td>
-                      <td className="px-1 py-1.5 text-right tabular-nums">{z2(f.wand)}{f.geschaetzt.wand && <Geschaetzt />}</td>
+                      <td className="px-1 py-1.5 text-right tabular-nums">{aussen ? "–" : <>{z2(f.wand)}<Geschaetzt /></>}</td>
                       <td className="px-1 py-1.5 text-right tabular-nums">{f.sockel ? <>{z2(f.sockel)}{f.geschaetzt.sockel && <Geschaetzt />}</> : "–"}</td>
                       <td className="px-1 py-1.5">
                         <button type="button" className="flex size-9 items-center justify-center rounded-md hover:bg-muted" aria-label={`${r.name || "Raum"} entfernen`}
@@ -366,48 +397,56 @@ export function FlaechenRechner({ angebotId, gesperrt, leistungen }: { angebotId
             </table>
           </div>
         )}
+        <div className="flex flex-wrap items-center gap-2">
+          <Button type="button" variant="outline" onClick={() => setRaeume((alt) => [...alt, leererRaum(alt.at(-1)?.geschoss ?? "")])}>
+            <PlusIcon /> Raum hinzufügen
+          </Button>
+          <Button type="button" onClick={raeumeUebernehmen} disabled={raeume.length === 0 || uebernommen}>
+            <CheckIcon /> {uebernommen ? "Räume übernommen" : "Räume übernehmen"}
+          </Button>
+        </div>
+
         {raeume.length > 0 && (
           <div className="overflow-x-auto">
-            <h3 className="mb-1 text-sm font-semibold">Summen je Geschoss (nur geprüfte Räume)</h3>
-            <table className="w-full min-w-[520px] text-sm">
+            <h3 className="mb-1 text-sm font-semibold">Summen der Wohnungsräume je Geschoss</h3>
+            <table className="w-full min-w-[640px] text-sm">
               <thead>
                 <tr className="border-b text-left text-xs text-muted-foreground">
                   <th className="px-1 py-1.5 font-medium">Geschoss</th>
-                  <th className="px-1 py-1.5 font-medium">Geprüft</th>
+                  <th className="px-1 py-1.5 text-right font-medium">Boden m²</th>
+                  <th className="px-1 py-1.5 text-right font-medium">ohne Bad/WC m²</th>
                   <th className="px-1 py-1.5 text-right font-medium">Decke m²</th>
                   <th className="px-1 py-1.5 text-right font-medium">Wand m²</th>
                   <th className="px-1 py-1.5 text-right font-medium">Sockel lfm</th>
                 </tr>
               </thead>
               <tbody>
-                {summenJeGeschoss.map((s) => (
-                  <tr key={s.geschoss || "ohne"} className="border-b">
-                    <td className="px-1 py-1.5">{s.geschoss || "ohne Geschoss"}</td>
-                    <td className={cn("px-1 py-1.5", s.geprueft < s.gesamt && "text-destructive")}>{s.geprueft} von {s.gesamt}</td>
-                    <td className="px-1 py-1.5 text-right tabular-nums">{z2(s.decke)}{s.deckeFehlt && <span className="ml-1 text-[10px] text-destructive">Treppenhaus fehlt</span>}</td>
-                    <td className="px-1 py-1.5 text-right tabular-nums">{z2(s.wand)}<Geschaetzt /></td>
-                    <td className="px-1 py-1.5 text-right tabular-nums">{z2(s.sockel)}</td>
-                  </tr>
-                ))}
+                {summen.geschosse.map((s) => summenZeile(s.geschoss || "ohne Geschoss", s))}
+                {summenZeile("Alle Wohnungen", summen.wohnungen, true)}
               </tbody>
             </table>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Getrennt, nur wenn in der Position ausdrücklich gewählt:{" "}
+              {summen.sonderraeume.length ? summen.sonderraeume.map((s) => `${RAUM_ART_NAMEN[s.art]} ${z2(s.boden)} m² Boden (${s.anzahl})`).join(" · ") : "keine"}.
+              {summen.aussen.anzahl > 0 && ` Balkon/Terrasse ${z2(summen.aussen.boden)} m² (${summen.aussen.anzahl}) zählen in keiner Summe.`}
+            </p>
           </div>
         )}
-        <div>
-          <Button type="button" variant="outline" onClick={() => setRaeume((alt) => [...alt, leererRaum(alt.at(-1)?.geschoss ?? "EG")])}>
-            <PlusIcon /> Raum hinzufügen
-          </Button>
-        </div>
       </section>
 
-      {/* 3. Leistungen */}
+      {/* 3. Aus Aufmaß: Leistungen */}
       <section className="flex flex-col gap-3 rounded-xl border p-5" aria-labelledby="leistungen-titel">
-        <h2 id="leistungen-titel" className="text-lg font-semibold">3. Leistungen wählen</h2>
-        <p className="text-sm text-muted-foreground">
-          Je Zeile eine Leistung aus den Stammdaten, die Fläche und der Bereich. Die Menge kommt aus den geprüften Räumen, der Preis aus den Stammdaten.
-        </p>
+        <h2 id="leistungen-titel" className="text-lg font-semibold">3. Aus Aufmaß: Leistungen wählen</h2>
+        {!uebernommen ? (
+          <FormularMeldung art="hinweis">Erst die Räume prüfen und „Räume übernehmen“ klicken. Danach stehen die Flächen hier zur Verfügung.</FormularMeldung>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            Je Zeile eine Leistung aus den Stammdaten, die Fläche und der Bereich. Standard sind die Räume der Wohnungen. Treppenhaus, Technik und Nebengebäude
+            zählen nur, wenn du sie als Bereich wählst. Die Menge kommt aus der Raumtabelle, der Preis aus den Stammdaten.
+          </p>
+        )}
         {leistungen.length === 0 && <FormularMeldung art="hinweis">In den Stammdaten gibt es noch keine Leistungen.</FormularMeldung>}
-        {zeilen.length > 0 && (
+        {uebernommen && zeilen.length > 0 && (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[900px] text-sm">
               <thead>
@@ -432,9 +471,6 @@ export function FlaechenRechner({ angebotId, gesperrt, leistungen }: { angebotId
                           {leistungen.map((l) => <option key={l.id} value={l.id}>{l.nummer ? `${l.nummer} · ` : ""}{l.name} ({formatBetrag(l.vk)}/{l.einheit})</option>)}
                         </select>
                         {b.fehler && <p className="mt-1 text-xs text-destructive">{b.fehler}</p>}
-                        {!b.fehler && b.ausgelassen && (
-                          <p className="mt-1 text-xs text-amber-800">Nicht mitgezählt, weil ungeprüft: {b.ausgelassen.join(", ")}.</p>
-                        )}
                         {b.l && !einheitPasst(b.l.einheit, z.flaeche) && (
                           <p className="mt-1 text-xs text-amber-800">Hinweis: Die Leistung wird in „{b.l.einheit}“ abgerechnet, die Fläche ist in {FLAECHEN_EINHEIT[z.flaeche]}.</p>
                         )}
@@ -444,11 +480,20 @@ export function FlaechenRechner({ angebotId, gesperrt, leistungen }: { angebotId
                           {(Object.keys(FLAECHEN_ART_NAMEN) as FlaechenArt[]).map((a) => <option key={a} value={a}>{FLAECHEN_ART_NAMEN[a]}</option>)}
                         </select>
                       </td>
-                      <td className="w-48 px-1 py-1.5">
+                      <td className="w-56 px-1 py-1.5">
                         <select className={EIN} value={z.bereich} aria-label="Bereich" onChange={(e) => zeileAendern(z.id, { bereich: e.target.value })}>
-                          <option value="alle">Alle Räume</option>
-                          {geschossListe.length > 0 && <optgroup label="Geschoss">{geschossListe.map((g) => <option key={g} value={`g:${g}`}>{g}</option>)}</optgroup>}
-                          {raeume.length > 0 && <optgroup label="Raum">{raeume.map((r) => <option key={r.id} value={`r:${r.id}`}>{[r.geschoss, r.name || "ohne Namen"].filter(Boolean).join(" · ")}</option>)}</optgroup>}
+                          <option value="w">Alle Wohnungen</option>
+                          <option value="wn">Alle Wohnungen ohne Bad/WC</option>
+                          {geschossListe.length > 0 && <optgroup label="Wohnungen im Geschoss">{geschossListe.map((g) => <option key={g} value={`g:${g}`}>{g}</option>)}</optgroup>}
+                          {wohnungsListe.length > 0 && <optgroup label="Wohnung">{wohnungsListe.map((w) => <option key={w} value={`wo:${w}`}>{w}</option>)}</optgroup>}
+                          <optgroup label="Nur ausdrücklich">
+                            {SONDER_ARTEN.map((a) => <option key={a} value={`a:${a}`}>{RAUM_ART_NAMEN[a]}</option>)}
+                          </optgroup>
+                          {raeume.some((r) => r.art !== "aussen") && (
+                            <optgroup label="Einzelner Raum">
+                              {raeume.filter((r) => r.art !== "aussen").map((r) => <option key={r.id} value={`r:${r.id}`}>{[r.geschoss, r.wohnung, r.name || "ohne Namen"].filter(Boolean).join(" · ")}</option>)}
+                            </optgroup>
+                          )}
                         </select>
                       </td>
                       <td className="px-1 py-1.5 text-right tabular-nums">{b.fehler ? "–" : `${z2(b.menge)} ${FLAECHEN_EINHEIT[z.flaeche]}`}</td>
@@ -475,16 +520,15 @@ export function FlaechenRechner({ angebotId, gesperrt, leistungen }: { angebotId
           </div>
         )}
         <div className="flex flex-wrap items-center gap-2">
-          <Button type="button" variant="outline" disabled={leistungen.length === 0}
-            onClick={() => setZeilen((alt) => [...alt, { id: crypto.randomUUID(), serviceId: "", flaeche: "wand", bereich: "alle" }])}>
+          <Button type="button" variant="outline" disabled={leistungen.length === 0 || !uebernommen}
+            onClick={() => setZeilen((alt) => [...alt, { id: crypto.randomUUID(), serviceId: "", flaeche: "wand", bereich: "w" }])}>
             <PlusIcon /> Leistung hinzufügen
           </Button>
-          <Button type="button" onClick={uebernehmen} disabled={gesperrt || speichert || !allesOk}>
+          <Button type="button" onClick={inAngebot} disabled={gesperrt || speichert || !allesOk}>
             <CheckIcon /> {speichert ? "Wird übernommen …" : "Ins Angebot übernehmen"}
           </Button>
           <Link href={`/buero/angebote/${angebotId}`} className={buttonVariants({ variant: "ghost" })}>Zum Angebot</Link>
         </div>
-        {!allesOk && zeilen.length > 0 && <p className="text-xs text-muted-foreground">Übernehmen geht erst, wenn jede Zeile eine Leistung hat und im Bereich mindestens ein Raum geprüft ist. Es zählen nur geprüfte Räume.</p>}
       </section>
     </div>
   );

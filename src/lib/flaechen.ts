@@ -1,6 +1,8 @@
 // Reine Rechenfunktionen für die Flächen aus dem Grundriss. Kein "server-only", auch im Browser nutzbar.
 import {
   FLAECHEN_STANDARD,
+  NASS_ARTEN,
+  WOHNUNGS_ARTEN,
   type Bereich,
   type FlaechenStandard,
   type LeistungsZeile,
@@ -17,15 +19,15 @@ export function rund2(x: number): number {
 /** Flächen eines Raums berechnen; `geschaetzt` markiert nicht gemessene Werte. */
 export function raumFlaechen(raum: Raum, std: FlaechenStandard): RaumFlaechen {
   const boden = raum.boden ?? 0;
-  // Balkon, Terrasse, Dachterrasse: nur Boden, nie Decke, Wand oder Sockel
+  // Balkon, Terrasse, Dachterrasse: zählt nirgends
   if (raum.art === "aussen") {
-    return { umfang: 0, boden: rund2(boden), decke: 0, wand: 0, sockel: 0, geschaetzt: { umfang: false, wand: false, decke: false, sockel: false } };
+    return { umfang: 0, boden: 0, decke: 0, wand: 0, sockel: 0, geschaetzt: { umfang: false, wand: false, decke: false, sockel: false } };
   }
   const umfangGemessen = raum.umfang != null && raum.umfang > 0;
   const umfang = umfangGemessen ? (raum.umfang as number) : std.umfangFaktor * Math.sqrt(Math.max(0, boden));
   const hoehe = raum.hoehe ?? std.raumhoehe;
   // Im Bad/WC zählt die Wand nur oberhalb der Fliesen.
-  const wirksameHoehe = raum.art === "nass" ? Math.max(0, hoehe - std.fliesenhoehe) : hoehe;
+  const wirksameHoehe = NASS_ARTEN.includes(raum.art) ? Math.max(0, hoehe - std.fliesenhoehe) : hoehe;
   const wand = umfang * wirksameHoehe * (1 - std.abzugProzent / 100);
 
   let decke: number | null;
@@ -33,7 +35,7 @@ export function raumFlaechen(raum: Raum, std: FlaechenStandard): RaumFlaechen {
   else if (raum.art === "treppenhaus") decke = null; // muss von Hand eingetragen werden
   else decke = boden;
 
-  const sockel = raum.belag && raum.sockel ? umfang : 0;
+  const sockel = raum.sockel ? umfang : 0;
 
   return {
     umfang: rund2(umfang),
@@ -45,59 +47,37 @@ export function raumFlaechen(raum: Raum, std: FlaechenStandard): RaumFlaechen {
   };
 }
 
-/** Raumart aus dem Namen vorschlagen. */
-export function raumArtVorschlag(name: string): RaumArt {
-  const n = name.toLowerCase();
-  const davor = "(^|[^a-zäöüß])";
-  const danach = "($|[^a-zäöüß])";
-  // Zuerst Außenflächen („Dachterrasse“, „Terrasse (teilüberdacht)“, „Balkon“, „Loggia“)
-  if (n.includes("terrasse") || n.includes("balkon") || n.includes("loggia")) return "aussen";
-  if (
-    new RegExp(davor + "bad").test(n) ||
-    new RegExp(davor + "wc" + danach).test(n) ||
-    n.includes("dusch") ||
-    n.includes("toilett")
-  )
-    return "nass";
-  if (n.includes("trepp")) return "treppenhaus";
-  if (
-    n.includes("technik") ||
-    n.includes("hausanschluss") ||
-    n.includes("heizung") ||
-    new RegExp(davor + "har" + danach).test(n)
-  )
-    return "technik";
-  return "normal";
-}
-
-/** Sockelleiste nur in normalen Räumen vorschlagen. */
+/** Sockelleiste nur in Wohnräumen vorschlagen. */
 export function sockelVorschlag(art: RaumArt): boolean {
-  return art === "normal";
+  return art === "wohnraum";
 }
 
-/** Räume eines Bereichs (alle, ein Geschoss, ausgewählte). */
+const istWohnung = (r: Raum) => WOHNUNGS_ARTEN.includes(r.art);
+
+/** Räume eines Bereichs. Außenflächen sind nie dabei. */
 export function bereichRaeume(raeume: Raum[], bereich: Bereich): Raum[] {
-  if (bereich.art === "alle") return raeume;
-  if (bereich.art === "geschoss") return raeume.filter((r) => r.geschoss === bereich.geschoss);
-  return raeume.filter((r) => bereich.ids.includes(r.id));
+  switch (bereich.art) {
+    case "wohnungen":
+      return raeume.filter(
+        (r) =>
+          istWohnung(r) &&
+          (bereich.geschoss === undefined || r.geschoss === bereich.geschoss) &&
+          (!bereich.ohneNass || !NASS_ARTEN.includes(r.art)),
+      );
+    case "wohnung":
+      return raeume.filter((r) => istWohnung(r) && r.wohnung === bereich.wohnung);
+    case "raumart":
+      return raeume.filter((r) => r.art === bereich.raumArt);
+    case "raeume":
+      return raeume.filter((r) => bereich.ids.includes(r.id) && r.art !== "aussen");
+  }
 }
 
-/**
- * Menge einer Leistungszeile; bei Lücken kommt ein Fehlertext statt einer Zahl.
- * Es zählen NUR geprüfte Räume (ungeprüfte werden weggelassen und in `ausgelassen` genannt).
- * Außenflächen zählen bei Decke, Wand und Sockel nie mit.
- */
-export function zeilenMenge(
-  raeume: Raum[],
-  zeile: LeistungsZeile,
-  std: FlaechenStandard,
-): { menge: number; fehler?: string; ausgelassen?: string[] } {
-  const imBereich = bereichRaeume(raeume, zeile.bereich).filter((r) => zeile.flaeche === "boden" || r.art !== "aussen");
+/** Menge einer Leistungszeile; bei Lücken kommt ein Fehlertext statt einer Zahl. */
+export function zeilenMenge(raeume: Raum[], zeile: LeistungsZeile, std: FlaechenStandard): { menge: number; fehler?: string } {
+  const liste = bereichRaeume(raeume, zeile.bereich);
   const namen = (rs: Raum[]) => rs.map((r) => r.name || "ohne Namen").join(", ");
-  if (imBereich.length === 0) return { menge: 0, fehler: "Im Bereich gibt es keine Räume." };
-  const ausgelassen = imBereich.filter((r) => !r.geprueft).map((r) => r.name || "ohne Namen");
-  const liste = imBereich.filter((r) => r.geprueft);
-  if (liste.length === 0) return { menge: 0, fehler: "Im Bereich ist noch kein Raum geprüft.", ausgelassen };
+  if (liste.length === 0) return { menge: 0, fehler: "Im Bereich gibt es keine Räume." };
   const ohneBoden = liste.filter((r) => r.boden == null || r.boden <= 0);
   if (ohneBoden.length) return { menge: 0, fehler: `Bodenfläche fehlt: ${namen(ohneBoden)}.` };
   const fl = liste.map((r) => ({ r, f: raumFlaechen(r, std) }));
@@ -106,32 +86,63 @@ export function zeilenMenge(
     if (ohneDecke.length) return { menge: 0, fehler: `Deckenfläche im Treppenhaus fehlt: ${namen(ohneDecke)}.` };
   }
   const summe = fl.reduce((s, x) => s + ((x.f[zeile.flaeche] as number | null) ?? 0), 0);
-  return { menge: rund2(summe), ausgelassen: ausgelassen.length ? ausgelassen : undefined };
+  return { menge: rund2(summe) };
 }
 
-/** Summen je Geschoss (nur geprüfte Räume) für Decke, Wand und Sockel; `deckeFehlt` = geprüfter Raum ohne Decke (Treppenhaus). */
-export function geschossSummen(raeume: Raum[], std: FlaechenStandard): { geschoss: string; decke: number; wand: number; sockel: number; deckeFehlt: boolean; geprueft: number; gesamt: number }[] {
-  const namen = [...geschosse(raeume), ...(raeume.some((r) => !r.geschoss) ? [""] : [])];
-  return namen.map((g) => {
-    const alle = raeume.filter((r) => r.geschoss === g);
-    const liste = alle.filter((r) => r.geprueft);
-    const fl = liste.map((r) => raumFlaechen(r, std));
-    return {
-      geschoss: g,
-      decke: rund2(fl.reduce((s, f) => s + (f.decke ?? 0), 0)),
-      wand: rund2(fl.reduce((s, f) => s + f.wand, 0)),
-      sockel: rund2(fl.reduce((s, f) => s + f.sockel, 0)),
-      deckeFehlt: fl.some((f) => f.decke == null),
-      geprueft: liste.length,
-      gesamt: alle.length,
-    };
-  });
+export type WohnSumme = { boden: number; bodenOhneNass: number; decke: number; wand: number; sockel: number; deckeFehlt: boolean };
+
+function wohnSumme(liste: Raum[], std: FlaechenStandard): WohnSumme {
+  const fl = liste.map((r) => ({ r, f: raumFlaechen(r, std) }));
+  const sum = (k: "boden" | "wand" | "sockel", nurTrocken = false) =>
+    rund2(fl.filter((x) => !nurTrocken || !NASS_ARTEN.includes(x.r.art)).reduce((s, x) => s + x.f[k], 0));
+  return {
+    boden: sum("boden"),
+    bodenOhneNass: sum("boden", true),
+    decke: rund2(fl.reduce((s, x) => s + (x.f.decke ?? 0), 0)),
+    wand: sum("wand"),
+    sockel: sum("sockel"),
+    deckeFehlt: fl.some((x) => x.f.decke == null),
+  };
+}
+
+/** Summen: je Geschoss und gesamt nur Wohnungsräume, Sonderräume getrennt, Außenflächen nur informativ. */
+export function flaechenSummen(
+  raeume: Raum[],
+  std: FlaechenStandard,
+): {
+  geschosse: (WohnSumme & { geschoss: string })[];
+  wohnungen: WohnSumme;
+  sonderraeume: { art: "treppenhaus" | "technik" | "nebengebaeude"; boden: number; anzahl: number }[];
+  aussen: { boden: number; anzahl: number };
+} {
+  const wohn = raeume.filter(istWohnung);
+  const namen = [...geschosse(wohn), ...(wohn.some((r) => !r.geschoss) ? [""] : [])];
+  const sonder = (["treppenhaus", "technik", "nebengebaeude"] as const)
+    .map((art) => {
+      const l = raeume.filter((r) => r.art === art);
+      return { art, boden: rund2(l.reduce((s, r) => s + (r.boden ?? 0), 0)), anzahl: l.length };
+    })
+    .filter((x) => x.anzahl > 0);
+  const aussenListe = raeume.filter((r) => r.art === "aussen");
+  return {
+    geschosse: namen.map((g) => ({ geschoss: g, ...wohnSumme(wohn.filter((r) => r.geschoss === g), std) })),
+    wohnungen: wohnSumme(wohn, std),
+    sonderraeume: sonder,
+    aussen: { boden: rund2(aussenListe.reduce((s, r) => s + (r.boden ?? 0), 0)), anzahl: aussenListe.length },
+  };
 }
 
 /** Geschosse in Reihenfolge des ersten Auftretens, ohne leere und Doppelte. */
 export function geschosse(raeume: Raum[]): string[] {
   const aus: string[] = [];
   for (const r of raeume) if (r.geschoss && !aus.includes(r.geschoss)) aus.push(r.geschoss);
+  return aus;
+}
+
+/** Wohnungen (nicht leere Namen der Wohnungsräume) in Reihenfolge des ersten Auftretens, ohne Doppelte. */
+export function wohnungen(raeume: Raum[]): string[] {
+  const aus: string[] = [];
+  for (const r of raeume) if (istWohnung(r) && r.wohnung && !aus.includes(r.wohnung)) aus.push(r.wohnung);
   return aus;
 }
 
