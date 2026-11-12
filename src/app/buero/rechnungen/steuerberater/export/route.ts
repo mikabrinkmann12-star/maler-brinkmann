@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { requireBueroRecht } from "@/lib/auth";
 import { eRechnungFuer } from "@/lib/e-rechnung-daten";
-import { datevEinstellungenLaden, exportRechnungenLaden } from "@/lib/steuerberater-daten";
-import { ZIP_TEIL_GROESSE, datevCsv, inTeile, journalCsv, zeitraumLesen } from "@/lib/steuerberater-export";
+import { datevEinstellungenLaden, debitorenLaden, exportRechnungenLaden } from "@/lib/steuerberater-daten";
+import { ZIP_TEIL_GROESSE, datevCsv, debitorenCsv, inTeile, journalCsv, zeitraumLesen } from "@/lib/steuerberater-export";
 import { createClient } from "@/lib/supabase/server";
 import { zipErzeugen } from "@/lib/zip";
 
@@ -21,6 +21,13 @@ export async function GET(anfrage: Request) {
   if (!zeitraum) return new NextResponse("Bitte einen gültigen Zeitraum angeben (höchstens drei Jahre).", { status: 400 });
   const typ = p.get("typ") ?? "journal";
   const name = `Rechnungen_${zeitraum.von}_bis_${zeitraum.bis}`;
+
+  // Kundenliste (Konten je Kunde) hängt nicht am Zeitraum
+  if (typ === "debitoren") {
+    const kunden = await debitorenLaden();
+    if (!kunden.length) return new NextResponse("Es gibt noch keine Kunden mit Konto.", { status: 404 });
+    return new NextResponse(Buffer.from(debitorenCsv(kunden, await datevEinstellungenLaden()), "latin1"), { headers: kopf("text/csv; charset=windows-1252", "EXTF_Debitoren_Kunden.csv") });
+  }
 
   const zeilen = await exportRechnungenLaden(zeitraum);
   if (!zeilen.length) return new NextResponse("Im Zeitraum gibt es keine fertigen Rechnungen.", { status: 404 });

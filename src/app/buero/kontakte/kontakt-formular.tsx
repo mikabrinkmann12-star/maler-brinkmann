@@ -68,6 +68,8 @@ export function KontaktFormular({
   function speichern(ereignis: React.FormEvent<HTMLFormElement>) {
     ereignis.preventDefault();
     const zz = zahl(w.zahlungsziel_tage), sp = zahl(w.skonto_prozent), st = zahl(w.skonto_tage);
+    const deb = w.debitorennummer.trim() ? Number(w.debitorennummer.trim()) : null;
+    if (deb !== null && !Number.isInteger(deb)) return setFehler("Beim Kundenkonto bitte nur eine Zahl eingeben (10000 bis 69999).");
     if ((w.zahlungsziel_tage.trim() && zz === null) || (w.skonto_prozent.trim() && sp === null) || (w.skonto_tage.trim() && st === null)) {
       return setFehler("Bitte bei Zahlungsziel und Skonto nur Zahlen eingeben.");
     }
@@ -82,6 +84,7 @@ export function KontaktFormular({
         website: websiteOffen ? w.website : "",
         kundennummer: w.kundennummer.trim() || (id ? null : vorschlag ?? null),
         zahlungsziel_tage: zz, skonto_prozent: sp, skonto_tage: st,
+        debitorennummer: deb,
         steuersatz: Number(w.steuersatz),
       });
       if (r.fehler) setFehler(r.fehler);
@@ -243,6 +246,13 @@ export function KontaktFormular({
           hinweis={<span className="text-muted-foreground">Für Firmenkunden mit Reverse-Charge (§ 13b), z. B. DE123456789. Steht dann auf der Rechnung unter der Anschrift.</span>}
         >
           <input id="ust_id" {...f("ust_id")} maxLength={20} placeholder="USt-IdNr." autoCapitalize="characters" className={EINGABE} />
+        </Zeile>
+        <Zeile
+          label="Kundenkonto (DATEV)"
+          htmlFor="debitorennummer"
+          hinweis={<span className="text-muted-foreground">Konto für die Buchhaltung, 10000 bis 69999. Leer lassen: neue Kunden bekommen automatisch die nächste Nummer.</span>}
+        >
+          <input id="debitorennummer" inputMode="numeric" {...f("debitorennummer")} maxLength={5} placeholder="automatisch" className={EINGABE} />
         </Zeile>
       </Abschnitt>
     </form>

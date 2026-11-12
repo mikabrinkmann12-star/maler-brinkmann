@@ -27,6 +27,9 @@ export async function datevSpeichern(_vorher: DatevZustand, formData: FormData):
     erloes7: konto(formData, "erloes7", "Erlöse 7 %"),
     erloes0: konto(formData, "erloes0", "Erlöse 0 %"),
     erloes_reverse_charge: konto(formData, "erloes_reverse_charge", "Erlöse § 13b"),
+    abschlag19: konto(formData, "abschlag19", "Abschlagsrechnungen 19 %"),
+    abschlag_reverse_charge: konto(formData, "abschlag_reverse_charge", "Abschlagsrechnungen § 13b"),
+    schluss: konto(formData, "schluss", "Schlussrechnungen"),
     sachkontenlaenge: konto(formData, "sachkontenlaenge", "Sachkontenlänge", 4, 8),
   };
   for (const w of Object.values(werte)) if (typeof w === "string") return { fehler: w };

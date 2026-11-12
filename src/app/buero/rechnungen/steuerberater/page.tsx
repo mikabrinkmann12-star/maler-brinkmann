@@ -54,6 +54,7 @@ export default async function SteuerberaterSeite({ searchParams }: PageProps<"/b
             <div className="flex flex-wrap items-center gap-2">
               <a href={`/buero/rechnungen/steuerberater/export?typ=journal&${abfrage}`} className={btn}><FileSpreadsheetIcon /> Rechnungsjournal (CSV für Excel)</a>
               <a href={`/buero/rechnungen/steuerberater/export?typ=datev&${abfrage}`} className={btn}><DownloadIcon /> DATEV-Buchungsstapel</a>
+              <a href={`/buero/rechnungen/steuerberater/export?typ=debitoren&${abfrage}`} className={btn}><DownloadIcon /> DATEV-Kundenkonten</a>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               {teile === 0 ? <span className="text-sm text-muted-foreground">Keine Rechnungsdateien zum Herunterladen.</span> : Array.from({ length: teile }, (_, i) => (

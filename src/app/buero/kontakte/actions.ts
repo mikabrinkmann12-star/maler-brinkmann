@@ -39,6 +39,8 @@ function zeile(k: ReturnType<typeof kontaktSchema.parse> | ReturnType<typeof imp
     steuersatz: k.steuersatz,
     leitweg_id: leerZuNull(k.leitweg_id),
     ust_id: leerZuNull(k.ust_id),
+    // Kundenkonto nur setzen, wenn eins angegeben ist: neue Kunden bekommen es sonst automatisch, bestehende behalten ihres
+    ...(k.debitorennummer != null ? { debitorennummer: k.debitorennummer } : {}),
   };
 }
 
@@ -61,6 +63,7 @@ export async function kontaktSpeichern(id: string | null, eingabe: unknown): Pro
     : supabase.from("contacts").insert(felder);
   const { data, error } = await abfrage.select("id");
   if (error) {
+    if (error.code === "23505" && error.message.includes("debitorennummer")) return { fehler: "Dieses Kundenkonto (Debitor) hat schon ein anderer Kontakt." };
     return { fehler: error.code === "23505" ? "Diese Kundennummer gibt es schon bei einem anderen Kontakt. Tippe auf „Neu vorschlagen“." : "Speichern hat nicht geklappt. Bitte nochmal versuchen." };
   }
   if (!data?.length) return { fehler: "Kontakt nicht gefunden." };

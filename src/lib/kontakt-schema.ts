@@ -36,6 +36,14 @@ const basis = z.object({
   steuersatz: z.union([z.literal(0), z.literal(7), z.literal(19)], { error: "Steuersatz: 0, 7 oder 19 %." }).default(19),
   /** Leitweg-ID für Rechnungen an Behörden (XRechnung), z. B. 04011000-1234512345-35; leer = keine */
   leitweg_id: z.string().trim().max(46, "Die Leitweg-ID ist zu lang.").regex(/^$|^[0-9A-Za-z-]{5,46}$/, "Die Leitweg-ID darf nur Ziffern, Buchstaben und Bindestriche enthalten (mindestens 5 Zeichen).").default(""),
+  /** Kundenkonto (Debitor) für DATEV, SKR03 10000–69999; leer = automatisch (neu) bzw. unverändert (bestehend) */
+  debitorennummer: z
+    .number({ error: "Das Kundenkonto muss eine Zahl sein." })
+    .int("Das Kundenkonto muss eine ganze Zahl sein.")
+    .min(10000, "Kundenkonten liegen zwischen 10000 und 69999.")
+    .max(69999, "Kundenkonten liegen zwischen 10000 und 69999.")
+    .nullish()
+    .transform((v) => v ?? null),
   /** USt-IdNr. des Kunden, z. B. DE123456789 (Leerzeichen werden entfernt, Buchstaben groß); leer = keine */
   ust_id: z
     .string()

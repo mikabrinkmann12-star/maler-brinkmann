@@ -26,6 +26,8 @@ export type JournalZeile = {
   bezugNummer: string;
   abzugBrutto: number;
   anbieter: "eigen" | "aelter";
+  /** Personenkonto des Kunden (Debitor); null = Sammeldebitor aus den Einstellungen */
+  debitor?: number | null;
 };
 
 const komma = (w: number): string => (Math.round(w * 100) / 100).toFixed(2).replace(".", ",");
@@ -34,17 +36,17 @@ const tt = (iso: string): string => (iso ? iso.split("-").reverse().join(".") : 
 /** Rechnungsjournal: eine Zeile je Rechnung, Gutschrift und Storno, sortiert nach Datum und Nummer. Semikolon, Dezimalkomma (der Aufrufer setzt das BOM). */
 export function journalCsv(zeilen: JournalZeile[]): string {
   const kopf = [
-    "Rechnungsnummer", "Art", "Datum", "Leistung von", "Leistung bis", "Kunde", "Kundennummer", "Projekt", "Betreff",
+    "Rechnungsnummer", "Art", "Datum", "Leistung von", "Leistung bis", "Kunde", "Kundennummer", "Debitor", "Projekt", "Betreff",
     "Netto", "USt-Satz %", "USt", "Brutto", "Reverse-Charge", "Angerechnete Abschläge (brutto)", "Status", "Bezahlt am", "Bezug", "Erstellt in",
   ];
   const sortiert = [...zeilen].sort((a, b) => a.datum.localeCompare(b.datum) || a.nummer.localeCompare(b.nummer));
   const daten = sortiert.map((z) => [
-    csvText(z.nummer), RECHNUNGS_ART_NAMEN[z.art], tt(z.datum), tt(z.leistungVon), tt(z.leistungBis), csvText(z.kunde), csvText(z.kundennummer), csvText(z.projektnummer), csvText(z.betreff),
+    csvText(z.nummer), RECHNUNGS_ART_NAMEN[z.art], tt(z.datum), tt(z.leistungVon), tt(z.leistungBis), csvText(z.kunde), csvText(z.kundennummer), z.debitor ? String(z.debitor) : "", csvText(z.projektnummer), csvText(z.betreff),
     komma(z.netto), z.reverseCharge ? "0" : String(z.steuersatz).replace(".", ","), komma(z.brutto - z.netto), komma(z.brutto), z.reverseCharge ? "ja" : "nein",
     komma(z.abzugBrutto), z.status, tt(z.bezahltAm ?? ""), csvText(z.bezugNummer), z.anbieter === "eigen" ? "App" : "ältere Rechnung",
   ]);
   const summe = sortiert.reduce((s, z) => ({ netto: s.netto + z.netto, brutto: s.brutto + z.brutto }), { netto: 0, brutto: 0 });
-  const fuss = ["Summe", "", "", "", "", "", "", "", "", komma(summe.netto), "", komma(summe.brutto - summe.netto), komma(summe.brutto), "", "", "", "", "", ""];
+  const fuss = ["Summe", "", "", "", "", "", "", "", "", "", komma(summe.netto), "", komma(summe.brutto - summe.netto), komma(summe.brutto), "", "", "", "", "", ""];
   return csvZusammensetzen([kopf, ...daten, fuss]);
 }
 
@@ -56,7 +58,7 @@ export function journalCsv(zeilen: JournalZeile[]): string {
 export type DatevEinstellungen = {
   berater: number;
   mandant: number;
-  /** Sammeldebitor, auf den alle Rechnungen gebucht werden (Personenkonten pro Kunde gibt es hier nicht) */
+  /** Sammeldebitor für Kunden ohne eigenes Konto (normalerweise hat jeder Kunde eins, siehe contacts.debitorennummer) */
   debitor: number;
   erloes19: number;
   erloes7: number;
@@ -64,11 +66,18 @@ export type DatevEinstellungen = {
   erloes0: number;
   /** Erlöse, bei denen der Kunde die Steuer schuldet (§ 13b UStG, Bauleistungen) */
   erloesReverseCharge: number;
+  /** Abschlagsrechnungen getrennt verbuchen (Steuerberaterin, 12.11.2026): 19 % und § 13b */
+  abschlag19: number;
+  abschlagReverseCharge: number;
+  /** Schlussrechnungen auf ein eigenes Konto; die Steuerberaterin bucht sie dann mit den Abschlägen */
+  schluss: number;
   sachkontenlaenge: number;
 };
 
+/** Werte der Steuerberaterin (12.11.2026, SKR03): Erlöse 8400/8300, 13b 8337, Abschläge 1718/1719, Schluss 1590. */
 export const DATEV_STANDARD: DatevEinstellungen = {
-  berater: 0, mandant: 0, debitor: 10000, erloes19: 8400, erloes7: 8300, erloes0: 8200, erloesReverseCharge: 8337, sachkontenlaenge: 4,
+  berater: 0, mandant: 0, debitor: 10000, erloes19: 8400, erloes7: 8300, erloes0: 8200, erloesReverseCharge: 8337,
+  abschlag19: 1718, abschlagReverseCharge: 1719, schluss: 1590, sachkontenlaenge: 4,
 };
 
 /** Gespeicherten Wert lesen; Unbrauchbares fällt auf die Standardwerte zurück. */
@@ -84,6 +93,9 @@ export function datevAusJson(wert: unknown): DatevEinstellungen {
     erloes7: zahl(o.erloes7, 1, 99_999_999, s.erloes7),
     erloes0: zahl(o.erloes0, 1, 99_999_999, s.erloes0),
     erloesReverseCharge: zahl(o.erloes_reverse_charge, 1, 99_999_999, s.erloesReverseCharge),
+    abschlag19: zahl(o.abschlag19, 1, 99_999_999, s.abschlag19),
+    abschlagReverseCharge: zahl(o.abschlag_reverse_charge, 1, 99_999_999, s.abschlagReverseCharge),
+    schluss: zahl(o.schluss, 1, 99_999_999, s.schluss),
     sachkontenlaenge: zahl(o.sachkontenlaenge, 4, 8, s.sachkontenlaenge),
   };
 }
@@ -92,6 +104,19 @@ export function datevAusJson(wert: unknown): DatevEinstellungen {
 export function erloesKonto(z: Pick<JournalZeile, "steuersatz" | "reverseCharge">, e: DatevEinstellungen): number {
   if (z.reverseCharge) return e.erloesReverseCharge;
   return z.steuersatz === 19 ? e.erloes19 : z.steuersatz === 7 ? e.erloes7 : e.erloes0;
+}
+
+/**
+ * Gegenkonto einer Buchung: Abschlagsrechnungen auf die Abschlagskonten (19 % bzw. § 13b; andere Sätze wie Erlöse),
+ * Schlussrechnungen auf das Schlusskonto, alles andere auf das Erlöskonto nach Steuersatz.
+ */
+export function gegenKonto(z: Pick<JournalZeile, "art" | "steuersatz" | "reverseCharge">, e: DatevEinstellungen): number {
+  if (z.art === "abschlag") {
+    if (z.reverseCharge) return e.abschlagReverseCharge;
+    if (z.steuersatz === 19) return e.abschlag19;
+  }
+  if (z.art === "schluss") return e.schluss;
+  return erloesKonto(z, e);
 }
 
 const ohneUmlaute = (t: string): string =>
@@ -119,11 +144,58 @@ export function datevCsv(zeilen: JournalZeile[], e: DatevEinstellungen, zeitraum
   const buchungen = sortiert.map((z) => {
     const gutschrift = z.art === "gutschrift" || z.art === "storno";
     return [
-      komma(Math.abs(z.brutto)), gutschrift ? '"H"' : '"S"', '"EUR"', "", "", "", String(e.debitor), String(erloesKonto(z, e)), "", ttmm(z.datum), datevText(z.nummer, 36), "", "",
+      komma(Math.abs(z.brutto)), gutschrift ? '"H"' : '"S"', '"EUR"', "", "", "", String(z.debitor ?? e.debitor), String(gegenKonto(z, e)), "", ttmm(z.datum), datevText(z.nummer, 36), "", "",
       datevText(`${RECHNUNGS_ART_NAMEN[z.art]} ${z.kunde} ${z.betreff}`, 60),
     ].join(";");
   });
   return [kopf, spalten, ...buchungen].join("\r\n") + "\r\n";
+}
+
+export type DebitorStamm = {
+  debitor: number;
+  firma: boolean;
+  firmenname: string;
+  vorname: string;
+  nachname: string;
+  kundennummer: string;
+  strasse: string;
+  plz: string;
+  ort: string;
+  land: string;
+  ustId: string;
+};
+
+const LAENDER_ISO: Record<string, string> = { deutschland: "DE", niederlande: "NL", "österreich": "AT", oesterreich: "AT", schweiz: "CH", belgien: "BE", "dänemark": "DK", polen: "PL", frankreich: "FR", luxemburg: "LU" };
+
+/**
+ * Stammdaten der Kundenkonten im DATEV-Format „Debitoren/Kreditoren“ (Kategorie 16), damit beim Steuerberater jedes Konto einen Namen
+ * und eine Anschrift hat. VORSCHLAG wie der Buchungsstapel: nach dem bekannten Aufbau, nicht mit DATEV geprüft. Windows-1252 schreibt der Aufrufer.
+ */
+export function debitorenCsv(kunden: DebitorStamm[], e: DatevEinstellungen, jetzt: Date = new Date()): string {
+  const jahr = String(jetzt.getUTCFullYear());
+  const kopf = [
+    '"EXTF"', "510", "16", '"Debitoren/Kreditoren"', "5", stempel(jetzt), "", '"RE"', '""', '""', String(e.berater), String(e.mandant), `${jahr}0101`, String(e.sachkontenlaenge),
+    "", "", '"Kunden"', '""', "", "", "", '""', "", '""', "", "", '"03"', "", "", '""', '""',
+  ].join(";");
+  const spalten = [
+    "Konto", "Name (Adressatentyp Unternehmen)", "Unternehmensgegenstand", "Name (Adressatentyp natuerl. Person)", "Vorname (Adressatentyp natuerl. Person)",
+    "Name (Adressatentyp keine Angabe)", "Adressatentyp", "Kurzbezeichnung", "EU-Land", "EU-USt-IdNr.", "Anrede", "Titel/Akad. Grad", "Adelstitel", "Namensvorsatz",
+    "Adressart", "Strasse", "Postfach", "Postleitzahl", "Ort", "Land",
+  ].map((s) => `"${s}"`).join(";");
+  const zeilen = [...kunden].sort((a, b) => a.debitor - b.debitor).map((k) => {
+    const ust = k.ustId.replace(/\s/g, "").toUpperCase();
+    const name = k.firma ? k.firmenname : [k.vorname, k.nachname].filter(Boolean).join(" ");
+    return [
+      String(k.debitor),
+      k.firma ? datevText(k.firmenname, 50) : '""', '""',
+      k.firma ? '""' : datevText(k.nachname || k.firmenname, 30), k.firma ? '""' : datevText(k.vorname, 30),
+      '""', k.firma ? "2" : "1", datevText(`${name} ${k.kundennummer}`.trim(), 15),
+      ust ? datevText(ust.slice(0, 2), 2) : '""', ust ? datevText(ust.slice(2), 13) : '""',
+      '""', '""', '""', '""', '"STR"', datevText(k.strasse, 36), '""', datevText(k.plz, 10), datevText(k.ort, 30),
+      datevText(LAENDER_ISO[(k.land || "Deutschland").toLowerCase()] ?? "DE", 2),
+    ].join(";");
+  });
+  return [kopf, spalten, ...zeilen].join("\r\n") + "\r\n";
 }
 
 /** Zeitraum aus Adressparametern; ungültig = null. */

@@ -26,12 +26,15 @@ export function DatevFormular({ start, darfAendern }: { start: DatevEinstellunge
       <div className="grid gap-4 sm:grid-cols-2">
         {eingabe("berater", "Beraternummer", start.berater, "Nennt der Steuerberater.")}
         {eingabe("mandant", "Mandantennummer", start.mandant, "Nennt der Steuerberater.")}
-        {eingabe("debitor", "Sammeldebitor", start.debitor, "Alle Rechnungen werden auf dieses Konto gebucht (kein Konto je Kunde).")}
+        {eingabe("debitor", "Sammeldebitor", start.debitor, "Nur für Kunden ohne eigenes Konto. Jeder Kunde hat sonst sein eigenes Konto ab 10000 (steht im Kontakt).")}
         {eingabe("sachkontenlaenge", "Sachkontenlänge", start.sachkontenlaenge, "Meist 4 (SKR03).")}
         {eingabe("erloes19", "Erlöse 19 %", start.erloes19)}
         {eingabe("erloes7", "Erlöse 7 %", start.erloes7)}
         {eingabe("erloes0", "Erlöse 0 %", start.erloes0)}
         {eingabe("erloes_reverse_charge", "Erlöse § 13b (Reverse-Charge)", start.erloesReverseCharge)}
+        {eingabe("abschlag19", "Abschlagsrechnungen 19 %", start.abschlag19)}
+        {eingabe("abschlag_reverse_charge", "Abschlagsrechnungen § 13b", start.abschlagReverseCharge)}
+        {eingabe("schluss", "Schlussrechnungen", start.schluss, "Die Steuerberaterin bucht sie mit den Abschlägen.")}
       </div>
       {darfAendern && (
         <div className="flex items-center gap-3">

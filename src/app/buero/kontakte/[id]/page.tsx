@@ -119,6 +119,7 @@ export default async function KontaktSeite({ params }: PageProps<"/buero/kontakt
             <dl>
               <Zeile label="Steuersatz">{formatZahl(Number(k.steuersatz))} %</Zeile>
               {k.ust_id && <Zeile label="USt-IdNr.">{k.ust_id}</Zeile>}
+              {k.debitorennummer != null && <Zeile label="Kundenkonto (DATEV)">{k.debitorennummer}</Zeile>}
               {k.leitweg_id && <Zeile label="Leitweg-ID">{k.leitweg_id}</Zeile>}
             </dl>
             {Number(k.steuersatz) === 0 && !k.ust_id && (

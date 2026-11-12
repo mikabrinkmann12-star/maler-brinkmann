@@ -3,7 +3,7 @@
 // Auch im Browser nutzbar.
 
 import { z } from "zod";
-import { REVERSE_CHARGE_TEXT, STANDARD_EINLEITUNG, STANDARD_SCHLUSSTEXT } from "@/lib/angebot";
+import { REVERSE_CHARGE_TEXT, REVERSE_CHARGE_TEXT_ALT, STANDARD_EINLEITUNG, STANDARD_SCHLUSSTEXT } from "@/lib/angebot";
 import { MAIL_STANDARD_BETREFF, MAIL_STANDARD_TEXT } from "@/lib/angebot-mail";
 
 const text = (max: number, label: string) =>
@@ -81,8 +81,11 @@ export function angebotEinstellungenAusWert(wert: unknown): AngebotEinstellungen
   return {
     einleitung: typeof roh.einleitung === "string" ? roh.einleitung : s.einleitung,
     schlusstext: typeof roh.schlusstext === "string" ? roh.schlusstext : s.schlusstext,
+    // Steht noch der alte Standardtext drin, gilt der Wortlaut der Steuerberaterin
     reverse_charge_text:
-      typeof roh.reverse_charge_text === "string" && roh.reverse_charge_text.trim() ? roh.reverse_charge_text : s.reverse_charge_text,
+      typeof roh.reverse_charge_text === "string" && roh.reverse_charge_text.trim() && roh.reverse_charge_text.trim() !== REVERSE_CHARGE_TEXT_ALT
+        ? roh.reverse_charge_text
+        : s.reverse_charge_text,
     standard_steuersatz: satz === 0 || satz === 7 || satz === 19 ? satz : s.standard_steuersatz,
     standard_rabatt: typeof rabatt === "number" && rabatt >= 0 && rabatt <= 100 ? rabatt : s.standard_rabatt,
     gueltigkeit_tage: typeof roh.gueltigkeit_tage === "number" && Number.isInteger(roh.gueltigkeit_tage) && roh.gueltigkeit_tage >= 0 && roh.gueltigkeit_tage <= 365 ? roh.gueltigkeit_tage : s.gueltigkeit_tage,

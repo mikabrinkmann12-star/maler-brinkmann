@@ -548,6 +548,7 @@ export type Database = {
           bearbeitet_von: string | null
           created_at: string
           created_by: string | null
+          debitorennummer: number | null
           email: string | null
           empfaenger: string | null
           farbe: string | null
@@ -582,6 +583,7 @@ export type Database = {
           bearbeitet_von?: string | null
           created_at?: string
           created_by?: string | null
+          debitorennummer?: number | null
           email?: string | null
           empfaenger?: string | null
           farbe?: string | null
@@ -616,6 +618,7 @@ export type Database = {
           bearbeitet_von?: string | null
           created_at?: string
           created_by?: string | null
+          debitorennummer?: number | null
           email?: string | null
           empfaenger?: string | null
           farbe?: string | null

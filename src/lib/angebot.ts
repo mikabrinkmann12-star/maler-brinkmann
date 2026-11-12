@@ -23,7 +23,10 @@ export function istAngebotStatus(wert: unknown): wert is AngebotStatus {
   return wert === "entwurf" || wert === "versendet" || wert === "angenommen" || wert === "abgelehnt";
 }
 
-export const REVERSE_CHARGE_TEXT =
+/** Wortlaut der Steuerberaterin (12.11.2026) für Rechnungen an Bauleister. */
+export const REVERSE_CHARGE_TEXT = "Steuerschuldnerschaft des Leistungsempfängers (Reverse-Charge-Verfahren nach § 13b UStG)";
+/** Früherer Standardtext; ist er noch gespeichert, gilt automatisch der neue. */
+export const REVERSE_CHARGE_TEXT_ALT =
   "Gemäß § 13b UStG gilt die Steuerschuldnerschaft des Leistungsempfängers (Reverse-Charge). Es wird keine Umsatzsteuer ausgewiesen.";
 
 export const STANDARD_EINLEITUNG = "Sehr geehrte Damen und Herren,\nanbei schicken wir Ihnen das angeforderte Angebot. Dieses lautet wie folgt:";
