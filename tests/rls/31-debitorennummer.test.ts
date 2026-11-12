@@ -18,7 +18,7 @@ describe("Kundenkonto (Debitor)", () => {
     const a = await db().from("contacts").insert({ typ: "privat", nachname: `${kennung} A`, kundennummer: `${kennung}-A` }).select("id, debitorennummer").single();
     const b = await db().from("contacts").insert({ typ: "privat", nachname: `${kennung} B`, kundennummer: `${kennung}-B` }).select("id, debitorennummer").single();
     ids.push(a.data!.id, b.data!.id);
-    expect(a.data!.debitorennummer).toBe((max?.[0]?.debitorennummer ?? 9999) + 1);
+    expect(a.data!.debitorennummer).toBe((max?.[0]?.debitorennummer ?? 10000) + 1);
     expect(b.data!.debitorennummer).toBe(a.data!.debitorennummer! + 1);
   });
 
