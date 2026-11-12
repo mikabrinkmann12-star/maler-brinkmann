@@ -65,7 +65,7 @@ export default async function SteuerberaterSeite({ searchParams }: PageProps<"/b
           </div>
         )}
         <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">
-          Der DATEV-Buchungsstapel ist ein Vorschlag nach dem bekannten Aufbau (Format 510) und noch nicht mit DATEV getestet. Konten und Nummern unten stellt der Steuerberater ein; er prüft die Datei beim ersten Import. Alle Rechnungen werden auf ein Sammeldebitor-Konto gebucht.
+          Der DATEV-Buchungsstapel ist ein Vorschlag nach dem bekannten Aufbau (Format 510) und noch nicht mit DATEV getestet. Konten und Nummern unten stellt der Steuerberater ein; er prüft die Datei beim ersten Import. Jede Rechnung wird auf das Kundenkonto des Kunden gebucht (ab 10001), dazu gibt es die Kundenliste „DATEV-Kundenkonten“ zum Einlesen.
         </p>
       </section>
 

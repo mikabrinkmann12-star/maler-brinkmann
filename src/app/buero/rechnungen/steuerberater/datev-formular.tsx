@@ -26,7 +26,7 @@ export function DatevFormular({ start, darfAendern }: { start: DatevEinstellunge
       <div className="grid gap-4 sm:grid-cols-2">
         {eingabe("berater", "Beraternummer", start.berater, "Nennt der Steuerberater.")}
         {eingabe("mandant", "Mandantennummer", start.mandant, "Nennt der Steuerberater.")}
-        {eingabe("debitor", "Sammeldebitor", start.debitor, "Nur für Kunden ohne eigenes Konto. Jeder Kunde hat sonst sein eigenes Konto ab 10000 (steht im Kontakt).")}
+        {eingabe("debitor", "Sammeldebitor", start.debitor, "Nur für Kunden ohne eigenes Konto. Jeder Kunde hat sonst sein eigenes Konto ab 10001 (steht im Kontakt).")}
         {eingabe("sachkontenlaenge", "Sachkontenlänge", start.sachkontenlaenge, "Meist 4 (SKR03).")}
         {eingabe("erloes19", "Erlöse 19 %", start.erloes19)}
         {eingabe("erloes7", "Erlöse 7 %", start.erloes7)}
