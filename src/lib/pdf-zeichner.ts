@@ -205,3 +205,89 @@ export function fussZeilenZeichnen(z: Zeichner, f: Firma) {
     z.text(`Seite ${i + 1} von ${gesamtSeiten}`, SEITE_B - RAND_R, 70, { groesse: 7, farbe: dunkel, rechts: true });
   });
 }
+
+// ---------------------------------------------------------------------------
+// Bausteine für weitere Schreiben im Plancraft-Stil (Mahnung, Bericht). Angebot und Rechnung zeichnen das selbst (angebot-pdf.ts).
+// ---------------------------------------------------------------------------
+
+const mm = (wert: number) => (wert * 72) / 25.4;
+const ausOben = (wert: number) => SEITE_H - mm(wert);
+
+/** Anschriftfeld nach DIN 5008 Form B wie beim Angebot: kleine fette Absenderzeile, Anschrift, Falz- und Lochmarken. */
+export function anschriftFeldZeichnen(z: Zeichner, absender: string, empfaenger: string) {
+  const fensterBreite = mm(85);
+  const passend = (text: string, font: PDFFont, groesse: number, kleinste: number) => {
+    let g = groesse;
+    while (g > kleinste && z.breite(text, font, g) > fensterBreite) g -= 0.5;
+    let t = text;
+    while (t.length > 1 && z.breite(t, font, g) > fensterBreite) t = t.slice(0, -1);
+    return { text: t === text ? t : `${t.trimEnd()}…`, groesse: g };
+  };
+  if (absender) {
+    const a = passend(absender, z.bold, 6.5, 5.5);
+    z.text(a.text, RAND_L, ausOben(56.4), { font: z.bold, groesse: a.groesse });
+  }
+  let y = ausOben(62);
+  for (const zeile of empfaenger.split("\n").map((t) => t.trim()).filter(Boolean)) {
+    const a = passend(zeile, z.regular, SCHRIFT, 7.5);
+    z.text(a.text, RAND_L, y, { groesse: a.groesse });
+    y -= 11.7;
+  }
+  for (const [von, laenge] of [[105, 4], [148.5, 6], [210, 4]] as const) z.linie(0, ausOben(von), mm(laenge), ausOben(von), 0.4, LINIE);
+}
+
+/**
+ * Titel und Angaben-Zeile wie beim Angebot: Titel fett, darunter links „Betreff“, rechts die Spalten (Bezeichnung, Wert fett),
+ * die letzte rechtsbündig. Setzt z.y unter den Block.
+ */
+export function titelUndAngabenZeichnen(z: Zeichner, titel: string, oben: number, spalten: [string, string][], betreff: { label: string; text: string }) {
+  z.y = oben;
+  z.text(titel, RAND_L, z.y, { font: z.bold, groesse: 13 });
+  z.y -= 26;
+  let rechts = SEITE_B - RAND_R;
+  const xs: number[] = [];
+  for (let i = spalten.length - 1; i >= 0; i--) {
+    const [label, wert] = spalten[i];
+    const w = Math.max(z.breite(label, z.regular, SCHRIFT), z.breite(wert || "–", z.bold, SCHRIFT));
+    const letzte = i === spalten.length - 1;
+    xs[i] = letzte ? rechts : rechts - w;
+    rechts = (letzte ? rechts - w : xs[i]) - 14;
+  }
+  spalten.forEach(([label, wert], i) => {
+    const r = i === spalten.length - 1;
+    z.text(label, xs[i], z.y, { rechts: r });
+    z.text(wert || "–", xs[i], z.y - 11.7, { font: z.bold, rechts: r });
+  });
+  let by = z.y - 11.7;
+  if (betreff.text.trim()) {
+    z.text(betreff.label, RAND_L, z.y);
+    for (const zeile of z.umbrechen(betreff.text, z.bold, SCHRIFT, Math.max(120, rechts - RAND_L))) { z.text(zeile, RAND_L, by, { font: z.bold }); by -= 11.7; }
+  }
+  z.y = Math.min(by, z.y - 23.4) - 8;
+}
+
+/** Weitere Angabe unter der Angaben-Zeile: Bezeichnung, darunter der Wert fett (umbrochen). */
+export function angabeZeichnen(z: Zeichner, label: string, wert: string) {
+  if (!wert.trim()) return;
+  z.text(label, RAND_L, z.y);
+  z.y -= 11.7;
+  for (const zeile of z.umbrechen(wert, z.bold, SCHRIFT, INHALT_B)) { z.text(zeile, RAND_L, z.y, { font: z.bold }); z.y -= 11.7; }
+  z.y -= 8;
+}
+
+/** Graues Band über die ganze Breite mit fetter Überschrift (wie der Tabellenkopf beim Angebot). Setzt z.y darunter. */
+export function bandZeichnen(z: Zeichner, text: string, rechtsText = "") {
+  z.seite.drawRectangle({ x: RAND_L, y: z.y - 6, width: INHALT_B, height: 19, color: rgb(0.9, 0.9, 0.9) });
+  z.text(text, RAND_L + 6, z.y, { font: z.bold });
+  if (rechtsText) z.text(rechtsText, SEITE_B - RAND_R - 6, z.y, { font: z.bold, rechts: true });
+  z.y -= 22;
+}
+
+/** Kopf der Folgeseiten wie beim Angebot: Titel fett, eine Zeile darunter, kleines Logo rechts. */
+export function folgeKopfZeichnen(z: Zeichner, titel: string, unterzeile: string, zweite: string, logo: PDFImage | undefined) {
+  logoZeichnen(z, logo, KOPF_OBEN + 6, 70, 34);
+  z.text(titel, RAND_L, KOPF_OBEN, { font: z.bold, groesse: 11 });
+  z.text(z.umbrechen(unterzeile, z.regular, SCHRIFT, INHALT_B - 110)[0] ?? "", RAND_L, KOPF_OBEN - 13);
+  if (zweite) z.text(zweite, RAND_L, KOPF_OBEN - 25);
+  z.y = KOPF_OBEN - 58;
+}

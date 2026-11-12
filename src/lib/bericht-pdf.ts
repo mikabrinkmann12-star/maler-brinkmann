@@ -1,4 +1,4 @@
-// Bericht als PDF (A4): Firmenkopf mit Logo, Titel, Angaben, alle Abschnitte der Berichtsart (Aufbau aus bericht-arten.ts),
+// Bericht als PDF (A4) im Plancraft-Stil wie Angebot und Rechnung: Logo und Firmenblock rechts, Auftraggeber im Anschriftfeld, Titel und Angaben, alle Abschnitte der Berichtsart (Aufbau aus bericht-arten.ts),
 // Fotos (zwei pro Zeile), Unterschrift des Kunden und Fußzeile mit den Firmendaten.
 
 import { PDFDocument, type PDFImage } from "pdf-lib";
@@ -6,9 +6,10 @@ import { BERICHT_DEFS, type BerichtArt } from "@/lib/bericht-arten";
 import { eintragsZeile, wetterText, type BerichtDaten, type EintragWerte } from "@/lib/bericht";
 import type { Firma } from "@/lib/firma";
 import { formatDatum } from "@/lib/format";
+import { absenderZeile } from "@/lib/firma";
 import {
-  GRAU, INHALT_B, KOPF_OBEN, RAND_L, RAND_R, SCHRIFT, SEITE_B, UNTEN, ZEILE,
-  Zeichner, firmenKopfZeichnen, fussZeilenZeichnen,
+  GRAU, INHALT_B, RAND_L, RAND_R, SCHRIFT, SEITE_B, UNTEN, ZEILE, Zeichner,
+  anschriftFeldZeichnen, angabeZeichnen, bandZeichnen, briefKopfZeichnen, folgeKopfZeichnen, fussZeilenZeichnen, logoEinbetten, titelUndAngabenZeichnen,
 } from "@/lib/pdf-zeichner";
 
 export type BerichtPdfDaten = {
@@ -48,12 +49,10 @@ export async function berichtPdf(d: BerichtPdfDaten): Promise<Uint8Array> {
   const def = BERICHT_DEFS[d.art];
   const a = d.daten.allgemein;
   const titel = d.entwurf ? `${d.titel} - Entwurf` : d.titel;
+  const logo = await logoEinbetten(z, d.logo);
   const folgekopf = () => {
     z.neueSeite();
-    z.text(titel, RAND_L, KOPF_OBEN, { font: z.bold, groesse: 12 });
-    z.text(formatDatum(d.datum), SEITE_B - RAND_R, KOPF_OBEN, { rechts: true, farbe: GRAU });
-    z.text(z.umbrechen(d.projektName, z.regular, SCHRIFT, INHALT_B - 90)[0] ?? "", RAND_L, KOPF_OBEN - 15, { farbe: GRAU });
-    z.y = KOPF_OBEN - 44;
+    folgeKopfZeichnen(z, titel, d.projektName, `vom ${formatDatum(d.datum)}`, logo);
   };
   /** Platz für `hoehe` Punkte schaffen, sonst neue Seite. */
   const platz = (hoehe: number) => {
@@ -67,40 +66,25 @@ export async function berichtPdf(d: BerichtPdfDaten): Promise<Uint8Array> {
     }
   };
   const ueberschrift = (text: string) => {
-    platz(ZEILE * 3 + 8);
-    z.y -= 10;
-    z.text(text, RAND_L, z.y, { font: z.bold, groesse: 10.5 });
-    z.y -= ZEILE + 3;
+    platz(ZEILE * 3 + 16);
+    z.y -= 4;
+    bandZeichnen(z, text);
   };
 
-  // Seite 1: Firmenkopf, Titel, Angaben
+  // Seite 1 wie Angebot und Rechnung: Logo und Firmenblock rechts, Auftraggeber im Anschriftfeld, Titel und Angaben-Zeile
   z.neueSeite();
-  await firmenKopfZeichnen(z, d.firma, d.logo);
-  z.y = 722;
-  z.text(titel, RAND_L, z.y, { font: z.bold, groesse: 17 });
-  z.y -= 28;
+  const blockUnten = briefKopfZeichnen(z, d.firma, logo);
+  anschriftFeldZeichnen(z, absenderZeile(d.firma), d.kunde);
 
-  const zeitraum = def.allgemein.zeitraum && (a.von || a.bis) ? [a.von && formatDatum(a.von), a.bis && formatDatum(a.bis)].filter(Boolean).join(" – ") : "";
-  const angaben: [string, string][] = [
+  const zeitraum = def.allgemein.zeitraum && (a.von || a.bis) ? [a.von && formatDatum(a.von), a.bis && formatDatum(a.bis)].filter(Boolean).join(" - ") : "";
+  titelUndAngabenZeichnen(z, titel, Math.min(522, blockUnten - 14), [
+    ...(d.projektnummer ? [["Projektnr.", d.projektnummer] as [string, string]] : []),
+    ...(zeitraum ? [["Zeitraum", zeitraum] as [string, string]] : []),
+    ...(d.erstelltVon ? [["Erstellt von", d.erstelltVon] as [string, string]] : []),
     ["Datum", formatDatum(d.datum)],
-    ["Zeitraum", zeitraum],
-    ["Projekt", [d.projektName, d.projektnummer && `(${d.projektnummer})`].filter(Boolean).join(" ")],
-    ["Leistungsort", d.baustelle],
-    ["Auftraggeber", d.kunde],
-    ["Wetter", def.allgemein.wetter ? wetterText(a.wetter, a.temperatur) : ""],
-    ["Erstellt von", d.erstelltVon],
-  ];
-  for (const [label, wert] of angaben) {
-    if (!wert) continue;
-    const zeilen = z.umbrechen(wert, z.regular, SCHRIFT, INHALT_B - 80);
-    z.text(label, RAND_L, z.y, { font: z.bold, farbe: GRAU });
-    for (const zeile of zeilen) {
-      z.text(zeile, RAND_L + 80, z.y);
-      z.y -= ZEILE;
-    }
-  }
-  z.linie(RAND_L, z.y - 2, SEITE_B - RAND_R, z.y - 2, 0.6);
-  z.y -= 6;
+  ], { label: "Projekt", text: d.projektName });
+  angabeZeichnen(z, "Leistungsort", d.baustelle);
+  angabeZeichnen(z, "Wetter", def.allgemein.wetter ? wetterText(a.wetter, a.temperatur) : "");
 
   // Abschnitte der Berichtsart
   for (const ab of def.abschnitte) {

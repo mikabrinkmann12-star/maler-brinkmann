@@ -1,11 +1,15 @@
-// Mahnschreiben (Zahlungserinnerung, 1. und 2. Mahnung) als PDF (A4): Briefkopf wie bei der Rechnung, Anschrift im Fenster, Bezug zur Rechnung,
-// Text (der gleiche wie in der E-Mail) und eine Übersicht mit offenem Betrag, Gebühr, Zinsen und Frist. Läuft auf dem Server (pdf-lib).
+// Mahnschreiben (Zahlungserinnerung, 1. und 2. Mahnung) als PDF (A4) im Plancraft-Stil wie Angebot und Rechnung: Logo und Firmenblock rechts,
+// Anschrift im Fenster, Titel mit Angaben-Zeile, Text (der gleiche wie in der E-Mail) und eine Aufstellung mit offenem Betrag, Gebühr, Zinsen und Frist.
+// Läuft auf dem Server (pdf-lib).
 
 import { PDFDocument } from "pdf-lib";
 import type { Firma } from "@/lib/firma";
 import { absenderZeile } from "@/lib/firma";
 import { formatBetrag, formatDatum } from "@/lib/format";
-import { GRAU, INHALT_B, LINIE, RAND_L, SCHRIFT, SEITE_B, SEITE_H, UNTEN, ZEILE, Zeichner, firmenKopfZeichnen, fussZeilenZeichnen } from "@/lib/pdf-zeichner";
+import {
+  GRAU, INHALT_B, RAND_L, RAND_R, SCHRIFT, SEITE_B, UNTEN, ZEILE, Zeichner,
+  anschriftFeldZeichnen, bandZeichnen, briefKopfZeichnen, folgeKopfZeichnen, fussZeilenZeichnen, logoEinbetten, titelUndAngabenZeichnen,
+} from "@/lib/pdf-zeichner";
 
 export type MahnungPdfDaten = {
   firma: Firma;
@@ -33,66 +37,59 @@ export async function mahnungPdf(d: MahnungPdfDaten): Promise<Uint8Array> {
   doc.setCreator("Maler Brinkmann");
   const z = new Zeichner(doc);
   await z.laden();
+  const logo = await logoEinbetten(z, d.logo);
+  const titel = `${d.stufeName} - ${d.rechnungsnummer}`;
+  const folge = () => { z.neueSeite(); folgeKopfZeichnen(z, titel, d.betreff, `vom ${formatDatum(d.datum)}`, logo); };
+
+  // Seite 1 wie Angebot und Rechnung: Logo und Firmenblock rechts, Anschrift im Fenster, Titel und Angaben-Zeile
   z.neueSeite();
-  await firmenKopfZeichnen(z, d.firma, d.logo);
+  const blockUnten = briefKopfZeichnen(z, d.firma, logo);
+  anschriftFeldZeichnen(z, absenderZeile(d.firma), d.empfaenger);
+  titelUndAngabenZeichnen(z, titel, Math.min(522, blockUnten - 14), [
+    ["Kunde", d.kundennummer],
+    ["Rechnung", d.rechnungsnummer],
+    ["Rechnungsdatum", formatDatum(d.rechnungsdatum)],
+    ["Datum", formatDatum(d.datum)],
+  ], { label: "Betreff", text: d.betreff });
 
-  // Anschriftfeld nach DIN 5008 Form B (wie beim Angebot)
-  const mm = (w: number) => (w * 72) / 25.4;
-  const ausOben = (w: number) => SEITE_H - mm(w);
-  const breite = mm(85);
-  const absender = absenderZeile(d.firma);
-  if (absender) {
-    z.text(absender.length > 70 ? `${absender.slice(0, 69)}…` : absender, RAND_L, ausOben(48.6), { groesse: 7.5, farbe: GRAU });
-    z.linie(RAND_L, ausOben(50.2), RAND_L + breite, ausOben(50.2), 0.3, LINIE);
+  // Text (der gleiche wie in der E-Mail)
+  z.y -= 8;
+  for (const absatz of d.text.replace(/\r/g, "").split("\n")) {
+    if (!absatz.trim()) { z.y -= 6; continue; }
+    for (const zeile of z.umbrechen(absatz, z.regular, SCHRIFT, INHALT_B)) {
+      if (z.y < UNTEN + ZEILE) folge();
+      z.text(zeile, RAND_L, z.y);
+      z.y -= ZEILE;
+    }
   }
-  let ey = ausOben(65.5);
-  for (const zeile of d.empfaenger.split("\n").map((t) => t.trim()).filter(Boolean)) {
-    z.text(zeile, RAND_L, ey, { groesse: 10 });
-    ey -= 12.2;
+  z.y -= 18;
+
+  // Aufstellung wie die Summen der Rechnung: graues Band, Zeilen, „Zu zahlen“ fett
+  const zeilen: [string, number][] = [["Offener Rechnungsbetrag", d.betraege.offen]];
+  if (d.betraege.gebuehr > 0) zeilen.push(["Mahngebühr", d.betraege.gebuehr]);
+  if (d.betraege.zinsen > 0) zeilen.push([`Verzugszinsen (${String(d.zinsenProzent).replace(".", ",")} % p. a., ${d.tageUeberfaellig} Tage)`, d.betraege.zinsen]);
+  if (z.y < UNTEN + 60 + zeilen.length * 15) folge();
+  bandZeichnen(z, "Aufstellung", "Betrag");
+  const rechts = SEITE_B - RAND_R - 6;
+  for (const [label, wert] of zeilen) {
+    z.text(label, RAND_L + 6, z.y);
+    z.text(formatBetrag(wert), rechts, z.y, { rechts: true });
+    z.y -= 15;
   }
-  for (const [von, laenge] of [[105, 4], [148.5, 6], [210, 4]] as const) z.linie(0, ausOben(von), mm(laenge), ausOben(von), 0.4, GRAU);
+  z.linie(RAND_L, z.y + 10, SEITE_B - RAND_R, z.y + 10, 0.8, GRAU);
+  z.y -= 4;
+  z.text("Zu zahlen", RAND_L + 6, z.y, { font: z.bold, groesse: 10.5 });
+  z.text(formatBetrag(d.betraege.summe), rechts, z.y, { font: z.bold, groesse: 10.5, rechts: true });
+  z.y -= 26;
 
-  const infoY = ausOben(65.5);
-  [["Kunde", d.kundennummer], ["Rechnungsnr.", d.rechnungsnummer], ["Datum", formatDatum(d.datum)]].forEach(([label, wert], i) => {
-    const x = [355, 430, 495][i];
-    z.text(label, x, infoY + 4, { font: z.bold, groesse: 8, farbe: GRAU });
-    z.text(wert || "–", x, infoY - 9, { groesse: 9 });
-  });
-
-  const titelY = ausOben(100);
-  z.text(d.stufeName, RAND_L, titelY, { font: z.bold, groesse: 15 });
-  z.y = titelY - 28;
-  z.text(`Rechnung ${d.rechnungsnummer} vom ${formatDatum(d.rechnungsdatum)}`, RAND_L, z.y, { font: z.bold, groesse: 11 });
-  z.y -= 14;
-  for (const zeile of z.umbrechen(d.betreff, z.regular, SCHRIFT, INHALT_B)) {
-    z.text(zeile, RAND_L, z.y, { farbe: GRAU });
+  const hinweis = d.frist
+    ? `Bitte zahlen Sie bis zum ${formatDatum(d.frist)} unter Angabe der Rechnungsnummer ${d.rechnungsnummer}.`
+    : `Bitte zahlen Sie umgehend unter Angabe der Rechnungsnummer ${d.rechnungsnummer}.`;
+  for (const zeile of z.umbrechen(hinweis, z.bold, SCHRIFT, INHALT_B)) {
+    if (z.y < UNTEN + ZEILE) folge();
+    z.text(zeile, RAND_L, z.y, { font: z.bold });
     z.y -= ZEILE;
   }
-  z.y -= 14;
-
-  for (const zeile of z.umbrechen(d.text, z.regular, SCHRIFT + 0.5, INHALT_B)) {
-    if (z.y < UNTEN + ZEILE * 12) { z.neueSeite(); z.y = 760; }
-    z.text(zeile, RAND_L, z.y, { groesse: SCHRIFT + 0.5 });
-    z.y -= ZEILE + 1;
-  }
-  z.y -= 12;
-
-  // Übersicht
-  if (z.y < UNTEN + 130) { z.neueSeite(); z.y = 760; }
-  const rechts = SEITE_B - 56.7;
-  const zeile = (label: string, wert: string, stark = false) => {
-    z.text(label, RAND_L + 200, z.y, { font: stark ? z.bold : z.regular });
-    z.text(wert, rechts, z.y, { font: stark ? z.bold : z.regular, rechts: true });
-    z.y -= ZEILE + 3;
-  };
-  z.linie(RAND_L + 200, z.y + 12, rechts, z.y + 12, 0.8, GRAU);
-  zeile("Offener Rechnungsbetrag", formatBetrag(d.betraege.offen));
-  if (d.betraege.gebuehr > 0) zeile("Mahngebühr", formatBetrag(d.betraege.gebuehr));
-  if (d.betraege.zinsen > 0) zeile(`Verzugszinsen (${String(d.zinsenProzent).replace(".", ",")} % p. a., ${d.tageUeberfaellig} Tage)`, formatBetrag(d.betraege.zinsen));
-  z.linie(RAND_L + 200, z.y + 12, rechts, z.y + 12, 0.8, GRAU);
-  zeile("Zu zahlen", formatBetrag(d.betraege.summe), true);
-  z.y -= 6;
-  z.text(d.frist ? `Bitte zahlen Sie bis zum ${formatDatum(d.frist)} unter Angabe der Rechnungsnummer ${d.rechnungsnummer}.` : `Bitte zahlen Sie umgehend unter Angabe der Rechnungsnummer ${d.rechnungsnummer}.`, RAND_L, z.y);
 
   fussZeilenZeichnen(z, d.firma);
   return doc.save();
