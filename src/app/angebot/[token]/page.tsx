@@ -2,10 +2,13 @@ import type { Metadata } from "next";
 import { DownloadIcon } from "lucide-react";
 import { angebotBerechnen } from "@/lib/angebot";
 import { angebotLaden } from "@/lib/angebot-daten";
-import { freigabeFinden } from "@/lib/angebot-freigabe-daten";
+import { antwortMoeglich } from "@/lib/angebot-antwort";
+import { antwortLaden, freigabeFinden } from "@/lib/angebot-freigabe-daten";
+import { heuteIso } from "@/lib/datum";
 import { firmaLaden } from "@/lib/firma-daten";
 import { formatBetrag, formatDatum } from "@/lib/format";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { AntwortKnoepfe } from "./antwort-knoepfe";
 import { GeoeffnetMelder } from "./geoeffnet-melder";
 
 // Öffentliche Online-Ansicht eines Angebots (Link aus der E-Mail). Kein Login; der Schlüssel im Link ist die Berechtigung.
@@ -37,6 +40,8 @@ export default async function AngebotOnline({ params }: PageProps<"/angebot/[tok
     const { data } = await db.storage.from("firmenlogo").createSignedUrl(firma.logo, 3600);
     logoUrl = data?.signedUrl ?? null;
   }
+  const kundenAntwort = await antwortLaden(db, a.id);
+  const moeglich = antwortMoeglich({ status: a.status, gueltigBis: a.gueltigBis, schonGeantwortet: Boolean(kundenAntwort) }, heuteIso());
   const kontakt = [firma.telefon && `Telefon ${firma.telefon}`, firma.email].filter(Boolean).join(" · ");
 
   return (
@@ -56,7 +61,13 @@ export default async function AngebotOnline({ params }: PageProps<"/angebot/[tok
           <p className="text-sm text-muted-foreground">Angebot{kunde?.name ? ` für ${kunde.name}` : ""}</p>
           <h1 className="text-2xl font-semibold">{a.betreff}</h1>
         </div>
-        {a.status === "abgelehnt" && <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">Dieses Angebot ist als abgelehnt vermerkt.</p>}
+        {kundenAntwort?.antwort === "angenommen" || (!kundenAntwort && a.status === "angenommen") ? (
+          <p className="rounded-lg bg-green-50 px-3 py-2 text-sm text-green-900">
+            Vielen Dank! Das Angebot ist angenommen{kundenAntwort ? ` (${kundenAntwort.name ? `${kundenAntwort.name}, ` : ""}${formatDatum(kundenAntwort.am)})` : ""}. Wir melden uns zur Terminabstimmung.
+          </p>
+        ) : kundenAntwort?.antwort === "abgelehnt" || a.status === "abgelehnt" ? (
+          <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">Dieses Angebot ist als abgelehnt vermerkt. Danke für Ihre Rückmeldung.</p>
+        ) : null}
         <dl className="grid gap-x-8 gap-y-2 text-sm sm:grid-cols-3">
           <div><dt className="text-muted-foreground">Datum</dt><dd className="font-medium">{formatDatum(a.datum)}</dd></div>
           {a.gueltigBis && <div><dt className="text-muted-foreground">Gültig bis</dt><dd className="font-medium">{formatDatum(a.gueltigBis)}</dd></div>}
@@ -73,6 +84,7 @@ export default async function AngebotOnline({ params }: PageProps<"/angebot/[tok
             <DownloadIcon className="size-5" /> PDF herunterladen
           </a>
         </div>
+        {moeglich.ok && <AntwortKnoepfe token={token} betrag={formatBetrag(rechnung.brutto)} />}
       </section>
 
       <section className="overflow-hidden rounded-xl border bg-white shadow-sm">

@@ -77,3 +77,51 @@ export async function oeffnungenLaden(db: Db, angebotIds: string[]): Promise<Map
   }
   return karte;
 }
+
+export type AntwortStand = { antwort: "angenommen" | "abgelehnt"; am: string; name: string } | null;
+
+/** Antwort des Kunden zu einem Angebot (über alle Freigaben; die erste zählt). */
+export async function antwortLaden(db: Db, angebotId: string): Promise<AntwortStand> {
+  const { data } = await db
+    .from("quote_shares")
+    .select("antwort, antwort_am, antwort_name")
+    .eq("quote_id", angebotId)
+    .not("antwort", "is", null)
+    .order("antwort_am", { ascending: true })
+    .limit(1);
+  const s = data?.[0];
+  if (!s?.antwort || !s.antwort_am) return null;
+  return { antwort: s.antwort as "angenommen" | "abgelehnt", am: s.antwort_am, name: s.antwort_name ?? "" };
+}
+
+/**
+ * Antwort aus der Online-Ansicht speichern (Dienst-Client, nur nach freigabeFinden). Erst wird der Status des Angebots
+ * von „versendet“ umgestellt (nur wenn er noch so steht, damit zählt nur die erste Antwort), dann die Antwort an der Freigabe
+ * festgehalten und das Büro benachrichtigt.
+ */
+export async function antwortSpeichern(
+  db: Db,
+  freigabe: GueltigeFreigabe,
+  e: { antwort: "angenommen" | "abgelehnt"; name: string; grund?: string },
+): Promise<{ ok: true } | { fehler: string }> {
+  const { data: q, error } = await db
+    .from("quotes")
+    .update({ status: e.antwort })
+    .eq("id", freigabe.quoteId)
+    .eq("status", "versendet")
+    .select("betreff, project_id")
+    .maybeSingle();
+  if (error || !q) return { fehler: "Die Antwort konnte nicht gespeichert werden. Bitte melden Sie sich bei uns." };
+  await db
+    .from("quote_shares")
+    .update({ antwort: e.antwort, antwort_am: new Date().toISOString(), antwort_name: e.name || null, antwort_grund: e.grund || null })
+    .eq("id", freigabe.id)
+    .is("antwort", null);
+  const wer = e.name || freigabe.an;
+  await db.from("notifications").insert({
+    typ: e.antwort === "angenommen" ? "angebot_angenommen" : "angebot_abgelehnt",
+    text: `Das Angebot „${q.betreff}“ wurde${wer ? ` von ${wer}` : ""} online ${e.antwort === "angenommen" ? "angenommen" : "abgelehnt"}.${e.grund ? ` Grund: ${e.grund}` : ""}`.slice(0, 1000),
+    project_id: q.project_id,
+  });
+  return { ok: true };
+}

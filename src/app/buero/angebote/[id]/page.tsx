@@ -12,7 +12,7 @@ import { smtpKonfiguration } from "@/lib/env";
 import { angebotEinstellungenLaden, firmaLaden } from "@/lib/firma-daten";
 import { textvorlagenLaden } from "@/lib/textvorlagen-daten";
 import { vorlagenDerArt } from "@/lib/textvorlagen";
-import { formatBetrag, formatZahl } from "@/lib/format";
+import { formatBetrag, formatDatumZeit, formatZahl } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 import { StatusBadge } from "../status-badge";
 import { AbschlussFormular } from "./abschluss-formular";
@@ -22,7 +22,7 @@ import { KiAssistent } from "./ki-assistent";
 import { KopfFormular } from "./kopf-formular";
 import { MailPanel } from "./mail-panel";
 import { PreisAnpassen } from "./preis-anpassen";
-import { oeffnungenLaden } from "@/lib/angebot-freigabe-daten";
+import { antwortLaden, oeffnungenLaden } from "@/lib/angebot-freigabe-daten";
 
 export const metadata: Metadata = { title: "Angebot" };
 
@@ -39,7 +39,7 @@ export default async function AngebotSeite({ params }: PageProps<"/buero/angebot
   const gesperrt = a.status !== "entwurf" || a.archiviert;
   const rechnung = angebotBerechnen(bausteine, { rabattProzent: a.rabattProzent, steuersatz: a.steuersatz, reverseCharge: a.reverseCharge });
   const [vorgaben, firma, vorlagen] = await Promise.all([angebotEinstellungenLaden(), firmaLaden(), textvorlagenLaden()]);
-  const oeffnungen = await oeffnungenLaden(await createClient(), [a.id]);
+  const [oeffnungen, kundenAntwort] = await Promise.all([oeffnungenLaden(await createClient(), [a.id]), antwortLaden(await createClient(), a.id)]);
   const mailWerte = { betreff: a.betreff, kunde: kunde?.name ?? "", firma: firma.name };
 
   // Bilder liegen in einem privaten Speicher: für die Anzeige kurz gültige Adressen holen
@@ -140,6 +140,13 @@ export default async function AngebotSeite({ params }: PageProps<"/buero/angebot
           </div>
         )}
       </section>
+
+      {kundenAntwort && (
+        <p className={`rounded-xl border px-4 py-3 text-sm ${kundenAntwort.antwort === "angenommen" ? "border-green-300 bg-green-50 text-green-900" : "border-amber-300 bg-amber-50 text-amber-900"}`}>
+          <strong>Vom Kunden online {kundenAntwort.antwort === "angenommen" ? "angenommen" : "abgelehnt"}</strong>
+          {" "}am {formatDatumZeit(kundenAntwort.am)}{kundenAntwort.name && ` von ${kundenAntwort.name}`}.
+        </p>
+      )}
 
       <AktionenLeiste angebotId={a.id} status={a.status} archiviert={a.archiviert} dokumentart={a.dokumentart} />
 

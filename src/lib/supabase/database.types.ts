@@ -2244,6 +2244,10 @@ export type Database = {
       quote_shares: {
         Row: {
           an: string | null
+          antwort: string | null
+          antwort_am: string | null
+          antwort_grund: string | null
+          antwort_name: string | null
           created_at: string
           created_by: string | null
           expires_at: string
@@ -2258,6 +2262,10 @@ export type Database = {
         }
         Insert: {
           an?: string | null
+          antwort?: string | null
+          antwort_am?: string | null
+          antwort_grund?: string | null
+          antwort_name?: string | null
           created_at?: string
           created_by?: string | null
           expires_at?: string
@@ -2272,6 +2280,10 @@ export type Database = {
         }
         Update: {
           an?: string | null
+          antwort?: string | null
+          antwort_am?: string | null
+          antwort_grund?: string | null
+          antwort_name?: string | null
           created_at?: string
           created_by?: string | null
           expires_at?: string

@@ -21,6 +21,8 @@ const TITEL: Record<string, string> = {
   container: "Container",
   anruf: "Anruf",
   angebot_geoeffnet: "Angebot geöffnet",
+  angebot_angenommen: "Angebot angenommen",
+  angebot_abgelehnt: "Angebot abgelehnt",
 };
 
 export function hinweisTitel(typ: string): string {
