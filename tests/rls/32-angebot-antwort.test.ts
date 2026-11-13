@@ -61,6 +61,14 @@ describe("Kunden-Antwort", () => {
     expect(await antwortLaden(db as never, angebot)).toMatchObject({ antwort: "angenommen", name: "Anna Muster" });
   });
 
+  it("das Büro kann keine Antwort beim Anlegen einer Freigabe vortäuschen", async () => {
+    const { data } = await bueroC.from("quote_shares")
+      .insert({ quote_id: angebot, token_hash: randomBytes(32).toString("hex"), created_by: buero.id, antwort: "abgelehnt", antwort_am: "2026-01-01T00:00:00Z", antwort_name: "Gefälscht" })
+      .select("antwort, antwort_am, antwort_name").single();
+    expect(data).toMatchObject({ antwort: null, antwort_am: null, antwort_name: null });
+    expect(await antwortLaden(adminClient() as never, angebot)).toMatchObject({ antwort: "angenommen", name: "Anna Muster" });
+  });
+
   it("das Büro kann die Antwort nicht ändern", async () => {
     await bueroC.from("quote_shares").update({ antwort_name: "Gefälscht", antwort: "abgelehnt" }).eq("quote_id", angebot);
     expect(await antwortLaden(adminClient() as never, angebot)).toMatchObject({ antwort: "angenommen", name: "Anna Muster" });
