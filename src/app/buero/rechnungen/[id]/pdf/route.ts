@@ -25,7 +25,9 @@ export async function GET(anfrage: Request, { params }: RouteContext<"/buero/rec
   return new NextResponse(Buffer.from(await data.arrayBuffer()), {
     headers: {
       "Content-Type": istXml ? "application/xml" : "application/pdf",
-      "Content-Disposition": `${herunterladen ? "attachment" : "inline"}; filename="${name}"`,
+      // XML nie im Browser öffnen (könnte Skript enthalten), nur herunterladen (Sicherheits-Check 13.11.2026)
+      "Content-Disposition": `${herunterladen || istXml ? "attachment" : "inline"}; filename="${name}"`,
+      "X-Content-Type-Options": "nosniff",
       "Cache-Control": "no-store",
     },
   });

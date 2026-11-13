@@ -122,34 +122,35 @@ describe("Positionen", () => {
   });
 });
 
-describe("Sperre nach der Übertragung an Lexware", () => {
-  it("während der Übertragung und danach ist der Inhalt gesperrt, die Lexware-Felder lassen sich setzen", async () => {
+describe("Sperre nach dem Fertigstellen", () => {
+  it("fertige Rechnung: Inhalt, Nummer, Beträge und Status sind für das Büro gesperrt; bezahlt/Mahnung/Notiz gehen", async () => {
     // Diese Rechnung bleibt am Ende gesperrt zurück (nicht löschbar), deshalb gehört sie keinem Test-Nutzer (created_by leer).
     const gesperrt = await adminClient().from("invoices").insert({ project_id: projekt, contact_id: kunde, betreff: `${kennung} Sperre`, created_by: null }).select("id").single();
     expect(gesperrt.error).toBeNull();
     rechnung = gesperrt.data!.id;
     const p = await adminClient().from("invoice_items").insert({ invoice_id: rechnung, sortierung: 0, typ: "position", kurztext: "Wände", menge: 1, einheit: "m²", einzelpreis: 10 }).select("id").single();
     position = p.data!.id;
-    expect((await bueroC.from("invoices").update({ status: "wird_uebertragen" }).eq("id", rechnung)).error).toBeNull();
-    expect((await bueroC.from("invoices").update({ betreff: "neu" }).eq("id", rechnung)).error?.code).toBe("P0001");
+    // Das Büro kann den Status nicht selbst setzen (nur „Fertigstellen“ darf das)
+    expect((await bueroC.from("invoices").update({ status: "uebertragen" }).eq("id", rechnung)).error?.code).toBe("P0001");
+    expect((await bueroC.from("invoices").update({ rechnungsnummer: "RE-FAKE" }).eq("id", rechnung)).error?.code).toBe("P0001");
+    // Fertigstellen simuliert über den Dienst-Client (wie rechnung_finalisieren)
+    await adminClient().from("invoices").update({ status: "uebertragen", anbieter: "eigen", rechnungsnummer: `${kennung}-1`, netto: 10, brutto: 11.9, lexware_status: "open", uebertragen_am: new Date().toISOString() }).eq("id", rechnung);
+
+    for (const teil of [{ betreff: "neu" }, { rabatt_prozent: 5 }, { schlusstext: "x" }, { rechnungsnummer: "RE1019" }, { netto: 1 }, { brutto: 1 }, { anbieter: "lexware" }, { status: "entwurf" }, { uebertragen_am: null }]) {
+      expect((await bueroC.from("invoices").update(teil).eq("id", rechnung)).error?.code, JSON.stringify(teil)).toBe("P0001");
+    }
     expect((await bueroC.from("invoice_items").update({ menge: 1 }).eq("id", position)).error?.code).toBe("P0001");
-
-    const lexwareId = crypto.randomUUID();
-    const r = await bueroC.from("invoices").update({ status: "uebertragen", lexware_id: lexwareId, uebertragen_am: new Date().toISOString() }).eq("id", rechnung);
-    expect(r.error).toBeNull();
-    expect((await bueroC.from("invoices").update({ rechnungsnummer: "RE1019", lexware_status: "open", netto: 100, brutto: 119, abgeglichen_am: new Date().toISOString() }).eq("id", rechnung)).error).toBeNull();
-
-    expect((await bueroC.from("invoices").update({ rabatt_prozent: 5 }).eq("id", rechnung)).error?.code).toBe("P0001");
-    expect((await bueroC.from("invoices").update({ schlusstext: "x" }).eq("id", rechnung)).error?.code).toBe("P0001");
     expect((await bueroC.from("invoice_items").insert({ invoice_id: rechnung, sortierung: 5, typ: "text", langtext: "x" })).error?.code).toBe("P0001");
     expect((await bueroC.from("invoice_items").delete().eq("id", position)).error?.code).toBe("P0001");
+    // erlaubt: bezahlt, Mahnstufe, Notiz
+    expect((await bueroC.from("invoices").update({ lexware_status: "paid", bezahlt_am: "2026-11-13" }).eq("id", rechnung)).error).toBeNull();
+    expect((await bueroC.from("invoices").update({ mahnstufe: 1, angemahnt_am: "2026-11-13", notiz: "angerufen" }).eq("id", rechnung)).error).toBeNull();
   });
 
-  it("eine übertragene Rechnung wird nie wieder zum Entwurf; die Lexware-ID ist eindeutig", async () => {
-    expect((await bueroC.from("invoices").update({ status: "entwurf" }).eq("id", rechnung)).error?.code).toBe("P0001");
-    const { data: lex } = await adminClient().from("invoices").select("lexware_id").eq("id", rechnung).single();
-    const zweite = await bueroC.from("invoices").insert({ project_id: projekt, contact_id: kunde, betreff: `${kennung} Dublette`, lexware_id: lex!.lexware_id });
-    expect(zweite.error?.code).toBe("23505");
+  it("neue Rechnungen nur als Entwurf ohne Nummer", async () => {
+    const basis = { project_id: projekt, contact_id: kunde, betreff: `${kennung} Neu` };
+    expect((await bueroC.from("invoices").insert({ ...basis, rechnungsnummer: "RE-FAKE" })).error?.code).toBe("P0001");
+    expect((await bueroC.from("invoices").insert({ ...basis, status: "uebertragen" })).error?.code).toBe("P0001");
   });
 
   it("Änderungen werden protokolliert", async () => {
@@ -159,15 +160,23 @@ describe("Sperre nach der Übertragung an Lexware", () => {
 });
 
 describe("PDF-Kopien (Bucket rechnungen)", () => {
-  it("Büro lädt hoch und liest, Mitarbeiter und Fremde nicht; nur PDF erlaubt", async () => {
+  it("nur das PDF einer fertigen Rechnung, einmal, nie überschreiben; Mitarbeiter und Fremde nicht", async () => {
     const pfad = `${rechnung}.pdf`;
     pdfPfade.push(pfad);
-    expect((await bueroC.storage.from("rechnungen").upload(pfad, pdf, { contentType: "application/pdf", upsert: true })).error).toBeNull();
+    expect((await bueroC.storage.from("rechnungen").upload(pfad, pdf, { contentType: "application/pdf", upsert: false })).error).toBeNull();
     expect((await bueroC.storage.from("rechnungen").download(pfad)).error).toBeNull();
     expect((await adminC.storage.from("rechnungen").download(pfad)).error).toBeNull();
     expect((await malerC.storage.from("rechnungen").download(pfad)).error).not.toBeNull();
     expect((await anonClient().storage.from("rechnungen").download(pfad)).error).not.toBeNull();
-    expect((await malerC.storage.from("rechnungen").upload(`${rechnung}-x.pdf`, pdf, { contentType: "application/pdf" })).error).not.toBeNull();
+    // Überschreiben geht nicht
+    expect((await bueroC.storage.from("rechnungen").upload(pfad, pdf, { contentType: "application/pdf", upsert: true })).error).not.toBeNull();
+    // PDF-Pfad einmal auf <id>.pdf setzen, danach nie mehr ändern
+    expect((await bueroC.from("invoices").update({ pdf_pfad: "fremd.pdf" }).eq("id", rechnung)).error?.code).toBe("P0001");
+    expect((await bueroC.from("invoices").update({ pdf_pfad: pfad }).eq("id", rechnung)).error).toBeNull();
+    expect((await bueroC.from("invoices").update({ pdf_pfad: null }).eq("id", rechnung)).error?.code).toBe("P0001");
+    // Nach dem Setzen kein weiteres Ablegen, andere Namen und andere Dateitypen nie
+    expect((await bueroC.storage.from("rechnungen").upload(`${rechnung}-x.pdf`, pdf, { contentType: "application/pdf" })).error).not.toBeNull();
+    expect((await malerC.storage.from("rechnungen").upload(`${rechnung}-y.pdf`, pdf, { contentType: "application/pdf" })).error).not.toBeNull();
     expect((await bueroC.storage.from("rechnungen").upload(`${rechnung}.txt`, new Uint8Array([1]), { contentType: "text/plain" })).error).not.toBeNull();
   });
 });
