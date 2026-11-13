@@ -1,4 +1,4 @@
-// KI-Schnittstelle (Platzhalter). Die KI ist noch NICHT angeschlossen, es wird nichts an einen Dienst geschickt.
+// KI-Schnittstelle: alter Platzhalter. Seit 13.11.2026 läuft der Angebots-Assistent echt über `angebot-ki.ts` / `angebot-ki-lesen.ts`; hier bleibt nur MAX_KI_BESCHREIBUNG in Gebrauch.
 //
 // Entscheidung (Mika, 18.10.2026): Die KI soll in der App sichtbar sein, aber noch nicht funktionieren,
 // damit man Ralf zeigen kann, dass es sie geben wird. Echte KI kostet pro Nutzung Geld und kommt erst nach Ralfs Entscheidung.
