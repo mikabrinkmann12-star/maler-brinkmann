@@ -1,5 +1,7 @@
+import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { ProjektKopf } from "@/components/layout/projekt-kopf";
+import { ANSICHT_COOKIE } from "@/lib/ansicht";
 import { ladeRechte, requireUser } from "@/lib/auth";
 import { rechtOk } from "@/lib/rechte";
 import { ungelesenKarte, zaehlerText } from "@/lib/chat";
@@ -34,13 +36,15 @@ export default async function ProjektLayout({
   const darfTeamBereiche = istBuero || istMitglied;
   const neu = ungelesenKarte(ungelesen).get(id) ?? 0;
   const rechte = await ladeRechte();
+  // Im Büro-Rahmen führt der Zurück-Pfeil zur Büro-Projektseite
+  const bueroRahmen = istBuero && (await cookies()).get(ANSICHT_COOKIE)?.value !== "mitarbeiter";
 
   return (
     <div className="flex flex-1 flex-col">
       <ProjektKopf
         projektId={p.id}
         name={p.name}
-        zurueck={p.archiviert_am && !istMitglied ? "/baustellen/archiv" : istBuero ? "/buero/projekte" : "/baustellen"}
+        zurueck={bueroRahmen ? `/buero/projekte/${p.id}` : p.archiviert_am && !istMitglied ? "/baustellen/archiv" : istBuero ? "/buero/projekte" : "/baustellen"}
         zeigeChat={darfTeamBereiche && rechtOk(rechte, "chat")}
         zeigeBerichte={darfTeamBereiche && rechtOk(rechte, "berichte")}
         zeigeAnweisungen={rechtOk(rechte, "anweisungen_ansehen")}

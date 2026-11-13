@@ -1,16 +1,14 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { cn } from "cn";
+import { usePathname, useRouter } from "next/navigation";
+import { ChevronDownIcon } from "lucide-react";
 import { SeitenKopf } from "@/components/layout/seiten-kopf";
 
-// Kopf einer Projektseite der Mitarbeiter-App (wie Plancraft): Zurück-Pfeil, Projektname und
-// darunter Chip-Reiter. Er erscheint nur auf den Reiter-Seiten selbst, nicht auf Unterseiten
-// wie „Bericht erstellen“ oder „Aufmaß hinzufügen“ (die haben einen eigenen Kopf).
+// Kopf einer Projektseite der Mitarbeiter-App: Zurück-Pfeil, Projektname und darunter ein Auswahlfeld für den Bereich
+// (Infos, Chat, Berichte …; Mika, 13.11.2026: statt der seitlich wischbaren Reiter). Er erscheint nur auf den Bereichs-Seiten
+// selbst, nicht auf Unterseiten wie „Bericht erstellen“ oder „Aufmaß hinzufügen“ (die haben einen eigenen Kopf).
 
-type Chip = { segment: string; name: string; zaehler?: string };
+type Bereich = { segment: string; name: string; zaehler?: string };
 
 export function ProjektKopf({
   projektId,
@@ -34,19 +32,12 @@ export function ProjektKopf({
   chatNeu: string;
 }) {
   const pfad = usePathname();
-  const aktiverChip = useRef<HTMLAnchorElement>(null);
-  // Der gewählte Chip soll im Streifen sichtbar sein (z. B. „Arbeitsanweisungen“ ganz rechts)
-  useEffect(() => {
-    const el = aktiverChip.current;
-    if (!el) return;
-    const leiste = el.closest("nav");
-    if (leiste) leiste.scrollTo({ left: el.offsetLeft - leiste.clientWidth / 2 + el.clientWidth / 2, behavior: "auto" });
-  }, [pfad]);
+  const router = useRouter();
   const basis = `/baustellen/${projektId}`;
   if (pfad !== basis && !pfad.startsWith(`${basis}/`)) return null;
   const rest = pfad.slice(basis.length).replace(/^\//, "");
 
-  const chips: Chip[] = [
+  const bereiche: Bereich[] = [
     { segment: "", name: "Infos" },
     ...(zeigeChat ? [{ segment: "chat", name: "Chat", zaehler: chatNeu }] : []),
     ...(zeigeBerichte ? [{ segment: "berichte", name: "Berichte" }] : []),
@@ -54,36 +45,38 @@ export function ProjektKopf({
     ...(zeigeAnweisungen ? [{ segment: "anweisungen", name: "Arbeitsanweisungen" }] : []),
     ...(zeigeMaterial ? [{ segment: "material", name: "Material" }, { segment: "aufmass", name: "Aufmaß" }] : []),
   ];
-  if (!chips.some((c) => c.segment === rest)) return null;
+  if (!bereiche.some((b) => b.segment === rest)) return null;
 
   return (
     <div className="-mt-1 mb-4">
       <SeitenKopf titel={name} zurueck={zurueck} />
-      <nav aria-label="Bereiche des Projekts" className="-mx-4 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
-        <ul className="flex w-max gap-2">
-          {chips.map((c) => {
-            const aktiv = c.segment === rest;
-            return (
-              <li key={c.segment}>
-                <Link
-                  ref={aktiv ? aktiverChip : undefined}
-                  href={c.segment ? `${basis}/${c.segment}` : basis}
-                  aria-current={aktiv ? "page" : undefined}
-                  className={cn(
-                    "flex h-10 items-center gap-1.5 rounded-full border px-4 text-sm font-medium whitespace-nowrap transition-colors",
-                    aktiv ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:bg-muted",
-                  )}
-                >
-                  {c.name}
-                  {c.zaehler && (
-                    <span className="min-w-5 rounded-full bg-red-600 px-1.5 text-center text-xs leading-5 font-semibold text-white">{c.zaehler}</span>
-                  )}
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      </nav>
+      <div className="flex items-center gap-2">
+        <label className="relative flex-1">
+          <span className="sr-only">Bereich des Projekts</span>
+          <select
+            value={rest}
+            onChange={(e) => router.push(e.target.value ? `${basis}/${e.target.value}` : basis)}
+            className="h-12 w-full appearance-none rounded-lg border border-input bg-card pr-10 pl-3 text-base font-medium outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+          >
+            {bereiche.map((b) => (
+              <option key={b.segment} value={b.segment}>
+                {b.zaehler ? `${b.name} (${b.zaehler} neu)` : b.name}
+              </option>
+            ))}
+          </select>
+          <ChevronDownIcon className="pointer-events-none absolute top-1/2 right-3 size-5 -translate-y-1/2 text-muted-foreground" />
+        </label>
+        {chatNeu && rest !== "chat" && (
+          <button
+            type="button"
+            onClick={() => router.push(`${basis}/chat`)}
+            className="flex h-12 items-center gap-1.5 rounded-lg border bg-card px-3 text-sm font-medium"
+          >
+            Chat
+            <span className="min-w-5 rounded-full bg-red-600 px-1.5 text-center text-xs leading-5 font-semibold text-white">{chatNeu}</span>
+          </button>
+        )}
+      </div>
     </div>
   );
 }

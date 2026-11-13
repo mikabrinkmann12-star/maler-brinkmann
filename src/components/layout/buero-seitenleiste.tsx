@@ -13,6 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ansichtMerken } from "@/lib/ansicht";
 import { abmelden } from "@/lib/auth-aktionen";
 import { rechtOk } from "@/lib/rechte";
 import { ROLLEN_NAMEN, type Rolle } from "@/lib/rollen";
@@ -138,7 +139,7 @@ export function BueroSeitenleiste({
               </DropdownMenuLabel>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem render={<Link href="/heute" onClick={onNavigiert} />}><HardHatIcon /> Zur Mitarbeiter-Ansicht</DropdownMenuItem>
+            <DropdownMenuItem render={<Link href="/heute" onClick={() => { ansichtMerken("mitarbeiter"); onNavigiert?.(); }} />}><HardHatIcon /> Zur Mitarbeiter-Ansicht</DropdownMenuItem>
             <DropdownMenuItem render={<Link href="/buero/darstellung" onClick={onNavigiert} />}><PaletteIcon /> Darstellung</DropdownMenuItem>
             <DropdownMenuItem render={<Link href="/passwort-aendern" onClick={onNavigiert} />}><KeyRoundIcon /> Passwort ändern</DropdownMenuItem>
             <DropdownMenuSeparator />

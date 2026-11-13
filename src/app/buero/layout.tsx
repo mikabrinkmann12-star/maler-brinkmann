@@ -1,22 +1,19 @@
 import { AkzentAbgleich } from "@/components/akzent-abgleich";
+import { AnsichtMerken } from "@/components/ansicht-merken";
 import { BueroRahmen } from "@/components/layout/buero-rahmen";
-import { ladeRechte, requireRole } from "@/lib/auth";
-import { ungelesenZaehler } from "@/lib/benachrichtigung-daten";
-import { einheitenLaden } from "@/lib/einheiten-daten";
-import { darstellungLaden } from "@/lib/darstellung-daten";
-import { firmaLaden } from "@/lib/firma-daten";
+import { requireRole } from "@/lib/auth";
+import { bueroRahmenLaden } from "@/lib/buero-rahmen-daten";
 import { BUERO_ROLLEN } from "@/lib/rollen";
 
 // Büro-Ansicht: nur Admin und Büro. Mitarbeiter werden serverseitig umgeleitet.
 export default async function BueroLayout({ children }: LayoutProps<"/buero">) {
   const nutzer = await requireRole(BUERO_ROLLEN);
-  const name = `${nutzer.vorname} ${nutzer.nachname}`.trim();
-  const [firma, ungelesen, einheiten, rechte, darstellung] = await Promise.all([firmaLaden(), ungelesenZaehler(), einheitenLaden(), ladeRechte(), darstellungLaden()]);
-  const { akzent, reihenfolge, ausgeblendet } = darstellung.wirksam;
+  const r = await bueroRahmenLaden(nutzer);
 
   return (
-    <BueroRahmen firmenname={firma.name || "Meine Firma"} name={name} rolle={nutzer.rolle} rechte={rechte} ungelesen={ungelesen} einheiten={einheiten} menue={{ reihenfolge, ausgeblendet }}>
-      <AkzentAbgleich akzent={akzent} />
+    <BueroRahmen {...r.rahmen}>
+      <AkzentAbgleich akzent={r.akzent} />
+      <AnsichtMerken ansicht="buero" />
       {children}
     </BueroRahmen>
   );
