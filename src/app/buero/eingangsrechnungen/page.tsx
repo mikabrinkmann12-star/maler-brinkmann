@@ -135,6 +135,7 @@ export default async function EingangsrechnungenListe({ searchParams }: PageProp
                     <Link href={`/buero/eingangsrechnungen/${z.id}`} className="flex items-center gap-1.5 font-semibold after:absolute after:inset-0 after:content-['']">
                       {z.zuPruefen && <TriangleAlertIcon aria-label="Zu prüfen" className="size-3.5 shrink-0 text-amber-500" />}
                       <span className="truncate">{z.lieferant || "Lieferant fehlt"}</span>
+                      {z.gutschrift && <span className="shrink-0 rounded-full bg-emerald-100 px-1.5 py-0.5 text-[11px] font-medium text-emerald-800">Gutschrift</span>}
                     </Link>
                     <span className="block truncate text-xs text-muted-foreground sm:hidden">{z.rechnungsnummer}</span>
                   </td>

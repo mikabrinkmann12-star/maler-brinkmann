@@ -24,6 +24,7 @@ export type FormularStart = {
   projectId: string | null;
   bereich: Bereich | null;
   notiz: string;
+  gutschrift: boolean;
   zuPruefen: boolean;
   archiviert: boolean;
 };
@@ -52,6 +53,7 @@ export function RechnungFormular({ start, projekte }: { start: FormularStart; pr
   const [bezahltAm, setBezahltAm] = useState(start.bezahltAm ?? "");
   const [zuweisung, setZuweisung] = useState(start.projectId ? `p:${start.projectId}` : start.bereich ? `b:${start.bereich}` : "");
   const [notiz, setNotiz] = useState(start.notiz);
+  const [gutschrift, setGutschrift] = useState(start.gutschrift);
   const [fehler, setFehler] = useState<string | null>(null);
   const [laeuft, starte] = useTransition();
 
@@ -72,6 +74,7 @@ export function RechnungFormular({ start, projekte }: { start: FormularStart; pr
       projectId: zuweisung.startsWith("p:") ? zuweisung.slice(2) : null,
       bereich: zuweisung.startsWith("b:") ? (zuweisung.slice(2) as Bereich) : null,
       notiz,
+      gutschrift,
     };
   }
 
@@ -125,6 +128,11 @@ export function RechnungFormular({ start, projekte }: { start: FormularStart; pr
         <Zeile label="Fällig am">
           <input type="date" value={faellig} onChange={(e) => setFaellig(e.target.value)} className={EINGABE} />
         </Zeile>
+        <label className="flex items-center gap-2 text-[13px] sm:col-span-2">
+          <input type="checkbox" checked={gutschrift} onChange={(e) => setGutschrift(e.target.checked)} className="size-4 accent-primary" />
+          <span className="font-medium">Gutschrift</span>
+          <span className="text-xs text-muted-foreground">(Geld zurück vom Lieferanten: Beträge normal eingeben, sie zählen als Minus)</span>
+        </label>
         <Zeile label="Betrag netto (€)">
           <input inputMode="decimal" value={netto} onChange={(e) => setNetto(e.target.value)} className={`${EINGABE} text-right tabular-nums`} placeholder="0,00" />
         </Zeile>

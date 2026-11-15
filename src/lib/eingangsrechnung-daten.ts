@@ -1,5 +1,5 @@
 import "server-only";
-import type { Bereich, EingangZeile, Zahlstatus } from "@/lib/eingangsrechnung";
+import { mitVorzeichen, type Bereich, type EingangZeile, type Zahlstatus } from "@/lib/eingangsrechnung";
 import { createClient } from "@/lib/supabase/server";
 
 // Abfragen für Eingangsrechnungen (nur Büro/Admin, die Datenbank erzwingt es per RLS).
@@ -20,7 +20,7 @@ export async function eingangsrechnungenLaden(optionen: { archiv: boolean; limit
   let abfrage = supabase
     .from("incoming_invoices")
     .select(
-      "id, lieferant, rechnungsnummer, rechnungsdatum, faellig_am, netto, brutto, zahlstatus, project_id, bereich, zu_pruefen, dateiname, quelle, created_at, projects(name, projektnummer), profiles!incoming_invoices_erstellt_von_fkey(vorname, nachname)",
+      "id, lieferant, rechnungsnummer, rechnungsdatum, faellig_am, netto, brutto, zahlstatus, project_id, bereich, zu_pruefen, gutschrift, dateiname, quelle, created_at, projects(name, projektnummer), profiles!incoming_invoices_erstellt_von_fkey(vorname, nachname)",
     )
     .order("rechnungsdatum", { ascending: false, nullsFirst: true })
     .order("created_at", { ascending: false })
@@ -34,13 +34,14 @@ export async function eingangsrechnungenLaden(optionen: { archiv: boolean; limit
     rechnungsnummer: r.rechnungsnummer ?? "",
     rechnungsdatum: r.rechnungsdatum,
     faelligAm: r.faellig_am,
-    netto: r.netto === null ? null : Number(r.netto),
-    brutto: r.brutto === null ? null : Number(r.brutto),
+    netto: mitVorzeichen(r.netto === null ? null : Number(r.netto), r.gutschrift),
+    brutto: mitVorzeichen(r.brutto === null ? null : Number(r.brutto), r.gutschrift),
     zahlstatus: r.zahlstatus as Zahlstatus,
     projectId: r.project_id,
     projektText: projektText(r.projects as ProjektRef),
     bereich: r.bereich as Bereich | null,
     zuPruefen: r.zu_pruefen,
+      gutschrift: r.gutschrift,
     dateiname: r.dateiname,
     quelle: r.quelle as "upload" | "email",
     hochgeladenAm: r.created_at,
@@ -66,7 +67,7 @@ export async function eingangsrechnungLaden(id: string): Promise<EingangDetail |
   const { data: r, error } = await supabase
     .from("incoming_invoices")
     .select(
-      "id, lieferant, rechnungsnummer, rechnungsdatum, faellig_am, netto, brutto, iban, zahlstatus, bezahlt_am, project_id, bereich, zu_pruefen, notiz, storage_pfad, dateiname, mime, absender, quelle, erkannt_aus, archiviert_am, created_at, projects(name, projektnummer), profiles!incoming_invoices_erstellt_von_fkey(vorname, nachname)",
+      "id, lieferant, rechnungsnummer, rechnungsdatum, faellig_am, netto, brutto, iban, zahlstatus, bezahlt_am, project_id, bereich, zu_pruefen, gutschrift, notiz, storage_pfad, dateiname, mime, absender, quelle, erkannt_aus, archiviert_am, created_at, projects(name, projektnummer), profiles!incoming_invoices_erstellt_von_fkey(vorname, nachname)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -80,13 +81,14 @@ export async function eingangsrechnungLaden(id: string): Promise<EingangDetail |
       rechnungsnummer: r.rechnungsnummer ?? "",
       rechnungsdatum: r.rechnungsdatum,
       faelligAm: r.faellig_am,
-      netto: r.netto === null ? null : Number(r.netto),
-      brutto: r.brutto === null ? null : Number(r.brutto),
+      netto: mitVorzeichen(r.netto === null ? null : Number(r.netto), r.gutschrift),
+      brutto: mitVorzeichen(r.brutto === null ? null : Number(r.brutto), r.gutschrift),
       zahlstatus: r.zahlstatus as Zahlstatus,
       projectId: r.project_id,
       projektText: projektText(r.projects as ProjektRef),
       bereich: r.bereich as Bereich | null,
       zuPruefen: r.zu_pruefen,
+      gutschrift: r.gutschrift,
       dateiname: r.dateiname,
       quelle: r.quelle as "upload" | "email",
       hochgeladenAm: r.created_at,

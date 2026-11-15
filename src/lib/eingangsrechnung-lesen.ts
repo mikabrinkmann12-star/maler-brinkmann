@@ -33,9 +33,9 @@ export async function pdfText(bytes: Uint8Array): Promise<string> {
 export type KiLeser = (bytes: Uint8Array, endung: string, eigeneNamen: string[]) => Promise<ErkannteFelder | null>;
 
 /**
- * Liest eine Rechnung aus. Erst E-Rechnung und Textregeln; nur wenn das nicht vollständig gelingt (kein E-Rechnungs-XML, weniger als
- * vier der wichtigen Felder) und ein KI-Leser übergeben wurde, wird die KI gefragt. Sie ersetzt das Regel-Ergebnis nur, wenn sie
- * mindestens ebenso viel liefert. Eine E-Rechnung wird nie an die KI geschickt.
+ * Liest eine Rechnung aus. Erst E-Rechnung und Textregeln; ist ein KI-Leser übergeben (KI eingeschaltet), liest seit 15.11.2026
+ * (Papa: „immer mit Claude“) die KI jede Rechnung außer E-Rechnungen und ersetzt das Regel-Ergebnis, wenn sie mindestens ebenso viel
+ * liefert. Eine E-Rechnung wird nie an die KI geschickt.
  */
 export async function rechnungAuslesen(
   bytes: Uint8Array,
@@ -45,7 +45,7 @@ export async function rechnungAuslesen(
   ki?: KiLeser,
 ): Promise<Auslese> {
   const regel = await regelAuslesen(bytes, endung, bekannteLieferanten, eigeneNamen);
-  if (!ki || regel.erkanntAus === "e-rechnung" || (regel.erkanntAus !== "keine" && vollstaendigkeit(regel) >= 4)) return regel;
+  if (!ki || regel.erkanntAus === "e-rechnung") return regel;
   const felder = await ki(bytes, endung.toLowerCase(), eigeneNamen);
   if (!felder || vollstaendigkeit(felder) === 0 || vollstaendigkeit(felder) < vollstaendigkeit(regel)) return regel;
   return { ...felder, erkanntAus: "ki", zuPruefen: true };

@@ -38,7 +38,7 @@ export async function nachkalkulationLaden(projektId: string): Promise<Nachkalku
     supabase.from("quotes").select("id, betreff, status, datum, created_at").eq("project_id", projektId).is("archiviert_am", null).neq("status", "abgelehnt").limit(200),
     supabase.from("time_entries").select("art, stunden").eq("project_id", projektId).is("archiviert_am", null).limit(5000),
     supabase.from("project_costs").select("id, datum, kostenart, betrag, beschreibung").eq("project_id", projektId).is("archiviert_am", null).order("datum", { ascending: false }).order("created_at", { ascending: false }).limit(500),
-    supabase.from("incoming_invoices").select("id, lieferant, rechnungsnummer, netto, kostenart").eq("project_id", projektId).is("archiviert_am", null).limit(500),
+    supabase.from("incoming_invoices").select("id, lieferant, rechnungsnummer, netto, kostenart, gutschrift").eq("project_id", projektId).is("archiviert_am", null).limit(500),
   ]);
   if (angebote.error || zeiten.error || kosten.error || rechnungen.error) throw new Error("Die Nachkalkulation konnte nicht geladen werden.");
 
@@ -63,7 +63,7 @@ export async function nachkalkulationLaden(projektId: string): Promise<Nachkalku
     {
       zeiten: (zeiten.data ?? []).map((z) => ({ art: z.art, stunden: Number(z.stunden ?? 0) })),
       kosten: (kosten.data ?? []).map((k) => ({ kostenart: k.kostenart, betrag: Number(k.betrag) })),
-      eingangsrechnungen: (rechnungen.data ?? []).map((r) => ({ kostenart: r.kostenart, netto: Number(r.netto ?? 0) })),
+      eingangsrechnungen: (rechnungen.data ?? []).map((r) => ({ kostenart: r.kostenart, netto: (r.gutschrift ? -1 : 1) * Number(r.netto ?? 0) })),
     },
     einst,
   );
@@ -75,6 +75,6 @@ export async function nachkalkulationLaden(projektId: string): Promise<Nachkalku
     ergebnis: ergebnisBerechnen(erlos, soll, ist),
     einstellungenFehlen,
     kosten: (kosten.data ?? []).map((k) => ({ id: k.id, datum: k.datum, kostenart: k.kostenart, betrag: Number(k.betrag), beschreibung: k.beschreibung })),
-    eingangsrechnungen: (rechnungen.data ?? []).map((r) => ({ id: r.id, lieferant: r.lieferant, rechnungsnummer: r.rechnungsnummer ?? "", netto: Number(r.netto ?? 0), kostenart: r.kostenart })),
+    eingangsrechnungen: (rechnungen.data ?? []).map((r) => ({ id: r.id, lieferant: r.lieferant, rechnungsnummer: r.rechnungsnummer ?? "", netto: (r.gutschrift ? -1 : 1) * Number(r.netto ?? 0), kostenart: r.kostenart })),
   };
 }

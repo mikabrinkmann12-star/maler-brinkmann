@@ -57,6 +57,7 @@ describe("felderAusKiAntwort (Prüfung der Antwort)", () => {
       netto: 100,
       brutto: 119,
       iban: "DE89370400440532013000",
+      gutschrift: false,
     });
   });
   it("lehnt eine Antwort in falscher Form ab", () => {
@@ -82,7 +83,9 @@ describe("felderAusKiAntwort (Prüfung der Antwort)", () => {
   });
   it("lässt netto weg, wenn es größer als brutto ist (vertauscht), Gutschriften bleiben ganz", () => {
     expect(felderAusKiAntwort({ ...gut, netto: 119, brutto: 100 })).toMatchObject({ netto: null, brutto: 100 });
-    expect(felderAusKiAntwort({ ...gut, netto: -100, brutto: -119 })).toMatchObject({ netto: -100, brutto: -119 });
+    expect(felderAusKiAntwort({ ...gut, netto: -100, brutto: -119 })).toMatchObject({ netto: 100, brutto: 119, gutschrift: true });
+    expect(felderAusKiAntwort({ ...gut, gutschrift: true })).toMatchObject({ gutschrift: true });
+    expect(felderAusKiAntwort({ ...gut, gutschrift: false })).toMatchObject({ gutschrift: false });
   });
   it("lässt „fällig am“ weg, wenn es vor dem Rechnungsdatum liegt", () => {
     expect(felderAusKiAntwort({ ...gut, faellig_am: "2026-03-01" })?.faelligAm).toBeNull();

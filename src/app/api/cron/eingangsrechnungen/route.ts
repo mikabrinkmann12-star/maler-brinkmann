@@ -3,7 +3,7 @@ import { imapKonfiguration } from "@/lib/env";
 import { postfachAbrufen } from "@/lib/postfach-abruf";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-// Täglicher automatischer Abruf des Rechnungs-Postfachs (Zeitplan in vercel.json).
+// Automatischer Abruf des Rechnungs-Postfachs: alle 15 Minuten über Supabase pg_cron (scripts/postfach-zeitplan.ts), dazu täglich über vercel.json.
 // Kein Login: Vercel schickt „Authorization: Bearer <CRON_SECRET>“. Ohne gesetztes CRON_SECRET tut die Adresse nichts.
 
 export const dynamic = "force-dynamic";

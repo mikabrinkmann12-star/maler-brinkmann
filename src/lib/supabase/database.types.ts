@@ -737,6 +737,7 @@ export type Database = {
           erstellt_von: string | null
           faellig_am: string | null
           groesse_bytes: number | null
+          gutschrift: boolean
           iban: string | null
           id: string
           kostenart: string
@@ -768,6 +769,7 @@ export type Database = {
           erstellt_von?: string | null
           faellig_am?: string | null
           groesse_bytes?: number | null
+          gutschrift?: boolean
           iban?: string | null
           id?: string
           kostenart?: string
@@ -799,6 +801,7 @@ export type Database = {
           erstellt_von?: string | null
           faellig_am?: string | null
           groesse_bytes?: number | null
+          gutschrift?: boolean
           iban?: string | null
           id?: string
           kostenart?: string
@@ -1579,6 +1582,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      postfach_status: {
+        Row: {
+          ergebnis: Json | null
+          id: number
+          letzte_uid: number | null
+          letzter_abruf: string | null
+          uid_validity: string | null
+          updated_at: string
+        }
+        Insert: {
+          ergebnis?: Json | null
+          id?: number
+          letzte_uid?: number | null
+          letzter_abruf?: string | null
+          uid_validity?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ergebnis?: Json | null
+          id?: number
+          letzte_uid?: number | null
+          letzter_abruf?: string | null
+          uid_validity?: string | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
@@ -2846,11 +2876,19 @@ export type Database = {
         Returns: undefined
       }
       ostersonntag: { Args: { p_jahr: number }; Returns: string }
+      postfach_zeitplan_setzen: {
+        Args: { p_geheimnis: string; p_url: string }
+        Returns: string
+      }
       projekt_aus_pfad: { Args: { p_pfad: string }; Returns: string }
       projekt_sicht: { Args: { p_project_id: string }; Returns: boolean }
       rechnung_finalisieren: {
         Args: { p_brutto: number; p_id: string; p_netto: number }
         Returns: string
+      }
+      rechnung_pdf_ablegen_erlaubt: {
+        Args: { p_name: string }
+        Returns: boolean
       }
       recht_ok: { Args: { p_recht: string }; Returns: boolean }
       recht_stufe: { Args: { p_recht: string }; Returns: string }

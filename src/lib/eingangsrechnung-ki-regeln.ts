@@ -44,8 +44,9 @@ export const KI_SCHEMA = {
     netto: { type: ["number", "null"] },
     brutto: { type: ["number", "null"] },
     iban: { type: "string" },
+    gutschrift: { type: "boolean" },
   },
-  required: ["lieferant", "rechnungsnummer", "rechnungsdatum", "faellig_am", "netto", "brutto", "iban"],
+  required: ["lieferant", "rechnungsnummer", "rechnungsdatum", "faellig_am", "netto", "brutto", "iban", "gutschrift"],
   additionalProperties: false,
 } as const;
 
@@ -57,7 +58,7 @@ export function kiAnweisung(eigeneNamen: string[]): string {
     `Der Lieferant ist die Firma, die die Rechnung ausstellt. Der Empfänger ist NIE der Lieferant: ${namen}.`,
     "Trage nur ein, was im Dokument steht. Bist du unsicher oder fehlt etwas, lass den Text leer bzw. setze null. Rate nichts.",
     "Datum als JJJJ-MM-TT. Beträge als Zahl mit Punkt als Dezimalzeichen, ohne Währung und Tausenderpunkt. Brutto ist der Gesamtbetrag inklusive Umsatzsteuer, netto der Betrag ohne Umsatzsteuer.",
-    "Bei Gutschriften sind die Beträge negativ. Die IBAN ohne Leerzeichen.",
+    "Ist das Dokument eine Gutschrift oder Rechnungskorrektur zugunsten des Empfängers (Geld zurück), setze gutschrift auf true und trage die Beträge positiv ein; sonst false. Die IBAN ohne Leerzeichen.",
   ].join(" ");
 }
 
@@ -83,6 +84,8 @@ const antwortSchema = z.object({
   netto: betragFeld,
   brutto: betragFeld,
   iban: z.string().transform((s) => s.replace(/\s+/g, "").toUpperCase()),
+  // Ältere Antworten ohne das Feld: aus negativen Beträgen ableiten
+  gutschrift: z.boolean().optional(),
 });
 
 /** Prüft die Antwort der KI und macht daraus Felder. Alles Unplausible wird leer: lieber nichts als etwas Falsches. */
@@ -94,12 +97,14 @@ export function felderAusKiAntwort(roh: unknown, eigeneNamen: string[] = []): Er
   // Die KI darf den eigenen Betrieb nicht als Lieferanten eintragen
   const klein = lieferant.toLowerCase();
   if (lieferant && eigeneNamen.some((n) => n.trim().length >= 4 && klein.includes(n.trim().toLowerCase()))) lieferant = "";
-  const { brutto } = a;
-  let { netto } = a;
+  // Gutschrift: Häkchen der KI oder negative Beträge; gespeichert wird immer positiv
+  const gutschrift = a.gutschrift === true || (a.brutto ?? 0) < 0 || (a.netto ?? 0) < 0;
+  const brutto = a.brutto === null ? null : Math.abs(a.brutto);
+  let netto = a.netto === null ? null : Math.abs(a.netto);
   // Bei Beträgen mit gleichem Vorzeichen muss netto kleiner oder gleich brutto sein, sonst ist wohl etwas vertauscht
   if (netto !== null && brutto !== null && Math.sign(netto) === Math.sign(brutto) && Math.abs(netto) > Math.abs(brutto)) netto = null;
   // Fällig am darf nicht vor dem Rechnungsdatum liegen
   const faelligAm = a.rechnungsdatum && a.faellig_am && a.faellig_am < a.rechnungsdatum ? null : a.faellig_am;
   const iban = a.iban && ibanGueltig(a.iban) ? a.iban : "";
-  return { lieferant, rechnungsnummer: a.rechnungsnummer, rechnungsdatum: a.rechnungsdatum, faelligAm, netto, brutto, iban };
+  return { lieferant, rechnungsnummer: a.rechnungsnummer, rechnungsdatum: a.rechnungsdatum, faelligAm, netto, brutto, iban, gutschrift };
 }

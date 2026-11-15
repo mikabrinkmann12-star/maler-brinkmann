@@ -73,8 +73,10 @@ export async function eingangsrechnungAufnehmen(
     rechnungsnummer: auslese.rechnungsnummer || null,
     rechnungsdatum: auslese.rechnungsdatum,
     faellig_am: auslese.faelligAm,
-    netto: auslese.netto,
-    brutto: auslese.brutto,
+    // Gutschrift: erkannt (KI) oder negative Beträge; gespeichert wird positiv mit Häkchen
+    gutschrift: Boolean(auslese.gutschrift) || (auslese.netto ?? 0) < 0 || (auslese.brutto ?? 0) < 0,
+    netto: auslese.netto === null ? null : Math.abs(auslese.netto),
+    brutto: auslese.brutto === null ? null : Math.abs(auslese.brutto),
     iban: auslese.iban || null,
     zu_pruefen: auslese.zuPruefen,
     storage_pfad: eingangPfad(eingabe.id, eingabe.endung),

@@ -15,6 +15,7 @@ function zeile(teil: Partial<EingangZeile> = {}): EingangZeile {
     id: "a",
     lieferant: "Farben Müller GmbH",
     rechnungsnummer: "RE-1",
+    gutschrift: false,
     rechnungsdatum: "2026-03-12",
     faelligAm: "2026-03-26",
     netto: 100,

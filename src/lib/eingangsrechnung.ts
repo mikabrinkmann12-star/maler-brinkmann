@@ -34,6 +34,8 @@ export type EingangZeile = {
   projektText: string;
   bereich: Bereich | null;
   zuPruefen: boolean;
+  /** Gutschrift: netto/brutto sind hier schon negativ */
+  gutschrift: boolean;
   dateiname: string;
   quelle: "upload" | "email";
   hochgeladenAm: string;
@@ -136,12 +138,19 @@ export const eingangsrechnungSchema = z
     projectId: z.uuid().nullable(),
     bereich: z.enum(["lager", "buero", "mitarbeiter"]).nullable(),
     notiz: z.string().trim().max(2000, "Die Notiz ist zu lang (höchstens 2.000 Zeichen)."),
+    /** Gutschrift des Lieferanten: Beträge positiv eingeben, sie zählen als Minus */
+    gutschrift: z.boolean().optional().default(false),
   })
   .refine((d) => !(d.projectId && d.bereich), { message: "Entweder ein Projekt oder ein Bereich, nicht beides.", path: ["bereich"] })
   .refine((d) => d.netto === null || d.brutto === null || Math.abs(d.netto) <= Math.abs(d.brutto) + 0.005, {
     message: "Der Nettobetrag darf nicht größer als der Bruttobetrag sein.",
     path: ["netto"],
   });
+
+/** Betrag mit Vorzeichen: Gutschriften zählen als Minus. */
+export function mitVorzeichen(betrag: number | null, gutschrift: boolean): number | null {
+  return betrag === null ? null : gutschrift ? -Math.abs(betrag) : betrag;
+}
 
 export type EingangsrechnungEingabe = z.input<typeof eingangsrechnungSchema>;
 export type EingangsrechnungDaten = z.output<typeof eingangsrechnungSchema>;

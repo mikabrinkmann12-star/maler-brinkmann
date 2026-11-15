@@ -10,6 +10,8 @@ export type ErkannteFelder = {
   netto: number | null;
   brutto: number | null;
   iban: string;
+  /** Gutschrift des Lieferanten (Beträge dann positiv) */
+  gutschrift?: boolean;
 };
 
 /** „1.234,56“, „1234,56“, „12,5“, auch englisch „1,234.56“ → Zahl, sonst null. */

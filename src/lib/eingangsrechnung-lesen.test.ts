@@ -1,5 +1,5 @@
 import { PDFDocument, StandardFonts } from "pdf-lib";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { eRechnungAusXml } from "./e-rechnung-lesen";
 import { rechnungAuslesen } from "./eingangsrechnung-lesen";
 
@@ -133,6 +133,16 @@ describe("rechnungAuslesen", () => {
     expect(r.netto).toBe(100);
     expect(r.faelligAm).toBe("2026-03-26");
     expect(r.lieferant).toBe("Farben Mueller GmbH");
+  });
+
+  it("mit eingeschalteter KI liest sie auch vollständig erkannte PDFs, aber nie E-Rechnungen", async () => {
+    const ki = vi.fn(async () => ({ lieferant: "Farben Mueller GmbH", rechnungsnummer: "GS-1", rechnungsdatum: "2026-03-12", faelligAm: null, netto: 50, brutto: 59.5, iban: "", gutschrift: true }));
+    const pdf = await textPdf(["Farben Mueller GmbH", "Rechnungsnummer: RE-2026-0815", "Rechnungsdatum: 12.03.2026", "Nettobetrag 100,00 EUR", "Gesamtbetrag 119,00 EUR"]);
+    const r = await rechnungAuslesen(pdf, "pdf", [], ["Brinkmann"], ki);
+    expect(ki).toHaveBeenCalledTimes(1);
+    expect(r).toMatchObject({ erkanntAus: "ki", gutschrift: true, brutto: 59.5, zuPruefen: true });
+    await rechnungAuslesen(new TextEncoder().encode(CII), "xml", [], [], ki);
+    expect(ki).toHaveBeenCalledTimes(1);
   });
 
   it("erkennt nichts bei einem Foto", async () => {

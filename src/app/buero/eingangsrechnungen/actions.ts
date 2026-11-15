@@ -88,6 +88,7 @@ export async function eingangsrechnungSpeichern(id: string, eingabe: unknown, be
     project_id: d.projectId,
     bereich: d.projectId ? null : d.bereich,
     notiz: d.notiz || null,
+    gutschrift: d.gutschrift,
   };
   if (bestaetigen) aenderung.zu_pruefen = false;
   const { data, error } = await supabase.from("incoming_invoices").update(aenderung).eq("id", id).select("id");

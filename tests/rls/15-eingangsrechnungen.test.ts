@@ -50,8 +50,8 @@ describe("Eingangsrechnungen (Tabelle)", () => {
     expect((await malerC.from("incoming_invoices").insert(zeile())).error).not.toBeNull();
   });
 
-  it("niemand löscht (nur archivieren)", async () => {
-    const z = zeile();
+  it("bestätigte Rechnungen löscht niemand (nur archivieren); „Zu prüfen“ darf weg, siehe 30-…", async () => {
+    const z = { ...zeile(), zu_pruefen: false };
     await bueroC.from("incoming_invoices").insert(z);
     const weg = await bueroC.from("incoming_invoices").delete().eq("id", z.id).select("id");
     expect(weg.data ?? []).toEqual([]);
