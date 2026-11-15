@@ -32,14 +32,13 @@ async function main() {
   if (error) throw new Error(`Zeitplan in Supabase: ${error.message}`);
   console.log(`Zeitplan in Supabase gesetzt (${new URL(url).hostname}).`);
 
-  // Vercel: altes CRON_SECRET entfernen (falls vorhanden), neues eintragen. Das Geheimnis geht nur über stdin an die Befehlszeile.
+  // Vercel: CRON_SECRET überschreiben (--force). Das Geheimnis geht nur über stdin an die Befehlszeile.
   const npx = process.platform === "win32" ? "npx.cmd" : "npx";
-  try {
-    execFileSync(npx, ["vercel@latest", "env", "rm", "CRON_SECRET", "production", "-y"], { stdio: "ignore", shell: process.platform === "win32" });
-  } catch {
-    // war nicht gesetzt
-  }
-  execFileSync(npx, ["vercel@latest", "env", "add", "CRON_SECRET", "production"], { input: geheimnis, stdio: ["pipe", "ignore", "inherit"], shell: process.platform === "win32" });
+  execFileSync(npx, ["vercel@latest", "env", "add", "CRON_SECRET", "--environment", "production", "--force"], {
+    input: geheimnis,
+    stdio: ["pipe", "ignore", "inherit"],
+    shell: process.platform === "win32",
+  });
   console.log("CRON_SECRET in Vercel (Production) erneuert. Jetzt Production neu bauen lassen.");
 }
 

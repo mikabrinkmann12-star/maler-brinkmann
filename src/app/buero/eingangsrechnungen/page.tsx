@@ -5,6 +5,7 @@ import { cn } from "cn";
 import { BelegFilter } from "@/components/listen/beleg-filter";
 import type { ListenOption } from "@/components/listen/mehrfach-liste";
 import { StatusPille } from "@/components/status-pille";
+import { buttonVariants } from "@/components/ui/button";
 import { summe } from "@/lib/angebot-liste";
 import { requireBueroRecht } from "@/lib/auth";
 import { heuteIso } from "@/lib/datum";
@@ -77,6 +78,7 @@ export default async function EingangsrechnungenListe({ searchParams }: PageProp
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Link href="/buero/bankabgleich" className={buttonVariants({ variant: "outline", className: "h-8 px-3 text-[13px]" })}>Kontoauszug abgleichen</Link>
           {imapKonfiguration() && <PostfachAbrufen />}
           <RechnungHinzufuegen />
         </div>

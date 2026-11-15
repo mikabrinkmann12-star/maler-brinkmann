@@ -70,7 +70,10 @@ export default async function RechnungsListe({ searchParams }: PageProps<"/buero
             Eine Rechnung entsteht aus einem Angebot („Rechnung erstellen“ im Angebot). Nummer und PDF kommen aus der App. Ältere Rechnungen aus früheren Systemen stehen ebenfalls hier (nur lesbar, bezahlbar und mahnbar).
           </p>
         </div>
-        <Link href="/buero/rechnungen/steuerberater" className={buttonVariants({ variant: "outline" })}>Export für den Steuerberater</Link>
+        <div className="flex flex-wrap gap-2">
+          <Link href="/buero/bankabgleich" className={buttonVariants({ variant: "outline" })}>Kontoauszug abgleichen</Link>
+          <Link href="/buero/rechnungen/steuerberater" className={buttonVariants({ variant: "outline" })}>Export für den Steuerberater</Link>
+        </div>
       </div>
 
       <BelegFilter
