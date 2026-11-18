@@ -40,7 +40,7 @@ describe("DATEV", () => {
     expect(zeilen[0].startsWith('"EXTF";510;21;"Buchungsstapel";7;20261024123045000;')).toBe(true);
     expect(zeilen[0]).toContain(";29098;55003;20260101;4;20261001;20261031;");
     expect(zeilen[1].startsWith('"Umsatz (ohne Soll/Haben-Kz)";"Soll/Haben-Kennzeichen"')).toBe(true);
-    expect(zeilen[2]).toBe('1548,31;"S";"EUR";;;;10000;8400;;2410;"R-2026-0001";;;"Rechnung Anna Muster Innenanstrich"');
+    expect(zeilen[2]).toBe('1548,31;"S";"EUR";;;;10000;8400;;2410;"R-2026-0001";;;"Rechnung Anna Muster Innenanstrich";;;;;;');
     // Gutschrift: Haben, positiver Betrag, Umlaute raus
     expect(zeilen[3].startsWith('119,00;"H";"EUR"')).toBe(true);
     expect(zeilen[3]).toContain("Gutschrift Mueller & Soehne");

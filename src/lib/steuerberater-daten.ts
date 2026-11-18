@@ -33,6 +33,7 @@ export async function exportRechnungenLaden(zeitraum: { von: string; bis: string
   return (data ?? []).map((r) => ({
     id: r.id,
     pdfPfad: r.pdf_pfad,
+    beleg: r.pdf_pfad && !r.pdf_pfad.endsWith(".xml") ? r.id : null,
     nummer: r.rechnungsnummer ?? "",
     art: istRechnungsArt(r.art) ? r.art : "rechnung",
     datum: r.rechnungsdatum,

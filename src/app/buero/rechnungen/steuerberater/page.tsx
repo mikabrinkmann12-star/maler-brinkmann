@@ -62,10 +62,24 @@ export default async function SteuerberaterSeite({ searchParams }: PageProps<"/b
               ))}
             </div>
             <p className="text-xs text-muted-foreground">Die Dateien gehen in Teilen zu je {ZIP_TEIL_GROESSE} Rechnungen herunter (Grenze des Servers). Bei Rechnungen der App liegt das XML der E-Rechnung dabei.</p>
+            {teile > 0 && (
+              <div className="flex flex-col gap-2 rounded-lg border p-3">
+                <p className="text-sm font-medium">Für DATEV Belegtransfer (Belege mit den Buchungen verknüpft)</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  {Array.from({ length: teile }, (_, i) => (
+                    <a key={i} href={`/buero/rechnungen/steuerberater/export?typ=belegtransfer&teil=${i + 1}&${abfrage}`} className={btn}><FolderArchiveIcon /> Belege für Belegtransfer{teile > 1 ? `, Teil ${i + 1} von ${teile}` : ""}</a>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Die ZIP-Datei enthält die Rechnungs-PDFs und eine document.xml. Jeder Beleg hat eine eigene ID, die auch im DATEV-Buchungsstapel in der Spalte „Beleglink“ steht.
+                  Die Steuerberaterin lädt die ZIP-Datei mit „DATEV Belegtransfer“ hoch und liest danach den Buchungsstapel ein, dann sind Buchung und Rechnung verbunden.
+                </p>
+              </div>
+            )}
           </div>
         )}
         <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">
-          Der DATEV-Buchungsstapel ist ein Vorschlag nach dem bekannten Aufbau (Format 510) und noch nicht mit DATEV getestet. Konten und Nummern unten stellt der Steuerberater ein; er prüft die Datei beim ersten Import. Jede Rechnung wird auf das Kundenkonto des Kunden gebucht (ab 10001), dazu gibt es die Kundenliste „DATEV-Kundenkonten“ zum Einlesen.
+          Der DATEV-Buchungsstapel ist ein Vorschlag nach dem bekannten Aufbau (Format 510) und noch nicht mit DATEV getestet. Konten und Nummern unten stellt der Steuerberater ein; er prüft die Datei beim ersten Import. Jede Rechnung wird auf das Kundenkonto des Kunden gebucht (ab 10001), dazu gibt es die Kundenliste „DATEV-Kundenkonten“ zum Einlesen. Die Buchungen hat die Steuerberaterin testweise eingelesen (18.11.2026: korrekt übernommen); die Verknüpfung mit den Belegen ist neu und noch nicht mit DATEV getestet.
         </p>
       </section>
 

@@ -33,8 +33,9 @@ export function DatevFormular({ start, darfAendern }: { start: DatevEinstellunge
         {eingabe("erloes0", "Erlöse 0 %", start.erloes0)}
         {eingabe("erloes_reverse_charge", "Erlöse § 13b (Reverse-Charge)", start.erloesReverseCharge)}
         {eingabe("abschlag19", "Abschlagsrechnungen 19 %", start.abschlag19)}
+        {eingabe("abschlag7", "Abschlagsrechnungen 7 %", start.abschlag7)}
         {eingabe("abschlag_reverse_charge", "Abschlagsrechnungen § 13b", start.abschlagReverseCharge)}
-        {eingabe("schluss", "Schlussrechnungen", start.schluss, "Die Steuerberaterin bucht sie mit den Abschlägen.")}
+        {eingabe("schluss", "Schlussrechnungen", start.schluss, "Gebucht wird der Gesamtbetrag der Schlussrechnung (inklusive der Abschläge).")}
       </div>
       {darfAendern && (
         <div className="flex items-center gap-3">

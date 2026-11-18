@@ -28,6 +28,7 @@ export async function datevSpeichern(_vorher: DatevZustand, formData: FormData):
     erloes0: konto(formData, "erloes0", "Erlöse 0 %"),
     erloes_reverse_charge: konto(formData, "erloes_reverse_charge", "Erlöse § 13b"),
     abschlag19: konto(formData, "abschlag19", "Abschlagsrechnungen 19 %"),
+    abschlag7: konto(formData, "abschlag7", "Abschlagsrechnungen 7 %"),
     abschlag_reverse_charge: konto(formData, "abschlag_reverse_charge", "Abschlagsrechnungen § 13b"),
     schluss: konto(formData, "schluss", "Schlussrechnungen"),
     sachkontenlaenge: konto(formData, "sachkontenlaenge", "Sachkontenlänge", 4, 8),

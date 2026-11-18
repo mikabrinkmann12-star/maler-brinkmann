@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DATEV_STANDARD, datevAusJson, datevCsv, debitorenCsv, gegenKonto, journalCsv, type JournalZeile } from "./steuerberater-export";
+import { DATEV_STANDARD, belegtransferDocumentXml, datevAusJson, datevCsv, debitorenCsv, gegenKonto, journalCsv, type JournalZeile } from "./steuerberater-export";
 
 // Konten nach den Angaben der Steuerberaterin (12.11.2026, SKR03)
 const z = (teil: Partial<JournalZeile> = {}): JournalZeile => ({
@@ -20,7 +20,7 @@ describe("Konten der Steuerberaterin", () => {
     expect(gegenKonto(z({ reverseCharge: true, steuersatz: 0 }), e)).toBe(8337);
     expect(gegenKonto(z({ art: "abschlag" }), e)).toBe(1718);
     expect(gegenKonto(z({ art: "abschlag", reverseCharge: true, steuersatz: 0 }), e)).toBe(1719);
-    expect(gegenKonto(z({ art: "abschlag", steuersatz: 7 }), e)).toBe(8300);
+    expect(gegenKonto(z({ art: "abschlag", steuersatz: 7 }), e)).toBe(1711);
     expect(gegenKonto(z({ art: "schluss" }), e)).toBe(1590);
     expect(gegenKonto(z({ art: "schluss", reverseCharge: true, steuersatz: 0 }), e)).toBe(1590);
   });
@@ -46,5 +46,33 @@ describe("Konten der Steuerberaterin", () => {
     expect(zeilen[2]).toContain(';"DE";"288936236";');
     expect(zeilen[3].startsWith('10002;"";"";"Mueller";"Anna";"";1;')).toBe(true);
     expect(zeilen[3].endsWith('"Weg 1";"";"26683";"Saterland";"DE"')).toBe(true);
+  });
+});
+
+describe("Antworten der Steuerberaterin vom 18.11.2026", () => {
+  it("Abschlag 7 % auf 1711, Schlussrechnung mit Gesamtbetrag inklusive Abschlägen", () => {
+    expect(DATEV_STANDARD.abschlag7).toBe(1711);
+    expect(gegenKonto(z({ art: "abschlag", steuersatz: 7 }), DATEV_STANDARD)).toBe(1711);
+    const zeilen = datevCsv([z({ art: "schluss", netto: 400, brutto: 476, abzugBrutto: 1190 })], DATEV_STANDARD, { von: "2026-11-01", bis: "2026-11-30" }).trim().split("\r\n");
+    expect(zeilen[2].startsWith("1666,00;")).toBe(true);
+    expect(zeilen[2]).toContain(";1590;");
+  });
+
+  it("Beleglink im Buchungsstapel und document.xml mit derselben GUID", () => {
+    const guid = "3f2b1c4d-1111-4222-8333-944455556666";
+    const zeilen = datevCsv([z({ beleg: guid }), z({ nummer: "R-3000" })], DATEV_STANDARD, { von: "2026-11-01", bis: "2026-11-30" }).trim().split("\r\n");
+    expect(zeilen[1].endsWith('"Zinssperre";"Beleglink"')).toBe(true);
+    expect(zeilen[1].split(";")).toHaveLength(20);
+    expect(zeilen[2].endsWith(`;"BEDI ""${guid}"""`)).toBe(true);
+    expect(zeilen[2].split(";")).toHaveLength(20);
+    expect(zeilen[3].endsWith(";")).toBe(true);
+    const xml = belegtransferDocumentXml([{ guid, dateien: ["R-2026-0001.pdf", "R-2026-0001.xml"], datum: "2026-11-12" }], new Date("2026-11-18T10:00:00Z"), "Maler & Co");
+    expect(xml).toContain('xmlns="http://xml.datev.de/bedi/tps/document/v06.0"');
+    expect(xml).toContain('version="6.0" generatingSystem="Maler &amp; Co"');
+    expect(xml).toContain("<date>2026-11-18T10:00:00</date>");
+    expect(xml).toContain(`<document guid="${guid}" processID="2">`);
+    expect(xml).toContain('<extension xsi:type="File" name="R-2026-0001.pdf"/>');
+    expect(xml).toContain('<extension xsi:type="File" name="R-2026-0001.xml"/>');
+    expect(xml).toContain('<level id="3" name="2026/11"/>');
   });
 });

@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { requireBueroRecht } from "@/lib/auth";
 import { eRechnungFuer } from "@/lib/e-rechnung-daten";
 import { datevEinstellungenLaden, debitorenLaden, exportRechnungenLaden } from "@/lib/steuerberater-daten";
-import { ZIP_TEIL_GROESSE, datevCsv, debitorenCsv, inTeile, journalCsv, zeitraumLesen } from "@/lib/steuerberater-export";
+import { firmaLaden } from "@/lib/firma-daten";
+import { ZIP_TEIL_GROESSE, belegtransferDocumentXml, datevCsv, debitorenCsv, inTeile, journalCsv, zeitraumLesen, type BelegEintrag } from "@/lib/steuerberater-export";
 import { createClient } from "@/lib/supabase/server";
 import { zipErzeugen } from "@/lib/zip";
 
@@ -12,7 +13,8 @@ const kopf = (typ: string, name: string) => ({ "Content-Type": typ, "Content-Dis
 
 /**
  * Export für den Steuerberater (nur Büro/Admin): `typ=journal` (CSV für Excel), `typ=datev` (Buchungsstapel im DATEV-Format, Windows-1252)
- * oder `typ=zip&teil=N` (Rechnungs-PDFs und E-Rechnungs-XML, in Teilen). Route Handler brauchen eine eigene Rollenprüfung.
+ * `typ=zip&teil=N` (Rechnungs-PDFs und E-Rechnungs-XML, in Teilen) oder `typ=belegtransfer&teil=N` (dieselben Dateien mit document.xml für
+ * „DATEV Belegtransfer“; die GUID = Rechnungs-ID steht im Buchungsstapel als Beleglink). Route Handler brauchen eine eigene Rollenprüfung.
  */
 export async function GET(anfrage: Request) {
   await requireBueroRecht("rechnungen");
@@ -40,7 +42,8 @@ export async function GET(anfrage: Request) {
     // DATEV erwartet ANSI (Windows-1252); datevCsv hat Umlaute schon ersetzt, übrige Zeichen werden zu „?“
     return new NextResponse(Buffer.from(datevCsv(zeilen, einst, zeitraum), "latin1"), { headers: kopf("text/csv; charset=windows-1252", `EXTF_Buchungsstapel_${name}.csv`) });
   }
-  if (typ !== "zip") return new NextResponse("Unbekannte Art des Exports.", { status: 400 });
+  if (typ !== "zip" && typ !== "belegtransfer") return new NextResponse("Unbekannte Art des Exports.", { status: 400 });
+  const belegtransfer = typ === "belegtransfer";
 
   const mitDatei = zeilen.filter((z) => z.pdfPfad && !z.pdfPfad.endsWith(".xml"));
   const teile = inTeile(mitDatei, ZIP_TEIL_GROESSE);
@@ -50,6 +53,7 @@ export async function GET(anfrage: Request) {
 
   const supabase = await createClient();
   const dateien: { name: string; inhalt: Uint8Array }[] = [];
+  const belege: BelegEintrag[] = [];
   const benutzt = new Set<string>();
   let gesamt = 0;
   for (const z of teile[teil - 1]) {
@@ -62,6 +66,8 @@ export async function GET(anfrage: Request) {
     benutzt.add(dateiname);
     dateien.push({ name: dateiname, inhalt });
     gesamt += inhalt.length;
+    const beleg: BelegEintrag = { guid: z.id, dateien: [dateiname], datum: z.datum };
+    if (belegtransfer) belege.push(beleg);
     // Bei eigenen Rechnungen gehört das XML der E-Rechnung zum Beleg (E-Rechnungen sind im Original aufzubewahren)
     if (z.anbieter === "eigen") {
       const e = await eRechnungFuer(z.id);
@@ -69,10 +75,17 @@ export async function GET(anfrage: Request) {
         const xml = new TextEncoder().encode(e.xml);
         dateien.push({ name: dateiname.replace(/\.pdf$/, ".xml"), inhalt: xml });
         gesamt += xml.length;
+        beleg.dateien.push(dateiname.replace(/\.pdf$/, ".xml"));
       }
     }
     if (gesamt > MAX_BYTES) return new NextResponse("Der Teil ist zu groß. Grenze den Zeitraum ein.", { status: 413 });
   }
   if (!dateien.length) return new NextResponse("Die Dateien konnten nicht geladen werden.", { status: 404 });
+  if (belegtransfer) {
+    const firma = await firmaLaden();
+    // document.xml liegt neben den Belegen direkt im ZIP (nicht in einem Ordner), so erwartet es DATEV Belegtransfer
+    dateien.unshift({ name: "document.xml", inhalt: new TextEncoder().encode(belegtransferDocumentXml(belege, new Date(), firma.name || "Rechnungen")) });
+    return new NextResponse(new Uint8Array(zipErzeugen(dateien)), { headers: kopf("application/zip", `Belegtransfer_${name}_Teil${teil}von${teile.length}.zip`) });
+  }
   return new NextResponse(new Uint8Array(zipErzeugen(dateien)), { headers: kopf("application/zip", `${name}_Teil${teil}von${teile.length}.zip`) });
 }

@@ -28,6 +28,8 @@ export type JournalZeile = {
   anbieter: "eigen" | "aelter";
   /** Personenkonto des Kunden (Debitor); null = Sammeldebitor aus den Einstellungen */
   debitor?: number | null;
+  /** GUID des Belegs (= ID der Rechnung) für die Verknüpfung in DATEV (Spalte „Beleglink“); nur wenn es ein gespeichertes PDF gibt */
+  beleg?: string | null;
 };
 
 const komma = (w: number): string => (Math.round(w * 100) / 100).toFixed(2).replace(".", ",");
@@ -68,16 +70,18 @@ export type DatevEinstellungen = {
   erloesReverseCharge: number;
   /** Abschlagsrechnungen getrennt verbuchen (Steuerberaterin, 12.11.2026): 19 % und § 13b */
   abschlag19: number;
+  /** Abschläge mit 7 % (Steuerberaterin, 18.11.2026: 1711) */
+  abschlag7: number;
   abschlagReverseCharge: number;
   /** Schlussrechnungen auf ein eigenes Konto; die Steuerberaterin bucht sie dann mit den Abschlägen */
   schluss: number;
   sachkontenlaenge: number;
 };
 
-/** Werte der Steuerberaterin (12.11.2026, SKR03): Erlöse 8400/8300, 13b 8337, Abschläge 1718/1719, Schluss 1590. */
+/** Werte der Steuerberaterin (12.11. und 18.11.2026, SKR03): Erlöse 8400/8300, 13b 8337, Abschläge 1718 (19 %) / 1711 (7 %) / 1719 (13b), Schluss 1590. */
 export const DATEV_STANDARD: DatevEinstellungen = {
   berater: 0, mandant: 0, debitor: 10000, erloes19: 8400, erloes7: 8300, erloes0: 8200, erloesReverseCharge: 8337,
-  abschlag19: 1718, abschlagReverseCharge: 1719, schluss: 1590, sachkontenlaenge: 4,
+  abschlag19: 1718, abschlag7: 1711, abschlagReverseCharge: 1719, schluss: 1590, sachkontenlaenge: 4,
 };
 
 /** Gespeicherten Wert lesen; Unbrauchbares fällt auf die Standardwerte zurück. */
@@ -94,6 +98,7 @@ export function datevAusJson(wert: unknown): DatevEinstellungen {
     erloes0: zahl(o.erloes0, 1, 99_999_999, s.erloes0),
     erloesReverseCharge: zahl(o.erloes_reverse_charge, 1, 99_999_999, s.erloesReverseCharge),
     abschlag19: zahl(o.abschlag19, 1, 99_999_999, s.abschlag19),
+    abschlag7: zahl(o.abschlag7, 1, 99_999_999, s.abschlag7),
     abschlagReverseCharge: zahl(o.abschlag_reverse_charge, 1, 99_999_999, s.abschlagReverseCharge),
     schluss: zahl(o.schluss, 1, 99_999_999, s.schluss),
     sachkontenlaenge: zahl(o.sachkontenlaenge, 4, 8, s.sachkontenlaenge),
@@ -107,13 +112,14 @@ export function erloesKonto(z: Pick<JournalZeile, "steuersatz" | "reverseCharge"
 }
 
 /**
- * Gegenkonto einer Buchung: Abschlagsrechnungen auf die Abschlagskonten (19 % bzw. § 13b; andere Sätze wie Erlöse),
+ * Gegenkonto einer Buchung: Abschlagsrechnungen auf die Abschlagskonten (19 %, 7 % bzw. § 13b; 0 % wie Erlöse),
  * Schlussrechnungen auf das Schlusskonto, alles andere auf das Erlöskonto nach Steuersatz.
  */
 export function gegenKonto(z: Pick<JournalZeile, "art" | "steuersatz" | "reverseCharge">, e: DatevEinstellungen): number {
   if (z.art === "abschlag") {
     if (z.reverseCharge) return e.abschlagReverseCharge;
     if (z.steuersatz === 19) return e.abschlag19;
+    if (z.steuersatz === 7) return e.abschlag7;
   }
   if (z.art === "schluss") return e.schluss;
   return erloesKonto(z, e);
@@ -137,15 +143,20 @@ export function datevCsv(zeilen: JournalZeile[], e: DatevEinstellungen, zeitraum
   ].join(";");
   const spalten = [
     "Umsatz (ohne Soll/Haben-Kz)", "Soll/Haben-Kennzeichen", "WKZ Umsatz", "Kurs", "Basis-Umsatz", "WKZ Basis-Umsatz", "Konto", "Gegenkonto (ohne BU-Schlüssel)", "BU-Schlüssel",
-    "Belegdatum", "Belegfeld 1", "Belegfeld 2", "Skonto", "Buchungstext",
-  ].map((s) => `"${s}"`).join(";");
+    "Belegdatum", "Belegfeld 1", "Belegfeld 2", "Skonto", "Buchungstext", "Postensperre", "Diverse Adressnummer", "Geschäftspartnerbank", "Sachverhalt",
+    "Zinssperre", "Beleglink",
+  ].map((s) => `"${ohneUmlaute(s)}"`).join(";");
   // Eine bei einer älteren Rechnung (aus einem früheren System) vermerkte Stornierung hat bei uns keinen Storno-Beleg, der sie ausgleicht: sie nicht buchen (steht weiter im Journal). Bei eigenen Rechnungen gleicht der Storno-Beleg aus.
   const sortiert = zeilen.filter((z) => !(z.status === "storniert" && z.anbieter !== "eigen")).sort((a, b) => a.datum.localeCompare(b.datum) || a.nummer.localeCompare(b.nummer));
   const buchungen = sortiert.map((z) => {
     const gutschrift = z.art === "gutschrift" || z.art === "storno";
+    // Schlussrechnung: Gesamtbetrag inklusive der angerechneten Abschläge (Steuerberaterin, 18.11.2026)
+    const betrag = z.art === "schluss" ? z.brutto + z.abzugBrutto : z.brutto;
+    // Beleglink: BEDI "<GUID>" verknüpft die Buchung mit dem Beleg aus dem Belegtransfer-ZIP (gleiche GUID in document.xml)
+    const beleglink = z.beleg ? `"BEDI ""${z.beleg}"""` : "";
     return [
-      komma(Math.abs(z.brutto)), gutschrift ? '"H"' : '"S"', '"EUR"', "", "", "", String(z.debitor ?? e.debitor), String(gegenKonto(z, e)), "", ttmm(z.datum), datevText(z.nummer, 36), "", "",
-      datevText(`${RECHNUNGS_ART_NAMEN[z.art]} ${z.kunde} ${z.betreff}`, 60),
+      komma(Math.abs(betrag)), gutschrift ? '"H"' : '"S"', '"EUR"', "", "", "", String(z.debitor ?? e.debitor), String(gegenKonto(z, e)), "", ttmm(z.datum), datevText(z.nummer, 36), "", "",
+      datevText(`${RECHNUNGS_ART_NAMEN[z.art]} ${z.kunde} ${z.betreff}`, 60), "", "", "", "", "", beleglink,
     ].join(";");
   });
   return [kopf, spalten, ...buchungen].join("\r\n") + "\r\n";
@@ -225,4 +236,40 @@ export function inTeile<T>(liste: T[], groesse: number): T[][] {
   const teile: T[][] = [];
   for (let i = 0; i < liste.length; i += groesse) teile.push(liste.slice(i, i + groesse));
   return teile;
+}
+
+// ---------------------------------------------------------------------------
+// Belegtransfer (Steuerberaterin, 18.11.2026): ZIP mit den Rechnungs-PDFs und einer document.xml nach der „DATEV XML-Schnittstelle online“
+// (Version 6.0, Verwaltungsdatendatei). Jeder Beleg bekommt als GUID die ID der Rechnung; dieselbe GUID steht im Buchungsstapel in der
+// Spalte „Beleglink“ (BEDI "<GUID>"). Hochgeladen wird das ZIP mit der App „DATEV Belegtransfer“ nach Unternehmen online.
+// ---------------------------------------------------------------------------
+
+export type BelegEintrag = { guid: string; dateien: string[]; datum: string };
+
+const xmlAttr = (t: string) => t.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+/** document.xml: ein <document> je Rechnung mit GUID, den Dateien (PDF, ggf. E-Rechnungs-XML) und dem Ablageordner. */
+export function belegtransferDocumentXml(belege: BelegEintrag[], jetzt: Date = new Date(), softwarename = "Maler Brinkmann"): string {
+  const datum = jetzt.toISOString().slice(0, 19);
+  const dokumente = belege.map((b) => {
+    const dateien = b.dateien.map((d) => `      <extension xsi:type="File" name="${xmlAttr(d)}"/>`).join("\n");
+    return `    <document guid="${xmlAttr(b.guid)}" processID="2">
+${dateien}
+      <repository>
+        <level id="1" name="${xmlAttr(softwarename)}"/>
+        <level id="2" name="Ausgangsrechnungen"/>
+        <level id="3" name="${b.datum.slice(0, 4)}/${b.datum.slice(5, 7)}"/>
+      </repository>
+    </document>`;
+  });
+  return `<?xml version="1.0" encoding="utf-8"?>
+<archive xmlns="http://xml.datev.de/bedi/tps/document/v06.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://xml.datev.de/bedi/tps/document/v06.0 Document_v060.xsd" version="6.0" generatingSystem="${xmlAttr(softwarename)}">
+  <header>
+    <date>${datum}</date>
+  </header>
+  <content>
+${dokumente.join("\n")}
+  </content>
+</archive>
+`;
 }
