@@ -20,6 +20,7 @@ const TITEL: Record<string, string> = {
   termin: "Termin",
   container: "Container",
   anruf: "Anruf",
+  anfrage: "Neue Anfrage",
   angebot_geoeffnet: "Angebot geöffnet",
   angebot_angenommen: "Angebot angenommen",
   angebot_abgelehnt: "Angebot abgelehnt",
@@ -36,6 +37,7 @@ export function hinweisZiel(h: { typ: string; project_id: string | null }): stri
   if (h.typ === "termin") return "/buero/plantafel/termine";
   if (h.typ === "container") return "/buero/container";
   if (h.typ === "anruf") return "/buero/anrufe";
+  if (h.typ === "anfrage") return "/buero/anfragen";
   return null;
 }
 

@@ -16,6 +16,7 @@ function ziel(h: Hinweis): string | null {
   if (h.typ === "termin") return "/buero/plantafel/termine";
   if (h.typ === "container") return "/buero/container";
   if (h.typ === "anruf") return "/buero/anrufe";
+  if (h.typ === "anfrage") return "/buero/anfragen";
   return null;
 }
 

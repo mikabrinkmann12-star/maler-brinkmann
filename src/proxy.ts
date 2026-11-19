@@ -55,7 +55,7 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Alles außer statischen Dateien, Icons, PWA-Dateien, /api/version und /api/cron (Zeitplan-Aufrufe von Vercel, eigene Prüfung mit CRON_SECRET)
-    "/((?!_next/static|_next/image|favicon.ico|icons/|sw.js|manifest.webmanifest|api/version|api/cron/|api/anrufe|api/v1|angebot/|.*\\.(?:png|jpg|jpeg|svg|webp|ico)$).*)",
+    // Alles außer statischen Dateien, Icons, PWA-Dateien, /api/version, /api/cron (Zeitplan-Aufrufe von Vercel, eigene Prüfung mit CRON_SECRET) und die Webhooks /api/anrufe, /api/anfragen (eigene Prüfung mit Geheimnis)
+    "/((?!_next/static|_next/image|favicon.ico|icons/|sw.js|manifest.webmanifest|api/version|api/cron/|api/anrufe|api/anfragen|api/v1|angebot/|.*\\.(?:png|jpg|jpeg|svg|webp|ico)$).*)",
   ],
 };

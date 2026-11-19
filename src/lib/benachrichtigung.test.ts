@@ -12,6 +12,11 @@ describe("Benachrichtigungen", () => {
     expect(hinweisZiel({ typ: "termin", project_id: null })).toBe("/buero/plantafel/termine");
     expect(hinweisZiel({ typ: "x", project_id: null })).toBeNull();
   });
+  it("Website-Anfrage: eigener Titel und Ziel /buero/anfragen", () => {
+    expect(hinweisTitel("anfrage")).toBe("Neue Anfrage");
+    expect(hinweisZiel({ typ: "anfrage", project_id: null })).toBe("/buero/anfragen");
+    expect(hinweisTitel("anruf")).toBe("Anruf");
+  });
   it("Chat-Text mit Vorschau, lange Texte werden gekürzt", () => {
     expect(chatText(1, null)).toBe("1 neue Nachricht");
     expect(chatText(3, "Wir sind\n  fertig")).toBe("3 neue Nachrichten: Wir sind fertig");

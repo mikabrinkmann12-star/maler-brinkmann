@@ -12,6 +12,7 @@ import {
   FolderIcon,
   HouseIcon,
   LayersIcon,
+  MailIcon,
   InboxIcon,
   PhoneIcon,
   PlusIcon,
@@ -36,6 +37,8 @@ type Eintrag = {
   nurAdmin?: boolean;
   /** Weitere Pfade, bei denen der Eintrag als aktiv gilt (z. B. Urlaubsanträge gehören zu „Zeiten“). */
   auch?: string[];
+  /** Zähler rechts neben dem Namen (Zahl aus buero-kontext) */
+  zaehler?: "anfragen";
 };
 
 // Reihenfolge wie in Plancraft: Übersicht, Plantafel („Einteilung“), Projekte, Angebote, Ausgangs- und Eingangsrechnungen, Zeiten, Stammdaten, Kontakte.
@@ -51,6 +54,7 @@ export const BUERO_MENUE: Eintrag[] = [
   { href: "/buero/ki-system", name: "KI-System", icon: BotIcon, nurAdmin: true },
   { href: "/buero/kontakte", name: "Kontakte", icon: UsersIcon, recht: "kontakte_ansehen", plus: { href: "/buero/kontakte/neu", titel: "Neuer Kontakt", recht: "kontakte_bearbeiten" } },
   { href: "/buero/anrufe", name: "Anrufe", icon: PhoneIcon, recht: "buero_zugang" },
+  { href: "/buero/anfragen", name: "Anfragen", icon: MailIcon, recht: "buero_zugang", zaehler: "anfragen" },
 ];
 
 /**
@@ -68,7 +72,7 @@ export function BueroNavigation({
 }) {
   const pfad = usePathname();
 
-  const { ungelesen, rechte, menue } = useBuero();
+  const { ungelesen, rechte, menue, anfragenNeu = 0 } = useBuero();
   // Erst nach Rechten filtern, dann nach der eigenen „Darstellung“ ordnen und ausblenden
   const erlaubt = BUERO_MENUE.filter((e) => (!e.nurAdmin || istAdmin) && (!e.recht || rechtOk(rechte, e.recht)));
   const sichtbar = menueOrdnen(erlaubt.map((e) => e.href), menue.reihenfolge, menue.ausgeblendet)
@@ -117,7 +121,8 @@ export function BueroNavigation({
           BellIcon,
         )}
         <li aria-hidden className="my-1 h-px bg-sidebar-border" />
-        {sichtbar.map(({ href, name, icon: Icon, plus: plusEintrag, neu, auch = [] }) => {
+        {sichtbar.map(({ href, name, icon: Icon, plus: plusEintrag, neu, auch = [], zaehler }) => {
+          const zahl = zaehler === "anfragen" ? anfragenNeu : 0;
           // Das „+“ gibt es nur, wenn der Nutzer auch anlegen darf
           const plus = plusEintrag && (!plusEintrag.recht || rechtOk(rechte, plusEintrag.recht)) ? plusEintrag : undefined;
           const aktiv =
@@ -142,6 +147,11 @@ export function BueroNavigation({
                   <>
                     <span className="truncate">{name}</span>
                     {neu && <span className="rounded-full bg-blue-400/25 px-1.5 text-[10px] font-medium text-blue-200">Neu</span>}
+                    {zahl > 0 && (
+                      <span aria-label={`${zahl} neue`} className="ml-auto flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-semibold text-primary-foreground">
+                        {zahl > 99 ? "99+" : zahl}
+                      </span>
+                    )}
                   </>
                 )}
               </Link>

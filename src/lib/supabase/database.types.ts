@@ -2743,6 +2743,87 @@ export type Database = {
         }
         Relationships: []
       }
+      website_anfragen: {
+        Row: {
+          archiviert_am: string | null
+          bearbeitet_von: string | null
+          betreff: string
+          contact_id: string | null
+          created_at: string
+          email: string | null
+          id: string
+          nachname: string | null
+          nachricht: string
+          name: string
+          notiz: string | null
+          ort: string | null
+          plz: string | null
+          quelle: string
+          status: string
+          strasse: string | null
+          telefon: string | null
+          updated_at: string
+          vorname: string | null
+        }
+        Insert: {
+          archiviert_am?: string | null
+          bearbeitet_von?: string | null
+          betreff?: string
+          contact_id?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          nachname?: string | null
+          nachricht: string
+          name: string
+          notiz?: string | null
+          ort?: string | null
+          plz?: string | null
+          quelle?: string
+          status?: string
+          strasse?: string | null
+          telefon?: string | null
+          updated_at?: string
+          vorname?: string | null
+        }
+        Update: {
+          archiviert_am?: string | null
+          bearbeitet_von?: string | null
+          betreff?: string
+          contact_id?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          nachname?: string | null
+          nachricht?: string
+          name?: string
+          notiz?: string | null
+          ort?: string | null
+          plz?: string | null
+          quelle?: string
+          status?: string
+          strasse?: string | null
+          telefon?: string | null
+          updated_at?: string
+          vorname?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "website_anfragen_bearbeitet_von_fkey"
+            columns: ["bearbeitet_von"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "website_anfragen_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       work_instructions: {
         Row: {
           archiviert_am: string | null
@@ -2812,6 +2893,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      anfrage_annehmen: {
+        Args: { p_contact_id?: string; p_id: string; p_kontakt?: Json }
+        Returns: string
+      }
       aufmass_bearbeitbar: {
         Args: { p_measurement_id: string }
         Returns: boolean
